@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { Circle } from '@shopify/react-native-skia';
-import type { SkiaValue } from '@shopify/react-native-skia';
+import type { SharedValue } from 'react-native-reanimated';
 
 interface NeonRingProps {
-  cx: SkiaValue<number>;
-  cy: SkiaValue<number>;
-  r: SkiaValue<number>;
+  cx: SharedValue<number>;
+  cy: SharedValue<number>;
+  r: SharedValue<number>;
   outerColor: string;
   midColor: string;
   mainColor: string;
@@ -23,7 +23,6 @@ export const NeonRing: React.FC<NeonRingProps> = ({
 }) => {
   return (
     <>
-      {/* Outer glow */}
       <Circle
         cx={cx}
         cy={cy}
@@ -33,7 +32,6 @@ export const NeonRing: React.FC<NeonRingProps> = ({
         color={outerColor}
         opacity={0.2}
       />
-      {/* Mid glow */}
       <Circle
         cx={cx}
         cy={cy}
@@ -43,7 +41,6 @@ export const NeonRing: React.FC<NeonRingProps> = ({
         color={midColor}
         opacity={0.3}
       />
-      {/* Main ring */}
       <Circle
         cx={cx}
         cy={cy}

@@ -12,12 +12,10 @@ import {
 import { NeonRing } from '../components/NeonRing';
 import { createArcPath } from '../utils/path';
 import { normalizeAngle, insideRing } from '../utils/math';
-import { RING_PALETTES } from '../constants/colors';
+import { getRandomPalette } from '../constants/colors';
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
-  RING_RADIUS,
-  BALL_RADIUS,
   START_ORBIT_SPEED,
   SPEED_INC_PER_RING,
   SPEED_CAP,
@@ -28,59 +26,55 @@ import {
   MISS_MARGIN,
   LIVES_MAX,
   DASH_TIMEOUT,
-  CENTER_Y_CURRENT,
-  CENTER_Y_NEXT,
   RING_GENERATION_MARGIN,
 } from '../constants/gameplay';
 import { BALL_COLOR } from '../constants/colors';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
+const CENTER_Y = CANVAS_HEIGHT * 0.5;
+const RING_RADIUS = CANVAS_WIDTH * 0.25;
 
 const DriftGame: React.FC = () => {
-  // Game state (SharedValues)
   const alive = useSharedValue(true);
   const lives = useSharedValue(LIVES_MAX);
   const score = useSharedValue(0);
   const displayScore = useSharedValue(0);
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
 
-  // Ring positions
   const currentX = useSharedValue(CENTER_X);
-  const currentY = useSharedValue(CENTER_Y_CURRENT);
+  const currentY = useSharedValue(CENTER_Y);
   const currentR = useSharedValue(RING_RADIUS);
 
   const nextX = useSharedValue(CENTER_X);
-  const nextY = useSharedValue(CENTER_Y_NEXT);
+  const nextY = useSharedValue(CENTER_Y - 200);
   const nextR = useSharedValue(RING_RADIUS * 0.9);
 
-  // Ball state
   const angle = useSharedValue(0);
   const speed = useSharedValue(START_ORBIT_SPEED);
   const ballX = useSharedValue(currentX.value + currentR.value);
   const ballY = useSharedValue(currentY.value);
 
-  // Gate
-  const gateAngle = useSharedValue(Math.atan2(CENTER_Y_NEXT - CENTER_Y_CURRENT, 0));
+  const gateAngle = useSharedValue(
+    Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value)
+  );
   const gateWidth = useSharedValue(START_GATE_WIDTH);
 
-  // Dash
   const dashStartTime = useSharedValue(0);
 
-  // UI state (React state)
+  const [currentPalette, setCurrentPalette] = React.useState(getRandomPalette());
+  const [nextPalette, setNextPalette] = React.useState(getRandomPalette());
+
   const [displayScoreUI, setDisplayScoreUI] = React.useState(0);
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
   const [aliveUI, setAliveUI] = React.useState(true);
 
-  // Gate path
-  const rArc = useDerivedValue(() => currentR.value + 25);
   const gateStart = useDerivedValue(() => gateAngle.value - gateWidth.value / 2);
   const gateEnd = useDerivedValue(() => gateAngle.value + gateWidth.value / 2);
 
   const gatePath = useDerivedValue(() =>
-    createArcPath(currentX.value, currentY.value, rArc.value, gateStart.value, gateEnd.value)
+    createArcPath(currentX.value, currentY.value, currentR.value, gateStart.value, gateEnd.value)
   );
 
-  // Lose life
   const loseLife = () => {
     'worklet';
     lives.value = lives.value - 1;
@@ -92,17 +86,32 @@ const DriftGame: React.FC = () => {
     }
   };
 
-  // Ring completion
+  const updatePalettes = () => {
+  const newCurrent = nextPalette;
+  setCurrentPalette(newCurrent);
+  
+  // Génère un next différent du nouveau current
+  let newNext = getRandomPalette();
+  let attempts = 0;
+  while (newNext.main === newCurrent.main && attempts < 10) {
+    newNext = getRandomPalette();
+    attempts++;
+  }
+  setNextPalette(newNext);
+};
+
   const completeRing = () => {
     'worklet';
+
     currentX.value = nextX.value;
     currentY.value = nextY.value;
     currentR.value = nextR.value;
 
     const m = RING_GENERATION_MARGIN;
-    nextX.value = m + Math.random() * (CANVAS_WIDTH - 2 * m);
-    nextY.value = m + 100 + Math.random() * (CANVAS_HEIGHT - 2 * m - 250);
-    nextR.value = RING_RADIUS * (0.85 + Math.random() * 0.3);
+    const maxRadius = RING_RADIUS * 1.2;
+    nextX.value = m + maxRadius + Math.random() * (CANVAS_WIDTH - 2 * (m + maxRadius));
+    nextY.value = m + maxRadius + Math.random() * (CANVAS_HEIGHT - 2 * (m + maxRadius));
+    nextR.value = RING_RADIUS * (0.8 + Math.random() * 0.4);
 
     score.value = score.value + 1;
     speed.value = Math.min(SPEED_CAP, speed.value + SPEED_INC_PER_RING);
@@ -113,12 +122,12 @@ const DriftGame: React.FC = () => {
     angle.value = gateAngle.value + Math.PI;
     mode.value = 'orbit';
     dashStartTime.value = 0;
+
+    runOnJS(updatePalettes)();
   };
 
-  // Tap handler
   const onTap = () => {
     if (!aliveUI) {
-      // Reset game
       alive.value = true;
       lives.value = LIVES_MAX;
       score.value = 0;
@@ -128,13 +137,13 @@ const DriftGame: React.FC = () => {
       mode.value = 'orbit';
 
       currentX.value = CENTER_X;
-      currentY.value = CENTER_Y_CURRENT;
+      currentY.value = CENTER_Y;
       currentR.value = RING_RADIUS;
       nextX.value = CENTER_X;
-      nextY.value = CENTER_Y_NEXT;
+      nextY.value = CENTER_Y - 200;
       nextR.value = RING_RADIUS * 0.9;
 
-      gateAngle.value = Math.atan2(CENTER_Y_NEXT - CENTER_Y_CURRENT, 0);
+      gateAngle.value = Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value);
       angle.value = 0;
       ballX.value = currentX.value + currentR.value;
       ballY.value = currentY.value;
@@ -142,16 +151,22 @@ const DriftGame: React.FC = () => {
       setAliveUI(true);
       setLivesUI(LIVES_MAX);
       setDisplayScoreUI(0);
+      setCurrentPalette(getRandomPalette());
+      setNextPalette(getRandomPalette());
       return;
     }
 
-    if (mode.value !== 'orbit') return;
+    if (mode.value !== 'orbit') {
+      return;
+    }
 
     const half = gateWidth.value / 2;
     const gA = normalizeAngle(gateAngle.value);
     const bA = normalizeAngle(angle.value);
     let delta = Math.abs(gA - bA);
-    if (delta > Math.PI) delta = 2 * Math.PI - delta;
+    if (delta > Math.PI) {
+      delta = 2 * Math.PI - delta;
+    }
 
     if (delta <= half + 0.2) {
       mode.value = 'dash';
@@ -161,17 +176,15 @@ const DriftGame: React.FC = () => {
     }
   };
 
-  // Game loop (UI thread)
   useFrameCallback((frameInfo) => {
     'worklet';
-    if (!alive.value) return;
+    if (!alive.value) {
+      return;
+    }
 
-    const dt = frameInfo.timeSincePreviousFrame
-      ? frameInfo.timeSincePreviousFrame / 1000
-      : 0.016;
+    const dt = frameInfo.timeSincePreviousFrame ? frameInfo.timeSincePreviousFrame / 1000 : 0.016;
     const now = Date.now();
 
-    // Smooth score display
     const scoreDiff = score.value - displayScore.value;
     if (Math.abs(scoreDiff) > 0.5) {
       displayScore.value = displayScore.value + scoreDiff * 0.15;
@@ -179,12 +192,10 @@ const DriftGame: React.FC = () => {
     }
 
     if (mode.value === 'orbit') {
-      // Orbit mode
       angle.value = angle.value + speed.value * dt;
       ballX.value = currentX.value + currentR.value * Math.cos(angle.value);
       ballY.value = currentY.value + currentR.value * Math.sin(angle.value);
     } else if (mode.value === 'dash') {
-      // Dash mode
       const dx = nextX.value - ballX.value;
       const dy = nextY.value - ballY.value;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -194,12 +205,10 @@ const DriftGame: React.FC = () => {
         ballY.value = ballY.value + (dy / dist) * DASH_SPEED * dt;
       }
 
-      // Check if inside next ring
       if (insideRing(ballX.value, ballY.value, nextX.value, nextY.value, nextR.value)) {
         completeRing();
       }
 
-      // Dash timeout
       if (dashStartTime.value > 0 && now - dashStartTime.value > DASH_TIMEOUT) {
         loseLife();
         mode.value = 'orbit';
@@ -213,33 +222,30 @@ const DriftGame: React.FC = () => {
       <StatusBar hidden />
 
       <Canvas style={styles.canvas}>
-        {/* Current ring */}
         <NeonRing
           cx={currentX}
           cy={currentY}
           r={currentR}
-          outerColor="#06b6d4"
-          midColor="#0891b2"
-          mainColor="#0e7490"
+          outerColor={currentPalette.outer}
+          midColor={currentPalette.mid}
+          mainColor={currentPalette.main}
         />
 
-        {/* Next ring */}
         <NeonRing
           cx={nextX}
           cy={nextY}
           r={nextR}
-          outerColor="#f59e0b"
-          midColor="#d97706"
-          mainColor="#b45309"
+          outerColor={nextPalette.outer}
+          midColor={nextPalette.mid}
+          mainColor={nextPalette.main}
         />
 
-        {/* Gate */}
         <Path
           path={gatePath}
           strokeWidth={12}
           strokeCap="round"
           style="stroke"
-          color="#22d3ee"
+          color={nextPalette.gate}
           opacity={0.2}
         />
         <Path
@@ -247,20 +253,17 @@ const DriftGame: React.FC = () => {
           strokeWidth={3}
           strokeCap="round"
           style="stroke"
-          color="#22d3ee"
+          color={nextPalette.gate}
         />
 
-        {/* Ball */}
-        <Circle cx={ballX} cy={ballY} r={BALL_RADIUS} color={BALL_COLOR} />
+        <Circle cx={ballX} cy={ballY} r={10} color={BALL_COLOR} />
       </Canvas>
 
-      {/* Score */}
       <View style={styles.scoreContainer}>
         <Text style={styles.scoreText}>{displayScoreUI}</Text>
         {!aliveUI && <Text style={styles.retryText}>Tap to restart</Text>}
       </View>
 
-      {/* Lives */}
       <View style={styles.livesContainer}>
         {Array.from({ length: LIVES_MAX }).map((_, i) => (
           <View
