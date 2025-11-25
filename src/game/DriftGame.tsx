@@ -8,6 +8,7 @@ import {
   useDerivedValue,
   runOnJS,
   useFrameCallback,
+  withTiming,
 } from 'react-native-reanimated';
 import { NeonRing } from '../components/NeonRing';
 import { createArcPath } from '../utils/path';
@@ -61,8 +62,16 @@ const DriftGame: React.FC = () => {
 
   const dashStartTime = useSharedValue(0);
 
-  const [currentPalette, setCurrentPalette] = React.useState(getRandomPalette());
-  const [nextPalette, setNextPalette] = React.useState(getRandomPalette());
+  const fadingRingX = useSharedValue(0);
+  const fadingRingY = useSharedValue(0);
+  const fadingRingR = useSharedValue(0);
+  const fadingRingScale = useSharedValue(0);
+  const fadingRingOpacity = useSharedValue(0);
+  const fadingRingPaletteRef = React.useRef(getRandomPalette());
+
+  const currentPaletteRef = React.useRef(getRandomPalette());
+  const nextPaletteRef = React.useRef(getRandomPalette());
+  const [, forceRender] = React.useState(0);
 
   const [displayScoreUI, setDisplayScoreUI] = React.useState(0);
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
@@ -74,6 +83,8 @@ const DriftGame: React.FC = () => {
   const gatePath = useDerivedValue(() =>
     createArcPath(currentX.value, currentY.value, currentR.value, gateStart.value, gateEnd.value)
   );
+
+  const fadingRingScaledR = useDerivedValue(() => fadingRingR.value * fadingRingScale.value);
 
   const loseLife = () => {
     'worklet';
@@ -87,21 +98,34 @@ const DriftGame: React.FC = () => {
   };
 
   const updatePalettes = () => {
-  const newCurrent = nextPalette;
-  setCurrentPalette(newCurrent);
-  
-  // Génère un next différent du nouveau current
-  let newNext = getRandomPalette();
-  let attempts = 0;
-  while (newNext.main === newCurrent.main && attempts < 10) {
-    newNext = getRandomPalette();
-    attempts++;
-  }
-  setNextPalette(newNext);
-};
+    currentPaletteRef.current = nextPaletteRef.current;
+
+    let newNext = getRandomPalette();
+    let attempts = 0;
+    while (newNext.main === currentPaletteRef.current.main && attempts < 10) {
+      newNext = getRandomPalette();
+      attempts++;
+    }
+    nextPaletteRef.current = newNext;
+    forceRender((v) => v + 1);
+  };
+
+  const captureFadingPalette = () => {
+    fadingRingPaletteRef.current = currentPaletteRef.current;
+  };
 
   const completeRing = () => {
     'worklet';
+
+    fadingRingX.value = currentX.value;
+    fadingRingY.value = currentY.value;
+    fadingRingR.value = currentR.value;
+    fadingRingScale.value = 1;
+    fadingRingOpacity.value = 1;
+    runOnJS(captureFadingPalette)();
+
+    fadingRingScale.value = withTiming(1.5, { duration: 400 });
+    fadingRingOpacity.value = withTiming(0, { duration: 400 });
 
     currentX.value = nextX.value;
     currentY.value = nextY.value;
@@ -148,11 +172,14 @@ const DriftGame: React.FC = () => {
       ballX.value = currentX.value + currentR.value;
       ballY.value = currentY.value;
 
+      fadingRingOpacity.value = 0;
+
       setAliveUI(true);
       setLivesUI(LIVES_MAX);
       setDisplayScoreUI(0);
-      setCurrentPalette(getRandomPalette());
-      setNextPalette(getRandomPalette());
+      currentPaletteRef.current = getRandomPalette();
+      nextPaletteRef.current = getRandomPalette();
+      forceRender((v) => v + 1);
       return;
     }
 
@@ -222,22 +249,43 @@ const DriftGame: React.FC = () => {
       <StatusBar hidden />
 
       <Canvas style={styles.canvas}>
+        <>
+          <Circle
+            cx={fadingRingX}
+            cy={fadingRingY}
+            r={fadingRingScaledR}
+            strokeWidth={4}
+            style="stroke"
+            color={fadingRingPaletteRef.current.outer}
+            opacity={useDerivedValue(() => fadingRingOpacity.value * 0.3)}
+          />
+          <Circle
+            cx={fadingRingX}
+            cy={fadingRingY}
+            r={fadingRingScaledR}
+            strokeWidth={3}
+            style="stroke"
+            color={fadingRingPaletteRef.current.main}
+            opacity={fadingRingOpacity}
+          />
+        </>
+
         <NeonRing
           cx={currentX}
           cy={currentY}
           r={currentR}
-          outerColor={currentPalette.outer}
-          midColor={currentPalette.mid}
-          mainColor={currentPalette.main}
+          outerColor={currentPaletteRef.current.outer}
+          midColor={currentPaletteRef.current.mid}
+          mainColor={currentPaletteRef.current.main}
         />
 
         <NeonRing
           cx={nextX}
           cy={nextY}
           r={nextR}
-          outerColor={nextPalette.outer}
-          midColor={nextPalette.mid}
-          mainColor={nextPalette.main}
+          outerColor={nextPaletteRef.current.outer}
+          midColor={nextPaletteRef.current.mid}
+          mainColor={nextPaletteRef.current.main}
         />
 
         <Path
@@ -245,7 +293,7 @@ const DriftGame: React.FC = () => {
           strokeWidth={12}
           strokeCap="round"
           style="stroke"
-          color={nextPalette.gate}
+          color={nextPaletteRef.current.gate}
           opacity={0.2}
         />
         <Path
@@ -253,7 +301,7 @@ const DriftGame: React.FC = () => {
           strokeWidth={3}
           strokeCap="round"
           style="stroke"
-          color={nextPalette.gate}
+          color={nextPaletteRef.current.gate}
         />
 
         <Circle cx={ballX} cy={ballY} r={10} color={BALL_COLOR} />
