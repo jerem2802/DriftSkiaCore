@@ -2,7 +2,7 @@
 // Logique de collision et détection
 
 import { normalizeAngle, insideRing as insideRingUtil } from '../../utils/math';
-import { MISS_MARGIN } from '../../constants/gameplay';
+import { MISS_MARGIN, PERFECT_THRESHOLD } from '../../constants/gameplay';
 
 /**
  * Vérifie si le tap est valide (dans la gate avec marge)
@@ -29,6 +29,25 @@ export const validateTap = (
     return 'miss';
   }
   return 'ignored';
+};
+
+/**
+ * Vérifie si le tap est PERFECT (au centre de la gate)
+ */
+export const isPerfectTap = (
+  angle: number,
+  gateAngle: number
+): boolean => {
+  'worklet';
+
+  const gA = normalizeAngle(gateAngle);
+  const bA = normalizeAngle(angle);
+  let delta = Math.abs(gA - bA);
+  if (delta > Math.PI) {
+    delta = 2 * Math.PI - delta;
+  }
+
+  return delta <= PERFECT_THRESHOLD;
 };
 
 /**

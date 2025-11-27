@@ -9,6 +9,8 @@ import {
   SPEED_CAP,
   MIN_GATE_WIDTH,
   SHRINK_PER_RING,
+  STREAK_FOR_LIFE,
+  LIVES_MAX,
 } from '../../constants/gameplay';
 
 interface CompleteRingParams {
@@ -34,6 +36,10 @@ interface CompleteRingParams {
   angle: SharedValue<number>;
   mode: SharedValue<'orbit' | 'dash'>;
   dashStartTime: SharedValue<number>;
+  streak: SharedValue<number>;
+  combo: SharedValue<number>;
+  lives: SharedValue<number>;
+  isPerfect: boolean;
   RING_RADIUS: number;
 }
 
@@ -63,6 +69,10 @@ export const completeRing = (params: CompleteRingParams) => {
     angle,
     mode,
     dashStartTime,
+    streak,
+    combo,
+    lives,
+    isPerfect,
     RING_RADIUS,
   } = params;
 
@@ -88,7 +98,25 @@ export const completeRing = (params: CompleteRingParams) => {
 
   nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);
 
+  // COMBO LOGIC (pour plus tard)
+  if (isPerfect) {
+    combo.value = Math.min(3, combo.value + 1);
+  } else {
+    combo.value = 1;
+  }
+
+  // SCORING - +1 par défaut
   score.value = score.value + 1;
+
+  // STREAK LOGIC
+  streak.value = streak.value + 1;
+  if (streak.value >= STREAK_FOR_LIFE) {
+    if (lives.value < LIVES_MAX) {
+      lives.value = lives.value + 1;
+    }
+    streak.value = 0;
+  }
+
   speed.value = Math.min(SPEED_CAP, speed.value + SPEED_INC_PER_RING);
   gateAngle.value = Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value);
   gateWidth.value = Math.max(MIN_GATE_WIDTH, gateWidth.value - SHRINK_PER_RING);
@@ -101,6 +129,8 @@ export const completeRing = (params: CompleteRingParams) => {
 interface LoseLifeParams {
   lives: SharedValue<number>;
   alive: SharedValue<boolean>;
+  streak: SharedValue<number>;
+  combo: SharedValue<number>;
   setLivesUI: (lives: number) => void;
   setAliveUI: (alive: boolean) => void;
 }
@@ -108,9 +138,11 @@ interface LoseLifeParams {
 export const loseLife = (params: LoseLifeParams) => {
   'worklet';
 
-  const { lives, alive, setLivesUI, setAliveUI } = params;
+  const { lives, alive, streak, combo, setLivesUI, setAliveUI } = params;
 
   lives.value = lives.value - 1;
+  streak.value = 0;
+  combo.value = 1;
   setLivesUI(lives.value);
 
   if (lives.value <= 0) {
@@ -127,6 +159,8 @@ interface RestartParams {
   speed: SharedValue<number>;
   gateWidth: SharedValue<number>;
   mode: SharedValue<'orbit' | 'dash'>;
+  streak: SharedValue<number>;
+  combo: SharedValue<number>;
   currentX: SharedValue<number>;
   currentY: SharedValue<number>;
   currentR: SharedValue<number>;
@@ -161,6 +195,8 @@ export const restart = (params: RestartParams) => {
     speed,
     gateWidth,
     mode,
+    streak,
+    combo,
     currentX,
     currentY,
     currentR,
@@ -193,6 +229,8 @@ export const restart = (params: RestartParams) => {
   speed.value = START_ORBIT_SPEED;
   gateWidth.value = START_GATE_WIDTH;
   mode.value = 'orbit';
+  streak.value = 0;
+  combo.value = 1;
 
   currentX.value = CENTER_X;
   currentY.value = CENTER_Y;

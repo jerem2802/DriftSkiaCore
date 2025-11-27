@@ -1,9 +1,9 @@
 // src/game/hooks/useGameLoop.ts
 // Game loop principal (orbit + dash)
 
-import { runOnJS, useFrameCallback } from 'react-native-reanimated';
+import { useFrameCallback } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
-import { insideRing } from '../logic/collisionDetection';
+import { insideRing, isPerfectTap } from '../logic/collisionDetection';
 import { completeRing, loseLife } from '../logic/gameLifecycle';
 import { DASH_SPEED, DASH_TIMEOUT } from '../../constants/gameplay';
 
@@ -11,7 +11,6 @@ interface UseGameLoopParams {
   alive: SharedValue<boolean>;
   mode: SharedValue<'orbit' | 'dash'>;
   score: SharedValue<number>;
-  displayScore: SharedValue<number>;
   angle: SharedValue<number>;
   speed: SharedValue<number>;
   ballX: SharedValue<number>;
@@ -26,6 +25,8 @@ interface UseGameLoopParams {
   lives: SharedValue<number>;
   gateAngle: SharedValue<number>;
   gateWidth: SharedValue<number>;
+  streak: SharedValue<number>;
+  combo: SharedValue<number>;
   fadingRingX: SharedValue<number>;
   fadingRingY: SharedValue<number>;
   fadingRingR: SharedValue<number>;
@@ -46,7 +47,6 @@ export const useGameLoop = (params: UseGameLoopParams) => {
     alive,
     mode,
     score,
-    displayScore,
     angle,
     speed,
     ballX,
@@ -61,6 +61,8 @@ export const useGameLoop = (params: UseGameLoopParams) => {
     lives,
     gateAngle,
     gateWidth,
+    streak,
+    combo,
     fadingRingX,
     fadingRingY,
     fadingRingR,
@@ -70,8 +72,6 @@ export const useGameLoop = (params: UseGameLoopParams) => {
     nextPaletteIndex,
     fadingRingPaletteIndex,
     getRandomPaletteIndex,
-    setDisplayScoreUI,
-    setLivesUI,
     setAliveUI,
     RING_RADIUS,
   } = params;
@@ -84,12 +84,6 @@ export const useGameLoop = (params: UseGameLoopParams) => {
 
     const dt = frameInfo.timeSincePreviousFrame ? frameInfo.timeSincePreviousFrame / 1000 : 0.016;
     const now = Date.now();
-
-    const scoreDiff = score.value - displayScore.value;
-    if (Math.abs(scoreDiff) > 0.5) {
-      displayScore.value = displayScore.value + scoreDiff * 0.15;
-      runOnJS(setDisplayScoreUI)(Math.round(displayScore.value));
-    }
 
     if (mode.value === 'orbit') {
       angle.value = angle.value + speed.value * dt;
@@ -106,6 +100,8 @@ export const useGameLoop = (params: UseGameLoopParams) => {
       }
 
       if (insideRing(ballX.value, ballY.value, nextX.value, nextY.value, nextR.value)) {
+        const wasPerfect = isPerfectTap(angle.value, gateAngle.value);
+        
         completeRing({
           currentPaletteIndex,
           nextPaletteIndex,
@@ -129,6 +125,10 @@ export const useGameLoop = (params: UseGameLoopParams) => {
           angle,
           mode,
           dashStartTime,
+          streak,
+          combo,
+          lives,
+          isPerfect: wasPerfect,
           RING_RADIUS,
         });
       }
@@ -137,8 +137,10 @@ export const useGameLoop = (params: UseGameLoopParams) => {
         loseLife({
           lives,
           alive,
-          setLivesUI: (l) => runOnJS(setLivesUI)(l),
-          setAliveUI: (a) => runOnJS(setAliveUI)(a),
+          streak,
+          combo,
+          setLivesUI: () => {},
+          setAliveUI: (a) => setAliveUI(a),
         });
         mode.value = 'orbit';
         dashStartTime.value = 0;

@@ -21,12 +21,13 @@ export const DASH_SPEED = 620;
 export const START_GATE_WIDTH = 1.10;
 export const MIN_GATE_WIDTH = 0.30;
 export const SHRINK_PER_RING = 0.012;
-export const PERFECT_THRESHOLD = 0.15;
+export const PERFECT_THRESHOLD = 0.15; // Radians - Perfect tap si delta <= 0.15
 export const MISS_MARGIN = 0.06;
 
-// Lives
+// Lives & Streak
 export const LIVES_MAX = 3;
 export const INVULN_TIME = 600; // ms
+export const STREAK_FOR_LIFE = 8; // Extra life tous les 8 rings
 
 // Timing
 export const DASH_TIMEOUT = 3000; // ms

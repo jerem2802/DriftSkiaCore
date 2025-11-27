@@ -1,10 +1,10 @@
 // src/game/DriftGame.tsx
-// ORCHESTRATEUR - Architecture propre et modulaire
+// ORCHESTRATEUR - TOUT EN SKIA - 0 RE-RENDER CANVAS
 
 import React from 'react';
-import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { Canvas, Circle, Path } from '@shopify/react-native-skia';
-import { runOnJS, useDerivedValue } from 'react-native-reanimated';
+import { Pressable, StatusBar, StyleSheet } from 'react-native';
+import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
+import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { NeonRing } from '../components/NeonRing';
 import { createArcPath } from '../utils/path';
 import { validateTap } from './logic/collisionDetection';
@@ -14,14 +14,29 @@ import { usePalettes } from './hooks/usePalettes';
 import { useGameLoop } from './hooks/useGameLoop';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, LIVES_MAX, START_ORBIT_SPEED, START_GATE_WIDTH } from '../constants/gameplay';
 import { BALL_COLOR } from '../constants/colors';
+import { Platform } from 'react-native';
+
+const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
+const fontStyle = {
+  fontFamily,
+  fontSize: 48,
+  fontWeight: 'bold' as const,
+};
+const font = matchFont(fontStyle);
+
+const fontStyleSmall = {
+  fontFamily,
+  fontSize: 20,
+};
+const fontSmall = matchFont(fontStyleSmall);
 
 const DriftGame: React.FC = () => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
-  const [displayScoreUI, setDisplayScoreUI] = React.useState(0);
-  const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
   const [aliveUI, setAliveUI] = React.useState(true);
+  const [scoreUI, setScoreUI] = React.useState(0);
+  const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
 
   const gateStart = useDerivedValue(() => gameState.gateAngle.value - gameState.gateWidth.value / 2);
   const gateEnd = useDerivedValue(() => gameState.gateAngle.value + gameState.gateWidth.value / 2);
@@ -40,11 +55,37 @@ const DriftGame: React.FC = () => {
     () => gameState.fadingRingR.value * gameState.fadingRingScale.value
   );
 
+  // Update UI sans re-render Canvas
+  useAnimatedReaction(
+    () => Math.round(gameState.score.value),
+    (score) => {
+      runOnJS(setScoreUI)(score);
+    }
+  );
+
+  useAnimatedReaction(
+    () => gameState.lives.value,
+    (lives) => {
+      runOnJS(setLivesUI)(lives);
+    }
+  );
+
+  // LIVES POSITIONS (Skia circles)
+  const livesPositions = React.useMemo(() => {
+    const positions = [];
+    const startX = CANVAS_WIDTH - 60;
+    const y = 70;
+    for (let i = 0; i < LIVES_MAX; i++) {
+      positions.push({ x: startX - i * 22, y });
+    }
+    return positions;
+  }, []);
+
   useGameLoop({
     ...gameState,
     ...palettes,
-    setDisplayScoreUI,
-    setLivesUI,
+    setDisplayScoreUI: () => {},
+    setLivesUI: () => {},
     setAliveUI,
   });
 
@@ -56,8 +97,8 @@ const DriftGame: React.FC = () => {
         nextPaletteIndex: palettes.nextPaletteIndex,
         getRandomPaletteIndex: palettes.getRandomPaletteIndex,
         setAliveUI,
-        setLivesUI,
-        setDisplayScoreUI,
+        setLivesUI: () => {},
+        setDisplayScoreUI: () => {},
         START_ORBIT_SPEED,
         START_GATE_WIDTH,
         LIVES_MAX,
@@ -82,8 +123,10 @@ const DriftGame: React.FC = () => {
       loseLife({
         lives: gameState.lives,
         alive: gameState.alive,
-        setLivesUI: (l) => runOnJS(setLivesUI)(l),
-        setAliveUI: (a) => runOnJS(setAliveUI)(a),
+        streak: gameState.streak,
+        combo: gameState.combo,
+        setLivesUI: () => {},
+        setAliveUI,
       });
     }
   };
@@ -93,6 +136,7 @@ const DriftGame: React.FC = () => {
       <StatusBar hidden />
 
       <Canvas style={styles.canvas}>
+        {/* FADING RING */}
         <Circle
           cx={gameState.fadingRingX}
           cy={gameState.fadingRingY}
@@ -112,6 +156,7 @@ const DriftGame: React.FC = () => {
           opacity={gameState.fadingRingOpacity}
         />
 
+        {/* CURRENT RING */}
         <NeonRing
           cx={gameState.currentX}
           cy={gameState.currentY}
@@ -121,6 +166,7 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
+        {/* NEXT RING */}
         <NeonRing
           cx={gameState.nextX}
           cy={gameState.nextY}
@@ -130,6 +176,7 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.nextPalette.value.main)}
         />
 
+        {/* GATE */}
         <Path
           path={gatePath}
           strokeWidth={12}
@@ -146,28 +193,40 @@ const DriftGame: React.FC = () => {
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
         />
 
+        {/* BALL */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
-      </Canvas>
 
-      <View style={styles.scoreContainer}>
-        <Text style={styles.scoreText}>{displayScoreUI}</Text>
-        {!aliveUI && <Text style={styles.retryText}>Tap to restart</Text>}
-      </View>
+        {/* SCORE (Skia Text) */}
+        <Text
+          x={CANVAS_WIDTH / 2 - 30}
+          y={80}
+          text={scoreUI.toString()}
+          color="white"
+          font={font}
+        />
 
-      <View style={styles.livesContainer}>
-        {Array.from({ length: LIVES_MAX }).map((_, i) => (
-          <View
+        {/* LIVES (Skia Circles) */}
+        {livesPositions.map((pos, i) => (
+          <Circle
             key={i}
-            style={[
-              styles.lifeDot,
-              {
-                backgroundColor: i < livesUI ? '#ef4444' : '#334155',
-                marginLeft: i === 0 ? 0 : 8,
-              },
-            ]}
+            cx={pos.x}
+            cy={pos.y}
+            r={7}
+            color={i < livesUI ? '#ef4444' : '#334155'}
           />
         ))}
-      </View>
+
+        {/* GAME OVER TEXT (Skia) */}
+        {!aliveUI && (
+          <Text
+            x={CANVAS_WIDTH / 2 - 80}
+            y={120}
+            text="Tap to restart"
+            color="#94a3b8"
+            font={fontSmall}
+          />
+        )}
+      </Canvas>
     </Pressable>
   );
 };
@@ -180,33 +239,6 @@ const styles = StyleSheet.create({
   canvas: {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
-  },
-  scoreContainer: {
-    position: 'absolute',
-    top: 60,
-    width: '100%',
-    alignItems: 'center',
-  },
-  scoreText: {
-    color: '#fff',
-    fontSize: 48,
-    fontWeight: '800',
-  },
-  retryText: {
-    color: '#94a3b8',
-    marginTop: 12,
-    fontSize: 20,
-  },
-  livesContainer: {
-    position: 'absolute',
-    top: 60,
-    right: 18,
-    flexDirection: 'row',
-  },
-  lifeDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
   },
 });
 
