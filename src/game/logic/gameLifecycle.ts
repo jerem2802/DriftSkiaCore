@@ -190,7 +190,6 @@ interface LoseLifeParams {
   combo: SharedValue<number>;
   currentHasLife: SharedValue<boolean>;
   nextHasLife: SharedValue<boolean>;
-  setLivesUI: (lives: number) => void;
   setAliveUI: (alive: boolean) => void;
 }
 
@@ -203,7 +202,6 @@ export const loseLife = (params: LoseLifeParams) => {
     combo,
     currentHasLife,
     nextHasLife,
-    setLivesUI,
     setAliveUI,
   } = params;
 
@@ -213,19 +211,19 @@ export const loseLife = (params: LoseLifeParams) => {
   currentHasLife.value = false;
   nextHasLife.value = false;
 
-  // VÉRIFIER si dernière vie AVANT de décrémenter
+  // VÉRIFIER si dernière vie
   if (lives.value === 1) {
     // C'était la dernière → Game Over
     lives.value = 0;
     alive.value = false;
     runOnJS(setAliveUI)(false);
-    runOnJS(setLivesUI)(0);
   } else {
     // Il reste des vies
     lives.value = lives.value - 1;
-    runOnJS(setLivesUI)(lives.value);
   }
+  // PAS de setLivesUI ici - le useAnimatedReaction s'en charge
 };
+
 // Restart : reset complet
 interface RestartParams {
   alive: SharedValue<boolean>;
@@ -259,7 +257,6 @@ interface RestartParams {
   getRandomPaletteIndex: (exclude?: number) => number;
 
   setAliveUI: (alive: boolean) => void;
-  setLivesUI: (lives: number) => void;
   setDisplayScoreUI: (score: number) => void;
 
   CENTER_X: number;
@@ -298,7 +295,6 @@ export const restart = (params: RestartParams) => {
     nextHasLife,
     getRandomPaletteIndex,
     setAliveUI,
-    setLivesUI,
     setDisplayScoreUI,
     CENTER_X,
     CENTER_Y,
@@ -340,6 +336,6 @@ export const restart = (params: RestartParams) => {
   nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);
 
   runOnJS(setAliveUI)(true);
-  runOnJS(setLivesUI)(LIVES_MAX);
   runOnJS(setDisplayScoreUI)(0);
+  // PAS de setLivesUI ici - le useAnimatedReaction détecte lives.value = LIVES_MAX
 };

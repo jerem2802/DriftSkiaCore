@@ -61,12 +61,11 @@ const DriftGame: React.FC = () => {
     () => gameState.gateAngle.value + gameState.gateWidth.value / 2
   );
 
-  // Gate très légèrement à l'intérieur du ring pour éviter le mix de couleurs
   const gatePath = useDerivedValue(() =>
     createArcPath(
       gameState.currentX.value,
       gameState.currentY.value,
-      gameState.currentR.value ,
+      gameState.currentR.value,
       gateStart.value,
       gateEnd.value
     )
@@ -137,6 +136,7 @@ const DriftGame: React.FC = () => {
     }
   );
 
+  // UPDATE LIVES UI - useAnimatedReaction s'occupe de tout automatiquement
   useAnimatedReaction(
     () => gameState.lives.value,
     (lives) => {
@@ -170,7 +170,6 @@ const DriftGame: React.FC = () => {
         nextPaletteIndex: palettes.nextPaletteIndex,
         getRandomPaletteIndex: palettes.getRandomPaletteIndex,
         setAliveUI,
-        setLivesUI,
         setDisplayScoreUI: () => {},
         CENTER_X,
         CENTER_Y,
@@ -203,7 +202,6 @@ const DriftGame: React.FC = () => {
         combo: gameState.combo,
         currentHasLife: gameState.currentHasLife,
         nextHasLife: gameState.nextHasLife,
-        setLivesUI,
         setAliveUI,
       });
     }
@@ -263,8 +261,7 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.nextPalette.value.main)}
         />
 
-        {/* GATE (plus épaisse, bien lisible, couleur du ring secondaire) */}
-        {/* Halo */}
+        {/* GATE */}
         <Path
           path={gatePath}
           strokeWidth={16}
@@ -273,7 +270,6 @@ const DriftGame: React.FC = () => {
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
           opacity={0.10}
         />
-        {/* Cœur opaque */}
         <Path
           path={gatePath}
           strokeWidth={8}
@@ -293,7 +289,6 @@ const DriftGame: React.FC = () => {
           color="white"
           font={font}
         />
-
 
         {/* LIVES (Skia Circles) */}
         {livesPositions.map((pos, i) => (
