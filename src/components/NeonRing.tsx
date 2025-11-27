@@ -8,9 +8,9 @@ interface NeonRingProps {
   cx: SharedValue<number>;
   cy: SharedValue<number>;
   r: SharedValue<number>;
-  outerColor: string;
-  midColor: string;
-  mainColor: string;
+  outerColor: SharedValue<string>;
+  midColor: SharedValue<string>;
+  mainColor: SharedValue<string>;
 }
 
 export const NeonRing: React.FC<NeonRingProps> = ({
@@ -23,6 +23,7 @@ export const NeonRing: React.FC<NeonRingProps> = ({
 }) => {
   return (
     <>
+      {/* Outer glow */}
       <Circle
         cx={cx}
         cy={cy}
@@ -32,6 +33,7 @@ export const NeonRing: React.FC<NeonRingProps> = ({
         color={outerColor}
         opacity={0.2}
       />
+      {/* Mid glow */}
       <Circle
         cx={cx}
         cy={cy}
@@ -41,6 +43,7 @@ export const NeonRing: React.FC<NeonRingProps> = ({
         color={midColor}
         opacity={0.3}
       />
+      {/* Main ring */}
       <Circle
         cx={cx}
         cy={cy}

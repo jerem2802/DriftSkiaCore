@@ -44,17 +44,5 @@ export const RAINBOW_PALETTE = {
   gate: '#22d3ee',
 };
 
-export const BALL_COLOR = '#10b981';
+export const BALL_COLOR = '#ffffff';
 export const MISS_COLOR = '#ef4444';
-
-let lastPaletteIndex = -1;
-
-export const getRandomPalette = () => {
-  let newIndex;
-  do {
-    newIndex = Math.floor(Math.random() * RING_PALETTES.length);
-  } while (newIndex === lastPaletteIndex && RING_PALETTES.length > 1);
-  
-  lastPaletteIndex = newIndex;
-  return RING_PALETTES[newIndex];
-};

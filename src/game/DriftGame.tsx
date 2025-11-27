@@ -1,4 +1,6 @@
 // src/game/DriftGame.tsx
+// VERSION FIXÉE - 0 RE-RENDER - 60 FPS PERMANENT
+// Génération rings améliorée: moins d'imbrication, plus de variété
 
 import React from 'react';
 import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
@@ -13,7 +15,7 @@ import {
 import { NeonRing } from '../components/NeonRing';
 import { createArcPath } from '../utils/path';
 import { normalizeAngle, insideRing } from '../utils/math';
-import { getRandomPalette } from '../constants/colors';
+import { RING_PALETTES } from '../constants/colors';
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
@@ -27,7 +29,6 @@ import {
   MISS_MARGIN,
   LIVES_MAX,
   DASH_TIMEOUT,
-  RING_GENERATION_MARGIN,
 } from '../constants/gameplay';
 import { BALL_COLOR } from '../constants/colors';
 
@@ -35,13 +36,27 @@ const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
 const RING_RADIUS = CANVAS_WIDTH * 0.25;
 
+const getRandomPaletteIndex = (exclude: number = -1): number => {
+  'worklet';
+  const max = RING_PALETTES.length;
+  let newIndex = Math.floor(Math.random() * max);
+  let attempts = 0;
+  while (newIndex === exclude && attempts < 10) {
+    newIndex = Math.floor(Math.random() * max);
+    attempts++;
+  }
+  return newIndex;
+};
+
 const DriftGame: React.FC = () => {
+  // ========== GAME STATE (SharedValue uniquement) ==========
   const alive = useSharedValue(true);
   const lives = useSharedValue(LIVES_MAX);
   const score = useSharedValue(0);
   const displayScore = useSharedValue(0);
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
 
+  // ========== POSITIONS ==========
   const currentX = useSharedValue(CENTER_X);
   const currentY = useSharedValue(CENTER_Y);
   const currentR = useSharedValue(RING_RADIUS);
@@ -50,11 +65,13 @@ const DriftGame: React.FC = () => {
   const nextY = useSharedValue(CENTER_Y - 200);
   const nextR = useSharedValue(RING_RADIUS * 0.9);
 
+  // ========== BALL ==========
   const angle = useSharedValue(0);
   const speed = useSharedValue(START_ORBIT_SPEED);
   const ballX = useSharedValue(currentX.value + currentR.value);
   const ballY = useSharedValue(currentY.value);
 
+  // ========== GATE ==========
   const gateAngle = useSharedValue(
     Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value)
   );
@@ -62,21 +79,29 @@ const DriftGame: React.FC = () => {
 
   const dashStartTime = useSharedValue(0);
 
+  // ========== PALETTES (INDICES SharedValue) ==========
+  const currentPaletteIndex = useSharedValue(0);
+  const nextPaletteIndex = useSharedValue(1);
+  const fadingRingPaletteIndex = useSharedValue(0);
+
+  // Palettes dérivées (réactives dans Skia)
+  const currentPalette = useDerivedValue(() => RING_PALETTES[currentPaletteIndex.value]);
+  const nextPalette = useDerivedValue(() => RING_PALETTES[nextPaletteIndex.value]);
+  const fadingPalette = useDerivedValue(() => RING_PALETTES[fadingRingPaletteIndex.value]);
+
+  // ========== FADING RING ANIMATION ==========
   const fadingRingX = useSharedValue(0);
   const fadingRingY = useSharedValue(0);
   const fadingRingR = useSharedValue(0);
   const fadingRingScale = useSharedValue(0);
   const fadingRingOpacity = useSharedValue(0);
-  const fadingRingPaletteRef = React.useRef(getRandomPalette());
 
-  const currentPaletteRef = React.useRef(getRandomPalette());
-  const nextPaletteRef = React.useRef(getRandomPalette());
-  const [, forceRender] = React.useState(0);
-
+  // ========== UI DISPLAY (React state - uniquement pour affichage) ==========
   const [displayScoreUI, setDisplayScoreUI] = React.useState(0);
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
   const [aliveUI, setAliveUI] = React.useState(true);
 
+  // ========== DERIVED VALUES ==========
   const gateStart = useDerivedValue(() => gateAngle.value - gateWidth.value / 2);
   const gateEnd = useDerivedValue(() => gateAngle.value + gateWidth.value / 2);
 
@@ -86,6 +111,7 @@ const DriftGame: React.FC = () => {
 
   const fadingRingScaledR = useDerivedValue(() => fadingRingR.value * fadingRingScale.value);
 
+  // ========== GAME LOGIC (worklet uniquement) ==========
   const loseLife = () => {
     'worklet';
     lives.value = lives.value - 1;
@@ -97,61 +123,74 @@ const DriftGame: React.FC = () => {
     }
   };
 
-  const updatePalettes = () => {
-    currentPaletteRef.current = nextPaletteRef.current;
-
-    let newNext = getRandomPalette();
-    let attempts = 0;
-    while (newNext.main === currentPaletteRef.current.main && attempts < 10) {
-      newNext = getRandomPalette();
-      attempts++;
-    }
-    nextPaletteRef.current = newNext;
-    forceRender((v) => v + 1);
-  };
-
-  const captureFadingPalette = () => {
-    fadingRingPaletteRef.current = currentPaletteRef.current;
-  };
-
   const completeRing = () => {
     'worklet';
 
+    // Capture palette actuelle pour fade animation
+    fadingRingPaletteIndex.value = currentPaletteIndex.value;
     fadingRingX.value = currentX.value;
     fadingRingY.value = currentY.value;
     fadingRingR.value = currentR.value;
     fadingRingScale.value = 1;
     fadingRingOpacity.value = 1;
-    runOnJS(captureFadingPalette)();
 
+    // Animation fade
     fadingRingScale.value = withTiming(1.5, { duration: 400 });
     fadingRingOpacity.value = withTiming(0, { duration: 400 });
 
+    // Swap current/next
     currentX.value = nextX.value;
     currentY.value = nextY.value;
     currentR.value = nextR.value;
+    currentPaletteIndex.value = nextPaletteIndex.value;
 
-    const m = RING_GENERATION_MARGIN;
-    const maxRadius = RING_RADIUS * 1.2;
-    nextX.value = m + maxRadius + Math.random() * (CANVAS_WIDTH - 2 * (m + maxRadius));
-    nextY.value = m + maxRadius + Math.random() * (CANVAS_HEIGHT - 2 * (m + maxRadius));
-    nextR.value = RING_RADIUS * (0.8 + Math.random() * 0.4);
+    // ========== GÉNÉRATION NOUVEAU NEXT RING (AMÉLIORÉE) ==========
+    const minDistanceFromEdge = RING_RADIUS * 1.3; // Plus de marge des bords
+    const spawnZoneWidth = CANVAS_WIDTH - 2 * minDistanceFromEdge;
+    const spawnZoneHeight = CANVAS_HEIGHT - 2 * minDistanceFromEdge;
 
+    // Position aléatoire dans zone de spawn
+    let newNextX = minDistanceFromEdge + Math.random() * spawnZoneWidth;
+    let newNextY = minDistanceFromEdge + Math.random() * spawnZoneHeight;
+
+    // Tailles plus variées (70% → 110% du base radius)
+    const newNextR = RING_RADIUS * (0.7 + Math.random() * 0.4);
+
+    // ANTI-IMBRICATION: vérifier distance entre centres
+    const distBetweenCenters = Math.sqrt(
+      (newNextX - currentX.value) ** 2 + 
+      (newNextY - currentY.value) ** 2
+    );
+    const minDistance = (currentR.value + newNextR) * 0.6; // Overlap max 40%
+
+    // Si trop proche, re-roll position (1 tentative)
+    if (distBetweenCenters < minDistance) {
+      newNextX = minDistanceFromEdge + Math.random() * spawnZoneWidth;
+      newNextY = minDistanceFromEdge + Math.random() * spawnZoneHeight;
+    }
+
+    nextX.value = newNextX;
+    nextY.value = newNextY;
+    nextR.value = newNextR;
+
+    // Nouvelle palette next (différente de current)
+    nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);
+
+    // Update game state
     score.value = score.value + 1;
     speed.value = Math.min(SPEED_CAP, speed.value + SPEED_INC_PER_RING);
-
     gateAngle.value = Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value);
     gateWidth.value = Math.max(MIN_GATE_WIDTH, gateWidth.value - SHRINK_PER_RING);
 
+    // Reset orbit
     angle.value = gateAngle.value + Math.PI;
     mode.value = 'orbit';
     dashStartTime.value = 0;
-
-    runOnJS(updatePalettes)();
   };
 
   const onTap = () => {
     if (!aliveUI) {
+      // RESTART
       alive.value = true;
       lives.value = LIVES_MAX;
       score.value = 0;
@@ -174,12 +213,12 @@ const DriftGame: React.FC = () => {
 
       fadingRingOpacity.value = 0;
 
+      currentPaletteIndex.value = getRandomPaletteIndex();
+      nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);
+
       setAliveUI(true);
       setLivesUI(LIVES_MAX);
       setDisplayScoreUI(0);
-      currentPaletteRef.current = getRandomPalette();
-      nextPaletteRef.current = getRandomPalette();
-      forceRender((v) => v + 1);
       return;
     }
 
@@ -187,6 +226,7 @@ const DriftGame: React.FC = () => {
       return;
     }
 
+    // TAP VALIDATION
     const half = gateWidth.value / 2;
     const gA = normalizeAngle(gateAngle.value);
     const bA = normalizeAngle(angle.value);
@@ -203,6 +243,7 @@ const DriftGame: React.FC = () => {
     }
   };
 
+  // ========== GAME LOOP (UI thread) ==========
   useFrameCallback((frameInfo) => {
     'worklet';
     if (!alive.value) {
@@ -212,6 +253,7 @@ const DriftGame: React.FC = () => {
     const dt = frameInfo.timeSincePreviousFrame ? frameInfo.timeSincePreviousFrame / 1000 : 0.016;
     const now = Date.now();
 
+    // Score display smooth
     const scoreDiff = score.value - displayScore.value;
     if (Math.abs(scoreDiff) > 0.5) {
       displayScore.value = displayScore.value + scoreDiff * 0.15;
@@ -249,51 +291,53 @@ const DriftGame: React.FC = () => {
       <StatusBar hidden />
 
       <Canvas style={styles.canvas}>
-        <>
-          <Circle
-            cx={fadingRingX}
-            cy={fadingRingY}
-            r={fadingRingScaledR}
-            strokeWidth={4}
-            style="stroke"
-            color={fadingRingPaletteRef.current.outer}
-            opacity={useDerivedValue(() => fadingRingOpacity.value * 0.3)}
-          />
-          <Circle
-            cx={fadingRingX}
-            cy={fadingRingY}
-            r={fadingRingScaledR}
-            strokeWidth={3}
-            style="stroke"
-            color={fadingRingPaletteRef.current.main}
-            opacity={fadingRingOpacity}
-          />
-        </>
+        {/* FADING RING (animation completion) */}
+        <Circle
+          cx={fadingRingX}
+          cy={fadingRingY}
+          r={fadingRingScaledR}
+          strokeWidth={4}
+          style="stroke"
+          color={useDerivedValue(() => fadingPalette.value.outer)}
+          opacity={useDerivedValue(() => fadingRingOpacity.value * 0.3)}
+        />
+        <Circle
+          cx={fadingRingX}
+          cy={fadingRingY}
+          r={fadingRingScaledR}
+          strokeWidth={3}
+          style="stroke"
+          color={useDerivedValue(() => fadingPalette.value.main)}
+          opacity={fadingRingOpacity}
+        />
 
+        {/* CURRENT RING */}
         <NeonRing
           cx={currentX}
           cy={currentY}
           r={currentR}
-          outerColor={currentPaletteRef.current.outer}
-          midColor={currentPaletteRef.current.mid}
-          mainColor={currentPaletteRef.current.main}
+          outerColor={useDerivedValue(() => currentPalette.value.outer)}
+          midColor={useDerivedValue(() => currentPalette.value.mid)}
+          mainColor={useDerivedValue(() => currentPalette.value.main)}
         />
 
+        {/* NEXT RING */}
         <NeonRing
           cx={nextX}
           cy={nextY}
           r={nextR}
-          outerColor={nextPaletteRef.current.outer}
-          midColor={nextPaletteRef.current.mid}
-          mainColor={nextPaletteRef.current.main}
+          outerColor={useDerivedValue(() => nextPalette.value.outer)}
+          midColor={useDerivedValue(() => nextPalette.value.mid)}
+          mainColor={useDerivedValue(() => nextPalette.value.main)}
         />
 
+        {/* GATE (arc sur current ring) */}
         <Path
           path={gatePath}
           strokeWidth={12}
           strokeCap="round"
           style="stroke"
-          color={nextPaletteRef.current.gate}
+          color={useDerivedValue(() => nextPalette.value.gate)}
           opacity={0.2}
         />
         <Path
@@ -301,12 +345,14 @@ const DriftGame: React.FC = () => {
           strokeWidth={3}
           strokeCap="round"
           style="stroke"
-          color={nextPaletteRef.current.gate}
+          color={useDerivedValue(() => nextPalette.value.gate)}
         />
 
+        {/* BALL */}
         <Circle cx={ballX} cy={ballY} r={10} color={BALL_COLOR} />
       </Canvas>
 
+      {/* UI OVERLAY (React - fixe) */}
       <View style={styles.scoreContainer}>
         <Text style={styles.scoreText}>{displayScoreUI}</Text>
         {!aliveUI && <Text style={styles.retryText}>Tap to restart</Text>}
