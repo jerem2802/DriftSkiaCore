@@ -1,8 +1,9 @@
 // src/game/DriftGame.tsx
-// ORCHESTRATEUR - TOUT EN SKIA - 0 RE-RENDER CANVAS
+// ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
+// Vie = orbe rouge sur le ring, récupérée UNIQUEMENT quand la bille passe dessus.
 
 import React from 'react';
-import { Pressable, StatusBar, StyleSheet } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
 import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
 import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { NeonRing } from '../components/NeonRing';
@@ -12,9 +13,23 @@ import { loseLife, restart } from './logic/gameLifecycle';
 import { useGameState } from './hooks/useGameState';
 import { usePalettes } from './hooks/usePalettes';
 import { useGameLoop } from './hooks/useGameLoop';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, LIVES_MAX, START_ORBIT_SPEED, START_GATE_WIDTH } from '../constants/gameplay';
+import {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  LIVES_MAX,
+  START_ORBIT_SPEED,
+  START_GATE_WIDTH,
+} from '../constants/gameplay';
 import { BALL_COLOR } from '../constants/colors';
-import { Platform } from 'react-native';
+
+const CENTER_X = CANVAS_WIDTH * 0.5;
+const CENTER_Y = CANVAS_HEIGHT * 0.5;
+const RING_RADIUS = CANVAS_WIDTH * 0.25;
+
+// Orbe de vie posée SUR LE RING, en haut du cercle
+const LIFE_ORB_ANGLE = -Math.PI / 2;
+// Distance² max pour considérer une collision bille/orbe
+const LIFE_ORB_COLLISION_DIST = 625;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
 const fontStyle = {
@@ -38,24 +53,76 @@ const DriftGame: React.FC = () => {
   const [scoreUI, setScoreUI] = React.useState(0);
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
 
-  const gateStart = useDerivedValue(() => gameState.gateAngle.value - gameState.gateWidth.value / 2);
-  const gateEnd = useDerivedValue(() => gameState.gateAngle.value + gameState.gateWidth.value / 2);
+  // ----- GATE -----
+  const gateStart = useDerivedValue(
+    () => gameState.gateAngle.value - gameState.gateWidth.value / 2
+  );
+  const gateEnd = useDerivedValue(
+    () => gameState.gateAngle.value + gameState.gateWidth.value / 2
+  );
 
   const gatePath = useDerivedValue(() =>
     createArcPath(
       gameState.currentX.value,
       gameState.currentY.value,
-      gameState.currentR.value,
+      gameState.currentR.value + 4,
       gateStart.value,
       gateEnd.value
     )
   );
 
+  // ----- FADING RING -----
   const fadingRingScaledR = useDerivedValue(
     () => gameState.fadingRingR.value * gameState.fadingRingScale.value
   );
 
-  // Update UI sans re-render Canvas
+  // ----- ORBE DE VIE SUR LE RING COURANT -----
+  const lifeOrbVisible = useDerivedValue(
+    () => (gameState.currentHasLife.value ? 1 : 0)
+  );
+
+  const lifeOrbX = useDerivedValue(
+    () =>
+      gameState.currentX.value +
+      gameState.currentR.value * Math.cos(LIFE_ORB_ANGLE)
+  );
+  const lifeOrbY = useDerivedValue(
+    () =>
+      gameState.currentY.value +
+      gameState.currentR.value * Math.sin(LIFE_ORB_ANGLE)
+  );
+
+  // Collision bille/orbe → tout en Reanimated
+  useAnimatedReaction(
+    () => ({
+      hasLife: gameState.currentHasLife.value,
+      ballX: gameState.ballX.value,
+      ballY: gameState.ballY.value,
+      lives: gameState.lives.value,
+    }),
+    (state) => {
+      if (!state.hasLife) return;
+      if (state.lives >= LIVES_MAX) return;
+
+      const cx = gameState.currentX.value;
+      const cy = gameState.currentY.value;
+      const r = gameState.currentR.value;
+
+      const orbX = cx + r * Math.cos(LIFE_ORB_ANGLE);
+      const orbY = cy + r * Math.sin(LIFE_ORB_ANGLE);
+
+      const dx = state.ballX - orbX;
+      const dy = state.ballY - orbY;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq <= LIFE_ORB_COLLISION_DIST) {
+        gameState.currentHasLife.value = false;
+        gameState.lives.value = Math.min(LIVES_MAX, state.lives + 1);
+      }
+    }
+  );
+
+  // ----- UI score / vies sans re-render Canvas -----
   useAnimatedReaction(
     () => Math.round(gameState.score.value),
     (score) => {
@@ -70,7 +137,7 @@ const DriftGame: React.FC = () => {
     }
   );
 
-  // LIVES POSITIONS (Skia circles)
+  // LIVES POSITIONS (Skia circles en haut à droite)
   const livesPositions = React.useMemo(() => {
     const positions = [];
     const startX = CANVAS_WIDTH - 60;
@@ -81,15 +148,14 @@ const DriftGame: React.FC = () => {
     return positions;
   }, []);
 
+  // ----- GAME LOOP (UI thread, pas de re-render Canvas) -----
   useGameLoop({
     ...gameState,
     ...palettes,
-    setDisplayScoreUI: () => {},
-    setLivesUI: () => {},
-    setAliveUI,
   });
 
   const onTap = () => {
+    // Restart si mort
     if (!aliveUI) {
       restart({
         ...gameState,
@@ -97,15 +163,18 @@ const DriftGame: React.FC = () => {
         nextPaletteIndex: palettes.nextPaletteIndex,
         getRandomPaletteIndex: palettes.getRandomPaletteIndex,
         setAliveUI,
-        setLivesUI: () => {},
+        setLivesUI,
         setDisplayScoreUI: () => {},
+        CENTER_X,
+        CENTER_Y,
+        RING_RADIUS,
         START_ORBIT_SPEED,
         START_GATE_WIDTH,
-        LIVES_MAX,
       });
       return;
     }
 
+    // Sinon on est en jeu : tap valide ou pas
     if (gameState.mode.value !== 'orbit') {
       return;
     }
@@ -125,7 +194,9 @@ const DriftGame: React.FC = () => {
         alive: gameState.alive,
         streak: gameState.streak,
         combo: gameState.combo,
-        setLivesUI: () => {},
+        currentHasLife: gameState.currentHasLife,
+        nextHasLife: gameState.nextHasLife,
+        setLivesUI,
         setAliveUI,
       });
     }
@@ -166,6 +237,15 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
+        {/* 🔴 ORBE DE VIE SUR LE RING COURANT */}
+        <Circle
+          cx={lifeOrbX}
+          cy={lifeOrbY}
+          r={8}
+          color="#ef4444"
+          opacity={lifeOrbVisible}
+        />
+
         {/* NEXT RING */}
         <NeonRing
           cx={gameState.nextX}
@@ -176,22 +256,25 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.nextPalette.value.main)}
         />
 
-        {/* GATE */}
+              {/* GATE (plus épaisse, bien lisible) */}
+        {/* Halo léger */}
         <Path
           path={gatePath}
-          strokeWidth={12}
+          strokeWidth={18}
           strokeCap="round"
           style="stroke"
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
-          opacity={0.2}
+          opacity={0.25}
         />
+        {/* Cœur opaque qui recouvre bien le ring */}
         <Path
           path={gatePath}
-          strokeWidth={3}
+          strokeWidth={8}
           strokeCap="round"
           style="stroke"
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
         />
+
 
         {/* BALL */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />

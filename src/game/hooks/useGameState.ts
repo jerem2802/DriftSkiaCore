@@ -23,8 +23,12 @@ export const useGameState = () => {
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
 
   // Scoring avancé
-  const streak = useSharedValue(0);
+  const streak = useSharedValue(0); // sert pour le cycle des 8 rings
   const combo = useSharedValue(1);
+
+  // Vie sur les rings
+  const currentHasLife = useSharedValue(false);
+  const nextHasLife = useSharedValue(false);
 
   // Positions - Current ring
   const currentX = useSharedValue(CENTER_X);
@@ -65,6 +69,10 @@ export const useGameState = () => {
     mode,
     streak,
     combo,
+
+    // Vie sur rings
+    currentHasLife,
+    nextHasLife,
 
     // Current ring
     currentX,

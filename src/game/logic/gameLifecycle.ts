@@ -1,7 +1,7 @@
 // src/game/logic/gameLifecycle.ts
 // Logique du cycle de vie du jeu (completeRing, loseLife, restart)
 
-import { withTiming } from 'react-native-reanimated';
+import { withTiming, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { generateNextRing } from './ringGenerator';
 import {
@@ -14,116 +14,171 @@ import {
 } from '../../constants/gameplay';
 
 interface CompleteRingParams {
+  // Palettes
   currentPaletteIndex: SharedValue<number>;
   nextPaletteIndex: SharedValue<number>;
-  fadingRingPaletteIndex: SharedValue<number>;
   getRandomPaletteIndex: (exclude?: number) => number;
+
+  // Fading ring
   fadingRingX: SharedValue<number>;
   fadingRingY: SharedValue<number>;
   fadingRingR: SharedValue<number>;
   fadingRingScale: SharedValue<number>;
   fadingRingOpacity: SharedValue<number>;
+
+  // Rings
   currentX: SharedValue<number>;
   currentY: SharedValue<number>;
   currentR: SharedValue<number>;
   nextX: SharedValue<number>;
   nextY: SharedValue<number>;
   nextR: SharedValue<number>;
+
+  // Ball & gate
   score: SharedValue<number>;
   speed: SharedValue<number>;
   gateAngle: SharedValue<number>;
   gateWidth: SharedValue<number>;
   angle: SharedValue<number>;
+  ballX: SharedValue<number>;
+  ballY: SharedValue<number>;
+
+  // Mode & timing
   mode: SharedValue<'orbit' | 'dash'>;
   dashStartTime: SharedValue<number>;
+
+  // Scoring / streak
   streak: SharedValue<number>;
   combo: SharedValue<number>;
   lives: SharedValue<number>;
+
+  // Vie sur ring
+  currentHasLife: SharedValue<boolean>;
+  nextHasLife: SharedValue<boolean>;
+
+  // Divers
   isPerfect: boolean;
   RING_RADIUS: number;
 }
 
 export const completeRing = (params: CompleteRingParams) => {
   'worklet';
-
   const {
+    // Palettes
     currentPaletteIndex,
     nextPaletteIndex,
-    fadingRingPaletteIndex,
     getRandomPaletteIndex,
+
+    // Fading ring
     fadingRingX,
     fadingRingY,
     fadingRingR,
     fadingRingScale,
     fadingRingOpacity,
+
+    // Rings
     currentX,
     currentY,
     currentR,
     nextX,
     nextY,
     nextR,
+
+    // Ball & gate
     score,
     speed,
     gateAngle,
     gateWidth,
     angle,
+    ballX,
+    ballY,
+
+    // Mode & timing
     mode,
     dashStartTime,
+
+    // Scoring / streak
     streak,
     combo,
     lives,
+
+    // Vie sur ring
+    currentHasLife,
+    nextHasLife,
+
+    // Divers
     isPerfect,
     RING_RADIUS,
   } = params;
 
-  fadingRingPaletteIndex.value = currentPaletteIndex.value;
+  // 1) SCORE simple : +1 par ring, +1 si perfect
+  let gained = 1;
+  if (isPerfect) {
+    gained += 1;
+    combo.value = combo.value + 1;
+  } else {
+    combo.value = 0;
+  }
+  score.value = score.value + gained;
+
+  // 2) Si le ring courant avait une orbe non prise → orbe ratée (juste supprimée)
+  if (currentHasLife.value) {
+    currentHasLife.value = false;
+  }
+  nextHasLife.value = false;
+
+  // 3) STREAK
+  streak.value = streak.value + 1;
+
+  // 4) PALETTES (jamais 2 rings de la même couleur)
+  // current = next, next = random ≠ current
+  currentPaletteIndex.value = nextPaletteIndex.value;
+  const newIndex = getRandomPaletteIndex(currentPaletteIndex.value);
+  nextPaletteIndex.value = newIndex;
+
+  // 5) FADING RING = on fige l'ancien ring pour l'anim
   fadingRingX.value = currentX.value;
   fadingRingY.value = currentY.value;
   fadingRingR.value = currentR.value;
   fadingRingScale.value = 1;
   fadingRingOpacity.value = 1;
 
-  fadingRingScale.value = withTiming(1.5, { duration: 400 });
   fadingRingOpacity.value = withTiming(0, { duration: 400 });
+  fadingRingScale.value = withTiming(1.25, { duration: 400 });
 
+  // 6) TRANSITION : NEXT → CURRENT
   currentX.value = nextX.value;
   currentY.value = nextY.value;
   currentR.value = nextR.value;
-  currentPaletteIndex.value = nextPaletteIndex.value;
 
-  const newRing = generateNextRing(currentX.value, currentY.value, currentR.value, RING_RADIUS);
-  nextX.value = newRing.x;
-  nextY.value = newRing.y;
-  nextR.value = newRing.r;
+  // 7) GÉNÉRATION DU NOUVEAU RING "NEXT"
+  const next = generateNextRing(currentX.value, currentY.value, currentR.value, RING_RADIUS);
+  nextX.value = next.x;
+  nextY.value = next.y;
+  nextR.value = next.r;
 
-  nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);
-
-  // COMBO LOGIC (pour plus tard)
-  if (isPerfect) {
-    combo.value = Math.min(3, combo.value + 1);
-  } else {
-    combo.value = 1;
-  }
-
-  // SCORING - +1 par défaut
-  score.value = score.value + 1;
-
-  // STREAK LOGIC
-  streak.value = streak.value + 1;
-  if (streak.value >= STREAK_FOR_LIFE) {
-    if (lives.value < LIVES_MAX) {
-      lives.value = lives.value + 1;
-    }
-    streak.value = 0;
-  }
-
-  speed.value = Math.min(SPEED_CAP, speed.value + SPEED_INC_PER_RING);
+  // 8) SPEED / GATE
+  speed.value = Math.min(speed.value + SPEED_INC_PER_RING, SPEED_CAP);
+  gateWidth.value = Math.max(gateWidth.value - SHRINK_PER_RING, MIN_GATE_WIDTH);
   gateAngle.value = Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value);
-  gateWidth.value = Math.max(MIN_GATE_WIDTH, gateWidth.value - SHRINK_PER_RING);
 
-  angle.value = gateAngle.value + Math.PI;
+  // 9) RESET BALL EN ORBIT AUTOUR DU NOUVEAU RING
+  angle.value = 0;
+  ballX.value = currentX.value + currentR.value;
+  ballY.value = currentY.value;
+
   mode.value = 'orbit';
   dashStartTime.value = 0;
+
+  // 10) SPAWN D’UNE ORBE DE VIE SUR LE NOUVEAU CURRENT RING
+  if (
+    streak.value >= STREAK_FOR_LIFE &&
+    lives.value < LIVES_MAX &&
+    !currentHasLife.value
+  ) {
+    streak.value = 0;
+    currentHasLife.value = true;
+  }
 };
 
 interface LoseLifeParams {
@@ -131,26 +186,42 @@ interface LoseLifeParams {
   alive: SharedValue<boolean>;
   streak: SharedValue<number>;
   combo: SharedValue<number>;
+  currentHasLife: SharedValue<boolean>;
+  nextHasLife: SharedValue<boolean>;
   setLivesUI: (lives: number) => void;
   setAliveUI: (alive: boolean) => void;
 }
 
 export const loseLife = (params: LoseLifeParams) => {
   'worklet';
-
-  const { lives, alive, streak, combo, setLivesUI, setAliveUI } = params;
+  const {
+    lives,
+    alive,
+    streak,
+    combo,
+    currentHasLife,
+    nextHasLife,
+    setLivesUI,
+    setAliveUI,
+  } = params;
 
   lives.value = lives.value - 1;
+
+  // Reset cycle
   streak.value = 0;
-  combo.value = 1;
-  setLivesUI(lives.value);
+  combo.value = 0;
+  currentHasLife.value = false;
+  nextHasLife.value = false;
+
+  runOnJS(setLivesUI)(lives.value);
 
   if (lives.value <= 0) {
     alive.value = false;
-    setAliveUI(false);
+    runOnJS(setAliveUI)(false);
   }
 };
 
+// Restart : reset complet
 interface RestartParams {
   alive: SharedValue<boolean>;
   lives: SharedValue<number>;
@@ -161,32 +232,40 @@ interface RestartParams {
   mode: SharedValue<'orbit' | 'dash'>;
   streak: SharedValue<number>;
   combo: SharedValue<number>;
+
   currentX: SharedValue<number>;
   currentY: SharedValue<number>;
   currentR: SharedValue<number>;
   nextX: SharedValue<number>;
   nextY: SharedValue<number>;
   nextR: SharedValue<number>;
+
   gateAngle: SharedValue<number>;
   angle: SharedValue<number>;
   ballX: SharedValue<number>;
   ballY: SharedValue<number>;
+
   fadingRingOpacity: SharedValue<number>;
+
   currentPaletteIndex: SharedValue<number>;
   nextPaletteIndex: SharedValue<number>;
+  currentHasLife: SharedValue<boolean>;
+  nextHasLife: SharedValue<boolean>;
   getRandomPaletteIndex: (exclude?: number) => number;
+
   setAliveUI: (alive: boolean) => void;
   setLivesUI: (lives: number) => void;
   setDisplayScoreUI: (score: number) => void;
+
   CENTER_X: number;
   CENTER_Y: number;
   RING_RADIUS: number;
   START_ORBIT_SPEED: number;
   START_GATE_WIDTH: number;
-  LIVES_MAX: number;
 }
 
 export const restart = (params: RestartParams) => {
+  'worklet';
   const {
     alive,
     lives,
@@ -210,6 +289,8 @@ export const restart = (params: RestartParams) => {
     fadingRingOpacity,
     currentPaletteIndex,
     nextPaletteIndex,
+    currentHasLife,
+    nextHasLife,
     getRandomPaletteIndex,
     setAliveUI,
     setLivesUI,
@@ -219,22 +300,26 @@ export const restart = (params: RestartParams) => {
     RING_RADIUS,
     START_ORBIT_SPEED,
     START_GATE_WIDTH,
-    LIVES_MAX,
   } = params;
 
   alive.value = true;
   lives.value = LIVES_MAX;
   score.value = 0;
   displayScore.value = 0;
+
   speed.value = START_ORBIT_SPEED;
   gateWidth.value = START_GATE_WIDTH;
   mode.value = 'orbit';
+
   streak.value = 0;
-  combo.value = 1;
+  combo.value = 0;
+  currentHasLife.value = false;
+  nextHasLife.value = false;
 
   currentX.value = CENTER_X;
   currentY.value = CENTER_Y;
   currentR.value = RING_RADIUS;
+
   nextX.value = CENTER_X;
   nextY.value = CENTER_Y - 200;
   nextR.value = RING_RADIUS * 0.9;
@@ -249,7 +334,7 @@ export const restart = (params: RestartParams) => {
   currentPaletteIndex.value = getRandomPaletteIndex();
   nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);
 
-  setAliveUI(true);
-  setLivesUI(LIVES_MAX);
-  setDisplayScoreUI(0);
+  runOnJS(setAliveUI)(true);
+  runOnJS(setLivesUI)(LIVES_MAX);
+  runOnJS(setDisplayScoreUI)(0);
 };
