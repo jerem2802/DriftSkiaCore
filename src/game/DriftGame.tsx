@@ -26,8 +26,8 @@ const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
 const RING_RADIUS = CANVAS_WIDTH * 0.25;
 
-// Orbe de vie posée SUR LE RING, en haut du cercle
-const LIFE_ORB_ANGLE = -Math.PI / 2;
+// Orbe de vie : à l'opposé de la gate (gateAngle + π)
+const LIFE_ORB_OFFSET = Math.PI;
 // Distance² max pour considérer une collision bille/orbe
 const LIFE_ORB_COLLISION_DIST = 625;
 
@@ -61,11 +61,12 @@ const DriftGame: React.FC = () => {
     () => gameState.gateAngle.value + gameState.gateWidth.value / 2
   );
 
+  // Gate très légèrement à l'intérieur du ring pour éviter le mix de couleurs
   const gatePath = useDerivedValue(() =>
     createArcPath(
       gameState.currentX.value,
       gameState.currentY.value,
-      gameState.currentR.value + 4,
+      gameState.currentR.value ,
       gateStart.value,
       gateEnd.value
     )
@@ -76,20 +77,24 @@ const DriftGame: React.FC = () => {
     () => gameState.fadingRingR.value * gameState.fadingRingScale.value
   );
 
-  // ----- ORBE DE VIE SUR LE RING COURANT -----
+  // ----- ORBE DE VIE (toujours à l'opposé de la gate) -----
   const lifeOrbVisible = useDerivedValue(
     () => (gameState.currentHasLife.value ? 1 : 0)
+  );
+
+  const lifeOrbAngle = useDerivedValue(
+    () => gameState.gateAngle.value + LIFE_ORB_OFFSET
   );
 
   const lifeOrbX = useDerivedValue(
     () =>
       gameState.currentX.value +
-      gameState.currentR.value * Math.cos(LIFE_ORB_ANGLE)
+      gameState.currentR.value * Math.cos(lifeOrbAngle.value)
   );
   const lifeOrbY = useDerivedValue(
     () =>
       gameState.currentY.value +
-      gameState.currentR.value * Math.sin(LIFE_ORB_ANGLE)
+      gameState.currentR.value * Math.sin(lifeOrbAngle.value)
   );
 
   // Collision bille/orbe → tout en Reanimated
@@ -99,6 +104,7 @@ const DriftGame: React.FC = () => {
       ballX: gameState.ballX.value,
       ballY: gameState.ballY.value,
       lives: gameState.lives.value,
+      gateAngle: gameState.gateAngle.value,
     }),
     (state) => {
       if (!state.hasLife) return;
@@ -108,8 +114,9 @@ const DriftGame: React.FC = () => {
       const cy = gameState.currentY.value;
       const r = gameState.currentR.value;
 
-      const orbX = cx + r * Math.cos(LIFE_ORB_ANGLE);
-      const orbY = cy + r * Math.sin(LIFE_ORB_ANGLE);
+      const orbAngle = state.gateAngle + LIFE_ORB_OFFSET;
+      const orbX = cx + r * Math.cos(orbAngle);
+      const orbY = cy + r * Math.sin(orbAngle);
 
       const dx = state.ballX - orbX;
       const dy = state.ballY - orbY;
@@ -237,7 +244,7 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* 🔴 ORBE DE VIE SUR LE RING COURANT */}
+        {/* 🔴 ORBE DE VIE SUR LE RING COURANT (OPPOSÉE À LA GATE) */}
         <Circle
           cx={lifeOrbX}
           cy={lifeOrbY}
@@ -256,17 +263,17 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.nextPalette.value.main)}
         />
 
-              {/* GATE (plus épaisse, bien lisible) */}
-        {/* Halo léger */}
+        {/* GATE (plus épaisse, bien lisible, couleur du ring secondaire) */}
+        {/* Halo */}
         <Path
           path={gatePath}
-          strokeWidth={18}
+          strokeWidth={16}
           strokeCap="round"
           style="stroke"
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
-          opacity={0.25}
+          opacity={0.10}
         />
-        {/* Cœur opaque qui recouvre bien le ring */}
+        {/* Cœur opaque */}
         <Path
           path={gatePath}
           strokeWidth={8}
@@ -274,7 +281,6 @@ const DriftGame: React.FC = () => {
           style="stroke"
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
         />
-
 
         {/* BALL */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
@@ -287,6 +293,7 @@ const DriftGame: React.FC = () => {
           color="white"
           font={font}
         />
+
 
         {/* LIVES (Skia Circles) */}
         {livesPositions.map((pos, i) => (

@@ -15,7 +15,12 @@ export const BALL_RADIUS = 10;
 export const START_ORBIT_SPEED = 1.2;
 export const SPEED_INC_PER_RING = 0.035;
 export const SPEED_CAP = 10.0;
-export const DASH_SPEED = 620;
+
+// Dash (comportement ancien projet SVG)
+export const DASH_BASE = 400;
+export const DASH_EXTRA_MAX = 300;
+export const DASH_CAP = 1200;
+export const GODLIKE_SCORE = 100;
 
 // Gate
 export const START_GATE_WIDTH = 1.10;

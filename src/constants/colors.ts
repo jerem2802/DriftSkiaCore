@@ -105,7 +105,9 @@ export const getRandomPaletteIndex = (exclude?: number): number => {
   const candidates: number[] = [];
 
   for (let i = 0; i < total; i++) {
-    if (typeof exclude === 'number' && i === exclude) continue;
+    if (typeof exclude === 'number' && i === exclude) {
+      continue;
+    }
 
     if (typeof exclude === 'number') {
       const h1 = PALETTE_HUES[exclude];

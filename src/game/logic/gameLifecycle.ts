@@ -146,31 +146,33 @@ export const completeRing = (params: CompleteRingParams) => {
   fadingRingOpacity.value = withTiming(0, { duration: 400 });
   fadingRingScale.value = withTiming(1.25, { duration: 400 });
 
-  // 6) TRANSITION : NEXT → CURRENT
+  // 6) CALCULER L'ANGLE D'ARRIVÉE (AVANT de modifier current!)
+  angle.value = Math.atan2(ballY.value - nextY.value, ballX.value - nextX.value);
+
+  // 7) TRANSITION : NEXT → CURRENT
   currentX.value = nextX.value;
   currentY.value = nextY.value;
   currentR.value = nextR.value;
 
-  // 7) GÉNÉRATION DU NOUVEAU RING "NEXT"
+  // 8) GÉNÉRATION DU NOUVEAU RING "NEXT"
   const next = generateNextRing(currentX.value, currentY.value, currentR.value, RING_RADIUS);
   nextX.value = next.x;
   nextY.value = next.y;
   nextR.value = next.r;
 
-  // 8) SPEED / GATE
+  // 9) SPEED / GATE
   speed.value = Math.min(speed.value + SPEED_INC_PER_RING, SPEED_CAP);
   gateWidth.value = Math.max(gateWidth.value - SHRINK_PER_RING, MIN_GATE_WIDTH);
   gateAngle.value = Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value);
 
-  // 9) RESET BALL EN ORBIT AUTOUR DU NOUVEAU RING
-  angle.value = 0;
-  ballX.value = currentX.value + currentR.value;
-  ballY.value = currentY.value;
+  // 10) PLACER LA BILLE SUR LE NOUVEAU RING (à l'angle d'arrivée)
+  ballX.value = currentX.value + currentR.value * Math.cos(angle.value);
+  ballY.value = currentY.value + currentR.value * Math.sin(angle.value);
 
   mode.value = 'orbit';
   dashStartTime.value = 0;
 
-  // 10) SPAWN D’UNE ORBE DE VIE SUR LE NOUVEAU CURRENT RING
+  // 11) SPAWN D'UNE ORBE DE VIE SUR LE NOUVEAU CURRENT RING
   if (
     streak.value >= STREAK_FOR_LIFE &&
     lives.value < LIVES_MAX &&
@@ -205,22 +207,25 @@ export const loseLife = (params: LoseLifeParams) => {
     setAliveUI,
   } = params;
 
-  lives.value = lives.value - 1;
-
   // Reset cycle
   streak.value = 0;
   combo.value = 0;
   currentHasLife.value = false;
   nextHasLife.value = false;
 
-  runOnJS(setLivesUI)(lives.value);
-
-  if (lives.value <= 0) {
+  // VÉRIFIER si dernière vie AVANT de décrémenter
+  if (lives.value === 1) {
+    // C'était la dernière → Game Over
+    lives.value = 0;
     alive.value = false;
     runOnJS(setAliveUI)(false);
+    runOnJS(setLivesUI)(0);
+  } else {
+    // Il reste des vies
+    lives.value = lives.value - 1;
+    runOnJS(setLivesUI)(lives.value);
   }
 };
-
 // Restart : reset complet
 interface RestartParams {
   alive: SharedValue<boolean>;

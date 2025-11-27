@@ -1,92 +1,76 @@
 // src/game/hooks/useGameLoop.ts
 // Boucle de jeu 100% Reanimated (aucun re-render Canvas)
+// Comportement de dash calqué sur l'ancien projet (centre → centre, vitesse en fonction du score/combo)
 
 import { useFrameCallback } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
-import { DASH_SPEED, CANVAS_WIDTH } from '../../constants/gameplay';
+import {
+  CANVAS_WIDTH,
+  DASH_BASE,
+  DASH_EXTRA_MAX,
+  DASH_CAP,
+  GODLIKE_SCORE,
+} from '../../constants/gameplay';
 import { completeRing } from '../logic/gameLifecycle';
+
+
 
 const RING_RADIUS = CANVAS_WIDTH * 0.25;
 
-type Mode = 'orbit' | 'dash';
+// Même courbe de difficulté que dans l'ancien projet
+const expo01 = (t: number) => {
+  'worklet';
+  const K = 4.0;
+  const x = Math.max(0, Math.min(1, t));
+  return (Math.exp(K * x) - 1) / (Math.exp(K * 1) - 1);
+};
 
-interface UseGameLoopParams {
-  // Game state principal
-  alive: SharedValue<boolean>;
-  mode: SharedValue<Mode>;
-  angle: SharedValue<number>;
-  speed: SharedValue<number>;
+const diffFactor = (s: number) => {
+  'worklet';
+  return expo01(s / GODLIKE_SCORE);
+};
 
-  currentX: SharedValue<number>;
-  currentY: SharedValue<number>;
-  currentR: SharedValue<number>;
-
-  nextX: SharedValue<number>;
-  nextY: SharedValue<number>;
-  nextR: SharedValue<number>;
-
-  ballX: SharedValue<number>;
-  ballY: SharedValue<number>;
-
-  gateAngle: SharedValue<number>;
-  gateWidth: SharedValue<number>;
-
-  dashStartTime: SharedValue<number>;
-
-  // Fading ring
-  fadingRingX: SharedValue<number>;
-  fadingRingY: SharedValue<number>;
-  fadingRingR: SharedValue<number>;
-  fadingRingScale: SharedValue<number>;
-  fadingRingOpacity: SharedValue<number>;
-
-  // Scoring / vies
-  score: SharedValue<number>;
-  streak: SharedValue<number>;
-  combo: SharedValue<number>;
-  lives: SharedValue<number>;
-
-  // Orbe de vie
-  currentHasLife: SharedValue<boolean>;
-  nextHasLife: SharedValue<boolean>;
-
-  // Palettes
-  currentPaletteIndex: SharedValue<number>;
-  nextPaletteIndex: SharedValue<number>;
-  getRandomPaletteIndex: (exclude?: number) => number;
-}
-
-export const useGameLoop = (params: UseGameLoopParams) => {
+export const useGameLoop = (params: any) => {
   useFrameCallback((frameInfo) => {
     'worklet';
 
     const {
+      // état principal
       alive,
       mode,
       angle,
       speed,
+
       currentX,
       currentY,
       currentR,
+
       nextX,
       nextY,
       nextR,
+
       ballX,
       ballY,
+
       gateAngle,
       gateWidth,
       dashStartTime,
+
+      // fading ring
       fadingRingX,
       fadingRingY,
       fadingRingR,
       fadingRingScale,
       fadingRingOpacity,
+
+      // scoring / vies
       score,
       streak,
       combo,
       lives,
       currentHasLife,
       nextHasLife,
+
+      // palettes
       currentPaletteIndex,
       nextPaletteIndex,
       getRandomPaletteIndex,
@@ -101,7 +85,9 @@ export const useGameLoop = (params: UseGameLoopParams) => {
         ? frameInfo.timeSincePreviousFrame / 1000
         : 1 / 60;
 
+    // --------------------
     // ORBIT : la bille tourne autour du ring courant
+    // --------------------
     if (mode.value === 'orbit') {
       angle.value = angle.value + speed.value * dt;
       ballX.value = currentX.value + currentR.value * Math.cos(angle.value);
@@ -109,21 +95,43 @@ export const useGameLoop = (params: UseGameLoopParams) => {
       return;
     }
 
-    // DASH : la bille va vers le ring suivant en ligne droite
+    // --------------------
+    // DASH : comportement “ancien projet”
+    // centre → centre, dashSpeed dépend de score + combo
+    // --------------------
     if (mode.value === 'dash') {
+      // 1) Vitesse de dash comme avant
+      const comboDash = Math.min(combo.value * 12, 999);
+      const extra = DASH_EXTRA_MAX * diffFactor(score.value);
+      const dashSpeed = Math.min(DASH_BASE + extra + comboDash, DASH_CAP);
+
+      // 2) Direction : centre du ring courant → centre du ring suivant
       const dx = nextX.value - ballX.value;
       const dy = nextY.value - ballY.value;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-      if (dist > 0.5) {
-        ballX.value = ballX.value + (dx / dist) * DASH_SPEED * dt;
-        ballY.value = ballY.value + (dy / dist) * DASH_SPEED * dt;
+      // 3) Avance de la bille
+      const step = dashSpeed * dt;
+
+      if (dist > step) {
+        ballX.value += (dx / dist) * step;
+        ballY.value += (dy / dist) * step;
+      } else {
+        // snap propre au centre du ring suivant
+        ballX.value = nextX.value;
+        ballY.value = nextY.value;
       }
 
-      // Quand la bille atteint le centre du ring suivant → ring complété
-      if (dist <= 4) {
-        const isPerfect = false; // on ajustera plus tard la fenêtre "perfect"
+      // 4) Détection d'entrée dans le ring suivant
+      const dist2 =
+        (ballX.value - nextX.value) * (ballX.value - nextX.value) +
+        (ballY.value - nextY.value) * (ballY.value - nextY.value);
 
+      const insideNext =
+        dist2 <= (nextR.value - 6) * (nextR.value - 6);
+
+      if (insideNext) {
+        // Pour l'instant on ne gère pas le “perfect” ici → false
         completeRing({
           currentPaletteIndex,
           nextPaletteIndex,
@@ -153,7 +161,7 @@ export const useGameLoop = (params: UseGameLoopParams) => {
           lives,
           currentHasLife,
           nextHasLife,
-          isPerfect,
+          isPerfect: false,
           RING_RADIUS,
         });
       }
