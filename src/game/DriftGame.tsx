@@ -1,12 +1,12 @@
 // src/game/DriftGame.tsx
 // ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
-// Vie = orbe rouge sur le ring, récupérée UNIQUEMENT quand la bille passe dessus.
 
 import React from 'react';
 import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
 import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
 import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { NeonRing } from '../components/NeonRing';
+import { BottomPanel } from '../components/BottomPanel';
 import { createArcPath } from '../utils/path';
 import { validateTap } from './logic/collisionDetection';
 import { loseLife, restart } from './logic/gameLifecycle';
@@ -19,6 +19,7 @@ import {
   LIVES_MAX,
   START_ORBIT_SPEED,
   START_GATE_WIDTH,
+  AUTO_PLAY_DURATION,
 } from '../constants/gameplay';
 import { BALL_COLOR } from '../constants/colors';
 
@@ -26,10 +27,9 @@ const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
 const RING_RADIUS = CANVAS_WIDTH * 0.25;
 
-// Orbe de vie : à l'opposé de la gate (gateAngle + π)
 const LIFE_ORB_OFFSET = Math.PI;
-// Distance² max pour considérer une collision bille/orbe
-const LIFE_ORB_COLLISION_DIST = 625;
+const AUTOPLAY_ORB_OFFSET = Math.PI / 2;
+const ORB_COLLISION_DIST = 625;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
 const fontStyle = {
@@ -52,6 +52,7 @@ const DriftGame: React.FC = () => {
   const [aliveUI, setAliveUI] = React.useState(true);
   const [scoreUI, setScoreUI] = React.useState(0);
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
+  const [autoPlayInInventoryUI, setAutoPlayInInventoryUI] = React.useState(false);
 
   // ----- GATE -----
   const gateStart = useDerivedValue(
@@ -76,7 +77,7 @@ const DriftGame: React.FC = () => {
     () => gameState.fadingRingR.value * gameState.fadingRingScale.value
   );
 
-  // ----- ORBE DE VIE (toujours à l'opposé de la gate) -----
+  // ----- ORBE DE VIE (rouge, opposée à la gate) -----
   const lifeOrbVisible = useDerivedValue(
     () => (gameState.currentHasLife.value ? 1 : 0)
   );
@@ -96,7 +97,27 @@ const DriftGame: React.FC = () => {
       gameState.currentR.value * Math.sin(lifeOrbAngle.value)
   );
 
-  // Collision bille/orbe → tout en Reanimated
+  // ----- ORBE AUTO-PLAY (violette, 90° de la gate) -----
+  const autoPlayOrbVisible = useDerivedValue(
+    () => (gameState.currentHasAutoPlay.value ? 1 : 0)
+  );
+
+  const autoPlayOrbAngle = useDerivedValue(
+    () => gameState.gateAngle.value + AUTOPLAY_ORB_OFFSET
+  );
+
+  const autoPlayOrbX = useDerivedValue(
+    () =>
+      gameState.currentX.value +
+      gameState.currentR.value * Math.cos(autoPlayOrbAngle.value)
+  );
+  const autoPlayOrbY = useDerivedValue(
+    () =>
+      gameState.currentY.value +
+      gameState.currentR.value * Math.sin(autoPlayOrbAngle.value)
+  );
+
+  // Collision bille/orbe vie
   useAnimatedReaction(
     () => ({
       hasLife: gameState.currentHasLife.value,
@@ -121,9 +142,40 @@ const DriftGame: React.FC = () => {
       const dy = state.ballY - orbY;
       const distSq = dx * dx + dy * dy;
 
-      if (distSq <= LIFE_ORB_COLLISION_DIST) {
+      if (distSq <= ORB_COLLISION_DIST) {
         gameState.currentHasLife.value = false;
         gameState.lives.value = Math.min(LIVES_MAX, state.lives + 1);
+      }
+    }
+  );
+
+  // Collision bille/orbe auto-play
+  useAnimatedReaction(
+    () => ({
+      hasAutoPlay: gameState.currentHasAutoPlay.value,
+      ballX: gameState.ballX.value,
+      ballY: gameState.ballY.value,
+      gateAngle: gameState.gateAngle.value,
+      inInventory: gameState.autoPlayInInventory.value,
+    }),
+    (state) => {
+      if (!state.hasAutoPlay || state.inInventory) return;
+
+      const cx = gameState.currentX.value;
+      const cy = gameState.currentY.value;
+      const r = gameState.currentR.value;
+
+      const orbAngle = state.gateAngle + AUTOPLAY_ORB_OFFSET;
+      const orbX = cx + r * Math.cos(orbAngle);
+      const orbY = cy + r * Math.sin(orbAngle);
+
+      const dx = state.ballX - orbX;
+      const dy = state.ballY - orbY;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq <= ORB_COLLISION_DIST) {
+        gameState.currentHasAutoPlay.value = false;
+        gameState.autoPlayInInventory.value = true;
       }
     }
   );
@@ -136,11 +188,17 @@ const DriftGame: React.FC = () => {
     }
   );
 
-  // UPDATE LIVES UI - useAnimatedReaction s'occupe de tout automatiquement
   useAnimatedReaction(
     () => gameState.lives.value,
     (lives) => {
       runOnJS(setLivesUI)(lives);
+    }
+  );
+
+  useAnimatedReaction(
+    () => gameState.autoPlayInInventory.value,
+    (inInventory) => {
+      runOnJS(setAutoPlayInInventoryUI)(inInventory);
     }
   );
 
@@ -160,6 +218,13 @@ const DriftGame: React.FC = () => {
     ...gameState,
     ...palettes,
   });
+
+  const onActivateAutoPlay = () => {
+    if (!gameState.autoPlayInInventory.value) return;
+    gameState.autoPlayInInventory.value = false;
+    gameState.autoPlayActive.value = true;
+    gameState.autoPlayTimeLeft.value = AUTO_PLAY_DURATION;
+  };
 
   const onTap = () => {
     // Restart si mort
@@ -202,6 +267,7 @@ const DriftGame: React.FC = () => {
         combo: gameState.combo,
         currentHasLife: gameState.currentHasLife,
         nextHasLife: gameState.nextHasLife,
+        currentHasAutoPlay: gameState.currentHasAutoPlay,
         setAliveUI,
       });
     }
@@ -242,13 +308,22 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* 🔴 ORBE DE VIE SUR LE RING COURANT (OPPOSÉE À LA GATE) */}
+        {/* 🔴 ORBE DE VIE */}
         <Circle
           cx={lifeOrbX}
           cy={lifeOrbY}
           r={8}
           color="#ef4444"
           opacity={lifeOrbVisible}
+        />
+
+        {/* 🟣 ORBE AUTO-PLAY */}
+        <Circle
+          cx={autoPlayOrbX}
+          cy={autoPlayOrbY}
+          r={8}
+          color="#8b5cf6"
+          opacity={autoPlayOrbVisible}
         />
 
         {/* NEXT RING */}
@@ -281,7 +356,7 @@ const DriftGame: React.FC = () => {
         {/* BALL */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
 
-        {/* SCORE (Skia Text) */}
+        {/* SCORE */}
         <Text
           x={CANVAS_WIDTH / 2 - 30}
           y={80}
@@ -290,7 +365,7 @@ const DriftGame: React.FC = () => {
           font={font}
         />
 
-        {/* LIVES (Skia Circles) */}
+        {/* LIVES */}
         {livesPositions.map((pos, i) => (
           <Circle
             key={i}
@@ -301,7 +376,7 @@ const DriftGame: React.FC = () => {
           />
         ))}
 
-        {/* GAME OVER TEXT (Skia) */}
+        {/* GAME OVER TEXT */}
         {!aliveUI && (
           <Text
             x={CANVAS_WIDTH / 2 - 80}
@@ -312,6 +387,13 @@ const DriftGame: React.FC = () => {
           />
         )}
       </Canvas>
+
+      <BottomPanel
+        autoPlayInInventory={autoPlayInInventoryUI}
+        autoPlayActive={gameState.autoPlayActive}
+        autoPlayTimeLeft={gameState.autoPlayTimeLeft}
+        onActivateAutoPlay={onActivateAutoPlay}
+      />
     </Pressable>
   );
 };

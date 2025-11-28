@@ -11,6 +11,7 @@ import {
   SHRINK_PER_RING,
   STREAK_FOR_LIFE,
   LIVES_MAX,
+  AUTOPLAY_SPAWN_CHANCE,
 } from '../../constants/gameplay';
 
 interface CompleteRingParams {
@@ -55,6 +56,9 @@ interface CompleteRingParams {
   // Vie sur ring
   currentHasLife: SharedValue<boolean>;
   nextHasLife: SharedValue<boolean>;
+
+  // Auto-play bonus
+  currentHasAutoPlay: SharedValue<boolean>;
 
   // Divers
   isPerfect: boolean;
@@ -106,6 +110,9 @@ export const completeRing = (params: CompleteRingParams) => {
     currentHasLife,
     nextHasLife,
 
+    // Auto-play bonus
+    currentHasAutoPlay,
+
     // Divers
     isPerfect,
     RING_RADIUS,
@@ -126,6 +133,11 @@ export const completeRing = (params: CompleteRingParams) => {
     currentHasLife.value = false;
   }
   nextHasLife.value = false;
+
+  // Auto-play orbe ratée aussi
+  if (currentHasAutoPlay.value) {
+    currentHasAutoPlay.value = false;
+  }
 
   // 3) STREAK
   streak.value = streak.value + 1;
@@ -181,6 +193,11 @@ export const completeRing = (params: CompleteRingParams) => {
     streak.value = 0;
     currentHasLife.value = true;
   }
+
+  // 12) SPAWN AUTO-PLAY (chance aléatoire)
+  if (Math.random() < AUTOPLAY_SPAWN_CHANCE && !currentHasAutoPlay.value) {
+    currentHasAutoPlay.value = true;
+  }
 };
 
 interface LoseLifeParams {
@@ -190,6 +207,7 @@ interface LoseLifeParams {
   combo: SharedValue<number>;
   currentHasLife: SharedValue<boolean>;
   nextHasLife: SharedValue<boolean>;
+  currentHasAutoPlay: SharedValue<boolean>;
   setAliveUI: (alive: boolean) => void;
 }
 
@@ -202,6 +220,7 @@ export const loseLife = (params: LoseLifeParams) => {
     combo,
     currentHasLife,
     nextHasLife,
+    currentHasAutoPlay,
     setAliveUI,
   } = params;
 
@@ -210,6 +229,7 @@ export const loseLife = (params: LoseLifeParams) => {
   combo.value = 0;
   currentHasLife.value = false;
   nextHasLife.value = false;
+  currentHasAutoPlay.value = false;
 
   // VÉRIFIER si dernière vie
   if (lives.value === 1) {
@@ -221,7 +241,6 @@ export const loseLife = (params: LoseLifeParams) => {
     // Il reste des vies
     lives.value = lives.value - 1;
   }
-  // PAS de setLivesUI ici - le useAnimatedReaction s'en charge
 };
 
 // Restart : reset complet
@@ -254,6 +273,10 @@ interface RestartParams {
   nextPaletteIndex: SharedValue<number>;
   currentHasLife: SharedValue<boolean>;
   nextHasLife: SharedValue<boolean>;
+  currentHasAutoPlay: SharedValue<boolean>;
+  autoPlayInInventory: SharedValue<boolean>;
+  autoPlayActive: SharedValue<boolean>;
+  autoPlayTimeLeft: SharedValue<number>;
   getRandomPaletteIndex: (exclude?: number) => number;
 
   setAliveUI: (alive: boolean) => void;
@@ -293,6 +316,10 @@ export const restart = (params: RestartParams) => {
     nextPaletteIndex,
     currentHasLife,
     nextHasLife,
+    currentHasAutoPlay,
+    autoPlayInInventory,
+    autoPlayActive,
+    autoPlayTimeLeft,
     getRandomPaletteIndex,
     setAliveUI,
     setDisplayScoreUI,
@@ -317,6 +344,11 @@ export const restart = (params: RestartParams) => {
   currentHasLife.value = false;
   nextHasLife.value = false;
 
+  currentHasAutoPlay.value = false;
+  autoPlayInInventory.value = false;
+  autoPlayActive.value = false;
+  autoPlayTimeLeft.value = 0;
+
   currentX.value = CENTER_X;
   currentY.value = CENTER_Y;
   currentR.value = RING_RADIUS;
@@ -337,5 +369,4 @@ export const restart = (params: RestartParams) => {
 
   runOnJS(setAliveUI)(true);
   runOnJS(setDisplayScoreUI)(0);
-  // PAS de setLivesUI ici - le useAnimatedReaction détecte lives.value = LIVES_MAX
 };

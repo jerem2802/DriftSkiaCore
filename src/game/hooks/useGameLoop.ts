@@ -12,8 +12,6 @@ import {
 } from '../../constants/gameplay';
 import { completeRing } from '../logic/gameLifecycle';
 
-
-
 const RING_RADIUS = CANVAS_WIDTH * 0.25;
 
 // Même courbe de difficulté que dans l'ancien projet
@@ -69,6 +67,11 @@ export const useGameLoop = (params: any) => {
       lives,
       currentHasLife,
       nextHasLife,
+      currentHasAutoPlay,
+
+      // auto-play
+      autoPlayActive,
+      autoPlayTimeLeft,
 
       // palettes
       currentPaletteIndex,
@@ -86,6 +89,30 @@ export const useGameLoop = (params: any) => {
         : 1 / 60;
 
     // --------------------
+    // AUTO-PLAY: décrémenter timer
+    // --------------------
+    if (autoPlayActive.value && autoPlayTimeLeft.value > 0) {
+      autoPlayTimeLeft.value = Math.max(0, autoPlayTimeLeft.value - dt * 1000);
+      
+      if (autoPlayTimeLeft.value === 0) {
+        autoPlayActive.value = false;
+      }
+    }
+
+    // --------------------
+    // AUTO-PLAY: tap automatique parfait dans la gate
+    // --------------------
+    if (mode.value === 'orbit' && autoPlayActive.value) {
+      const angleDiff = Math.abs(angle.value - gateAngle.value);
+      const normalizedDiff = angleDiff > Math.PI ? 2 * Math.PI - angleDiff : angleDiff;
+      
+      if (normalizedDiff < 0.05) { // Tap parfait
+        mode.value = 'dash';
+        dashStartTime.value = Date.now();
+      }
+    }
+
+    // --------------------
     // ORBIT : la bille tourne autour du ring courant
     // --------------------
     if (mode.value === 'orbit') {
@@ -96,7 +123,7 @@ export const useGameLoop = (params: any) => {
     }
 
     // --------------------
-    // DASH : comportement “ancien projet”
+    // DASH : comportement "ancien projet"
     // centre → centre, dashSpeed dépend de score + combo
     // --------------------
     if (mode.value === 'dash') {
@@ -131,7 +158,6 @@ export const useGameLoop = (params: any) => {
         dist2 <= (nextR.value - 6) * (nextR.value - 6);
 
       if (insideNext) {
-        // Pour l'instant on ne gère pas le “perfect” ici → false
         completeRing({
           currentPaletteIndex,
           nextPaletteIndex,
@@ -161,6 +187,7 @@ export const useGameLoop = (params: any) => {
           lives,
           currentHasLife,
           nextHasLife,
+          currentHasAutoPlay,
           isPerfect: false,
           RING_RADIUS,
         });

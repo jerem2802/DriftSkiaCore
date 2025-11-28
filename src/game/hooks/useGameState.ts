@@ -21,14 +21,20 @@ export const useGameState = () => {
   const score = useSharedValue(0);
   const displayScore = useSharedValue(0);
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
-
+  
   // Scoring avancé
-  const streak = useSharedValue(0); // sert pour le cycle des 8 rings
-  const combo = useSharedValue(1);
+  const streak = useSharedValue(0);
+  const combo = useSharedValue(0);
 
-  // Vie sur les rings
+  // Vie pickup
   const currentHasLife = useSharedValue(false);
   const nextHasLife = useSharedValue(false);
+
+  // Auto-play bonus
+  const currentHasAutoPlay = useSharedValue(false);
+  const autoPlayInInventory = useSharedValue(false);
+  const autoPlayActive = useSharedValue(false);
+  const autoPlayTimeLeft = useSharedValue(0);
 
   // Positions - Current ring
   const currentX = useSharedValue(CENTER_X);
@@ -70,9 +76,15 @@ export const useGameState = () => {
     streak,
     combo,
 
-    // Vie sur rings
+    // Vie pickup
     currentHasLife,
     nextHasLife,
+
+    // Auto-play bonus
+    currentHasAutoPlay,
+    autoPlayInInventory,
+    autoPlayActive,
+    autoPlayTimeLeft,
 
     // Current ring
     currentX,
