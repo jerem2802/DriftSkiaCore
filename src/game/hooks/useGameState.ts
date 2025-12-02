@@ -8,20 +8,21 @@ import {
   START_ORBIT_SPEED,
   START_GATE_WIDTH,
   LIVES_MAX,
+  RING_RADIUS,
 } from '../../constants/gameplay';
+
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
-const RING_RADIUS = CANVAS_WIDTH * 0.25;
+
 
 export const useGameState = () => {
   // Game state
   const alive = useSharedValue(true);
   const lives = useSharedValue(LIVES_MAX);
   const score = useSharedValue(0);
-  const displayScore = useSharedValue(0);
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
-  
+
   // Scoring avancé
   const streak = useSharedValue(0);
   const combo = useSharedValue(0);
@@ -35,6 +36,13 @@ export const useGameState = () => {
   const autoPlayInInventory = useSharedValue(false);
   const autoPlayActive = useSharedValue(false);
   const autoPlayTimeLeft = useSharedValue(0);
+
+    // Shield / Safe Miss
+  const currentHasShield = useSharedValue(false);
+  const nextHasShield = useSharedValue(false);
+  const shieldAvailable = useSharedValue(false);
+  const shieldArmed = useSharedValue(false); 
+
 
   // Positions - Current ring
   const currentX = useSharedValue(CENTER_X);
@@ -71,7 +79,6 @@ export const useGameState = () => {
     alive,
     lives,
     score,
-    displayScore,
     mode,
     streak,
     combo,
@@ -106,6 +113,12 @@ export const useGameState = () => {
     gateAngle,
     gateWidth,
     dashStartTime,
+
+       // Shield / Safe Miss
+    currentHasShield,
+    nextHasShield,
+    shieldAvailable,
+    shieldArmed,
 
     // Fading ring
     fadingRingX,

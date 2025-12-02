@@ -2,11 +2,12 @@
 // ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
 
 import React from 'react';
-import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
+import { Pressable, StatusBar, StyleSheet, Platform, Share } from 'react-native';
 import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
 import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
+import { GameOverOverlay } from '../components/GameOverOverlay';
 import { createArcPath } from '../utils/path';
 import { validateTap } from './logic/collisionDetection';
 import { loseLife, restart } from './logic/gameLifecycle';
@@ -20,16 +21,18 @@ import {
   START_ORBIT_SPEED,
   START_GATE_WIDTH,
   AUTO_PLAY_DURATION,
+  RING_RADIUS,
 } from '../constants/gameplay';
 import { BALL_COLOR } from '../constants/colors';
+import { SHIELD_COLLISION_DIST, grantShield } from './logic/shieldBonus';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
-const RING_RADIUS = CANVAS_WIDTH * 0.25;
 
 const LIFE_ORB_OFFSET = Math.PI;
 const AUTOPLAY_ORB_OFFSET = Math.PI / 2;
 const ORB_COLLISION_DIST = 625;
+const SHIELD_ORB_OFFSET = -Math.PI / 2;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
 const fontStyle = {
@@ -39,20 +42,24 @@ const fontStyle = {
 };
 const font = matchFont(fontStyle);
 
-const fontStyleSmall = {
-  fontFamily,
-  fontSize: 20,
-};
-const fontSmall = matchFont(fontStyleSmall);
-
 const DriftGame: React.FC = () => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
+  // Score 100 % côté Skia / SharedValue
+  const scoreText = useDerivedValue(
+    () => Math.round(gameState.score.value).toString()
+  );
+
+  // UI React (overlay, texte, etc.)
   const [aliveUI, setAliveUI] = React.useState(true);
-  const [scoreUI, setScoreUI] = React.useState(0);
+  const [lastScoreUI, setLastScoreUI] = React.useState(0);
+  const [bestScoreUI, setBestScoreUI] = React.useState(0);
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
   const [autoPlayInInventoryUI, setAutoPlayInInventoryUI] = React.useState(false);
+  const [hasUsedContinue, setHasUsedContinue] = React.useState(false);
+  const [shieldAvailableUI, setShieldAvailableUI] = React.useState(false);
+const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
 
   // ----- GATE -----
   const gateStart = useDerivedValue(
@@ -115,6 +122,26 @@ const DriftGame: React.FC = () => {
     () =>
       gameState.currentY.value +
       gameState.currentR.value * Math.sin(autoPlayOrbAngle.value)
+  );
+
+  // ----- ORBE SHIELD (Safe Miss, -90° de la gate) -----
+  const shieldOrbVisible = useDerivedValue(
+    () => (gameState.currentHasShield.value ? 1 : 0)
+  );
+
+  const shieldOrbAngle = useDerivedValue(
+    () => gameState.gateAngle.value + SHIELD_ORB_OFFSET
+  );
+
+  const shieldOrbX = useDerivedValue(
+    () =>
+      gameState.currentX.value +
+      gameState.currentR.value * Math.cos(shieldOrbAngle.value)
+  );
+  const shieldOrbY = useDerivedValue(
+    () =>
+      gameState.currentY.value +
+      gameState.currentR.value * Math.sin(shieldOrbAngle.value)
   );
 
   // Collision bille/orbe vie
@@ -180,14 +207,77 @@ const DriftGame: React.FC = () => {
     }
   );
 
-  // ----- UI score / vies sans re-render Canvas -----
+  // Sync inventaire shield vers l'UI React (BottomPanel)
+useAnimatedReaction(
+  () => gameState.shieldAvailable.value,
+  (available) => {
+    runOnJS(setShieldAvailableUI)(available);
+  }
+);
+
+// Sync état armé du shield vers l'UI React
+useAnimatedReaction(
+  () => gameState.shieldArmed.value,
+  (armed) => {
+    runOnJS(setShieldArmedUI)(armed);
+  }
+);
+
+
+  // Collision bille/orbe shield
   useAnimatedReaction(
-    () => Math.round(gameState.score.value),
-    (score) => {
-      runOnJS(setScoreUI)(score);
+    () => ({
+      hasShieldOrb: gameState.currentHasShield.value,
+      ballX: gameState.ballX.value,
+      ballY: gameState.ballY.value,
+      gateAngle: gameState.gateAngle.value,
+    }),
+    (state) => {
+      if (!state.hasShieldOrb) return;
+
+      const cx = gameState.currentX.value;
+      const cy = gameState.currentY.value;
+      const r = gameState.currentR.value;
+
+      const orbAngle = state.gateAngle + SHIELD_ORB_OFFSET;
+      const orbX = cx + r * Math.cos(orbAngle);
+      const orbY = cy + r * Math.sin(orbAngle);
+
+      const dx = state.ballX - orbX;
+      const dy = state.ballY - orbY;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq <= SHIELD_COLLISION_DIST) {
+        // On accorde le bouclier via la logique dédiée
+        grantShield(gameState.shieldAvailable, gameState.currentHasShield);
+      }
     }
   );
 
+  // Callback JS pour mettre à jour les scores à la mort
+  const updateScoresOnGameOver = React.useCallback((finalScore: number) => {
+    setLastScoreUI(finalScore);
+    setBestScoreUI((prev) => Math.max(prev, finalScore));
+  }, []);
+
+  // Sync du flag alive + score final vers l'UI React
+  useAnimatedReaction(
+    () => gameState.alive.value,
+    (alive, prevAlive) => {
+      if (alive === prevAlive) {
+        return;
+      }
+
+      runOnJS(setAliveUI)(alive);
+
+      if (!alive) {
+        const finalScore = Math.round(gameState.score.value);
+        runOnJS(updateScoresOnGameOver)(finalScore);
+      }
+    }
+  );
+
+  // Sync des vies vers l'UI React
   useAnimatedReaction(
     () => gameState.lives.value,
     (lives) => {
@@ -195,6 +285,7 @@ const DriftGame: React.FC = () => {
     }
   );
 
+  // Sync inventaire auto-play vers l'UI React (BottomPanel)
   useAnimatedReaction(
     () => gameState.autoPlayInInventory.value,
     (inInventory) => {
@@ -226,22 +317,66 @@ const DriftGame: React.FC = () => {
     gameState.autoPlayTimeLeft.value = AUTO_PLAY_DURATION;
   };
 
+  const onActivateShield = () => {
+  // Pas de shield en stock → rien à faire
+  if (!gameState.shieldAvailable.value) {
+    return;
+  }
+
+  // Si déjà armé, on ne fait rien (sécurité)
+  if (gameState.shieldArmed.value) {
+    return;
+  }
+
+  // On consomme le stock et on arme le bouclier
+  gameState.shieldAvailable.value = false;
+  gameState.shieldArmed.value = true;
+};
+
+
+  const handleRestart = React.useCallback(() => {
+    setHasUsedContinue(false);
+
+    restart({
+      ...gameState,
+      currentPaletteIndex: palettes.currentPaletteIndex,
+      nextPaletteIndex: palettes.nextPaletteIndex,
+      getRandomPaletteIndex: palettes.getRandomPaletteIndex,
+      CENTER_X,
+      CENTER_Y,
+      RING_RADIUS,
+      START_ORBIT_SPEED,
+      START_GATE_WIDTH,
+    });
+  }, [gameState, palettes]);
+
+  const handleContinue = React.useCallback(() => {
+    if (hasUsedContinue) {
+      return;
+    }
+
+    // On ne continue que si on est vraiment en Game Over
+    if (gameState.alive.value || gameState.lives.value > 0) {
+      return;
+    }
+
+    setHasUsedContinue(true);
+
+    // On rend 1 vie et on relance la boucle
+    gameState.lives.value = 1;
+    gameState.alive.value = true;
+  }, [hasUsedContinue, gameState]);
+
+  const handleShare = React.useCallback(() => {
+    const message = `Je viens de faire ${lastScoreUI} points sur Drift Ring ! (Best : ${bestScoreUI})`;
+    Share.share({ message }).catch(() => {
+      // annulation ou erreur → on ne fait rien
+    });
+  }, [lastScoreUI, bestScoreUI]);
+
   const onTap = () => {
-    // Restart si mort
+    // Si Game Over, on laisse l'overlay gérer le restart / continue
     if (!aliveUI) {
-      restart({
-        ...gameState,
-        currentPaletteIndex: palettes.currentPaletteIndex,
-        nextPaletteIndex: palettes.nextPaletteIndex,
-        getRandomPaletteIndex: palettes.getRandomPaletteIndex,
-        setAliveUI,
-        setDisplayScoreUI: () => {},
-        CENTER_X,
-        CENTER_Y,
-        RING_RADIUS,
-        START_ORBIT_SPEED,
-        START_GATE_WIDTH,
-      });
       return;
     }
 
@@ -259,18 +394,20 @@ const DriftGame: React.FC = () => {
     if (tapResult === 'hit') {
       gameState.mode.value = 'dash';
       gameState.dashStartTime.value = Date.now();
-    } else if (tapResult === 'miss') {
-      loseLife({
-        lives: gameState.lives,
-        alive: gameState.alive,
-        streak: gameState.streak,
-        combo: gameState.combo,
-        currentHasLife: gameState.currentHasLife,
-        nextHasLife: gameState.nextHasLife,
-        currentHasAutoPlay: gameState.currentHasAutoPlay,
-        setAliveUI,
-      });
-    }
+ } else if (tapResult === 'miss') {
+  loseLife({
+    lives: gameState.lives,
+    alive: gameState.alive,
+    streak: gameState.streak,
+    combo: gameState.combo,
+    currentHasLife: gameState.currentHasLife,
+    nextHasLife: gameState.nextHasLife,
+    currentHasAutoPlay: gameState.currentHasAutoPlay,
+    shieldAvailable: gameState.shieldAvailable, // on peut garder pour compat
+    shieldArmed: gameState.shieldArmed,         // ⬅️ NOUVEAU
+  });
+}
+
   };
 
   return (
@@ -326,6 +463,15 @@ const DriftGame: React.FC = () => {
           opacity={autoPlayOrbVisible}
         />
 
+        {/* 🛡️ ORBE SHIELD (Safe Miss) */}
+        <Circle
+          cx={shieldOrbX}
+          cy={shieldOrbY}
+          r={8}
+          color="#22d3ee"
+          opacity={shieldOrbVisible}
+        />
+
         {/* NEXT RING */}
         <NeonRing
           cx={gameState.nextX}
@@ -343,7 +489,7 @@ const DriftGame: React.FC = () => {
           strokeCap="round"
           style="stroke"
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
-          opacity={0.10}
+          opacity={0.1}
         />
         <Path
           path={gatePath}
@@ -360,7 +506,7 @@ const DriftGame: React.FC = () => {
         <Text
           x={CANVAS_WIDTH / 2 - 30}
           y={80}
-          text={scoreUI.toString()}
+          text={scoreText}
           color="white"
           font={font}
         />
@@ -375,17 +521,6 @@ const DriftGame: React.FC = () => {
             color={i < livesUI ? '#ef4444' : '#334155'}
           />
         ))}
-
-        {/* GAME OVER TEXT */}
-        {!aliveUI && (
-          <Text
-            x={CANVAS_WIDTH / 2 - 80}
-            y={120}
-            text="Tap to restart"
-            color="#94a3b8"
-            font={fontSmall}
-          />
-        )}
       </Canvas>
 
       <BottomPanel
@@ -393,6 +528,19 @@ const DriftGame: React.FC = () => {
         autoPlayActive={gameState.autoPlayActive}
         autoPlayTimeLeft={gameState.autoPlayTimeLeft}
         onActivateAutoPlay={onActivateAutoPlay}
+        shieldAvailable={shieldAvailableUI}   // ⬅️ NOUVEAU
+  shieldArmed={shieldArmedUI}           // ⬅️ NOUVEAU
+  onActivateShield={onActivateShield} 
+      />
+
+      <GameOverOverlay
+        visible={!aliveUI}
+        score={lastScoreUI}
+        bestScore={bestScoreUI}
+        canContinue={!hasUsedContinue}
+        onRestart={handleRestart}
+        onShare={handleShare}
+        onWatchAd={handleContinue}
       />
     </Pressable>
   );

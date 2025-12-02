@@ -1,9 +1,10 @@
 // src/game/logic/gameLifecycle.ts
 // Logique du cycle de vie du jeu (completeRing, loseLife, restart)
 
-import { withTiming, runOnJS } from 'react-native-reanimated';
+import { withTiming } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { generateNextRing } from './ringGenerator';
+import { shouldSpawnShield } from './shieldBonus';
 import {
   SPEED_INC_PER_RING,
   SPEED_CAP,
@@ -60,6 +61,10 @@ interface CompleteRingParams {
   // Auto-play bonus
   currentHasAutoPlay: SharedValue<boolean>;
 
+  // Shield bonus
+  currentHasShield: SharedValue<boolean>;
+  shieldAvailable: SharedValue<boolean>;
+
   // Divers
   isPerfect: boolean;
   RING_RADIUS: number;
@@ -113,6 +118,10 @@ export const completeRing = (params: CompleteRingParams) => {
     // Auto-play bonus
     currentHasAutoPlay,
 
+    // Shield bonus
+    currentHasShield,
+    shieldAvailable,
+
     // Divers
     isPerfect,
     RING_RADIUS,
@@ -138,6 +147,9 @@ export const completeRing = (params: CompleteRingParams) => {
   if (currentHasAutoPlay.value) {
     currentHasAutoPlay.value = false;
   }
+
+  // Le bouclier sur le ring courant est forcément consommé ou raté
+  currentHasShield.value = false;
 
   // 3) STREAK
   streak.value = streak.value + 1;
@@ -198,6 +210,11 @@ export const completeRing = (params: CompleteRingParams) => {
   if (Math.random() < AUTOPLAY_SPAWN_CHANCE && !currentHasAutoPlay.value) {
     currentHasAutoPlay.value = true;
   }
+
+  // 13) SPAWN SHIELD (bouclier Safe Miss)
+  if (shouldSpawnShield(shieldAvailable, currentHasShield)) {
+    currentHasShield.value = true;
+  }
 };
 
 interface LoseLifeParams {
@@ -208,7 +225,8 @@ interface LoseLifeParams {
   currentHasLife: SharedValue<boolean>;
   nextHasLife: SharedValue<boolean>;
   currentHasAutoPlay: SharedValue<boolean>;
-  setAliveUI: (alive: boolean) => void;
+  shieldAvailable: SharedValue<boolean>;
+  shieldArmed: SharedValue<boolean>;
 }
 
 export const loseLife = (params: LoseLifeParams) => {
@@ -221,25 +239,34 @@ export const loseLife = (params: LoseLifeParams) => {
     currentHasLife,
     nextHasLife,
     currentHasAutoPlay,
-    setAliveUI,
+    shieldArmed,
   } = params;
 
-  // Reset cycle
+  // 1) Est-ce qu'un shield est ARMÉ pour ce miss ?
+  const hadArmedShield = shieldArmed.value === true;
+
+  if (hadArmedShield) {
+    // On consomme le shield armé (Safe Miss)
+    shieldArmed.value = false;
+  }
+
+  // 2) Reset du contexte de scoring / orbes (un miss reste un miss)
   streak.value = 0;
   combo.value = 0;
   currentHasLife.value = false;
   nextHasLife.value = false;
   currentHasAutoPlay.value = false;
 
-  // VÉRIFIER si dernière vie
-  if (lives.value === 1) {
-    // C'était la dernière → Game Over
-    lives.value = 0;
-    alive.value = false;
-    runOnJS(setAliveUI)(false);
-  } else {
-    // Il reste des vies
-    lives.value = lives.value - 1;
+  // 3) Perte de vie uniquement si PAS de shield armé
+  if (!hadArmedShield) {
+    if (lives.value === 1) {
+      // C'était la dernière → Game Over
+      lives.value = 0;
+      alive.value = false;
+    } else {
+      // Il reste des vies
+      lives.value = lives.value - 1;
+    }
   }
 };
 
@@ -248,7 +275,7 @@ interface RestartParams {
   alive: SharedValue<boolean>;
   lives: SharedValue<number>;
   score: SharedValue<number>;
-  displayScore: SharedValue<number>;
+
   speed: SharedValue<number>;
   gateWidth: SharedValue<number>;
   mode: SharedValue<'orbit' | 'dash'>;
@@ -274,13 +301,13 @@ interface RestartParams {
   currentHasLife: SharedValue<boolean>;
   nextHasLife: SharedValue<boolean>;
   currentHasAutoPlay: SharedValue<boolean>;
+  currentHasShield: SharedValue<boolean>;
   autoPlayInInventory: SharedValue<boolean>;
   autoPlayActive: SharedValue<boolean>;
   autoPlayTimeLeft: SharedValue<number>;
+  shieldAvailable: SharedValue<boolean>;
+  shieldArmed: SharedValue<boolean>;
   getRandomPaletteIndex: (exclude?: number) => number;
-
-  setAliveUI: (alive: boolean) => void;
-  setDisplayScoreUI: (score: number) => void;
 
   CENTER_X: number;
   CENTER_Y: number;
@@ -295,7 +322,6 @@ export const restart = (params: RestartParams) => {
     alive,
     lives,
     score,
-    displayScore,
     speed,
     gateWidth,
     mode,
@@ -317,12 +343,13 @@ export const restart = (params: RestartParams) => {
     currentHasLife,
     nextHasLife,
     currentHasAutoPlay,
+    currentHasShield,
     autoPlayInInventory,
     autoPlayActive,
     autoPlayTimeLeft,
+    shieldAvailable,
+    shieldArmed,
     getRandomPaletteIndex,
-    setAliveUI,
-    setDisplayScoreUI,
     CENTER_X,
     CENTER_Y,
     RING_RADIUS,
@@ -333,21 +360,24 @@ export const restart = (params: RestartParams) => {
   alive.value = true;
   lives.value = LIVES_MAX;
   score.value = 0;
-  displayScore.value = 0;
-
   speed.value = START_ORBIT_SPEED;
   gateWidth.value = START_GATE_WIDTH;
   mode.value = 'orbit';
 
   streak.value = 0;
   combo.value = 0;
+
   currentHasLife.value = false;
   nextHasLife.value = false;
-
   currentHasAutoPlay.value = false;
+  currentHasShield.value = false;
+
   autoPlayInInventory.value = false;
   autoPlayActive.value = false;
   autoPlayTimeLeft.value = 0;
+
+  shieldAvailable.value = false;
+  shieldArmed.value = false;
 
   currentX.value = CENTER_X;
   currentY.value = CENTER_Y;
@@ -366,7 +396,4 @@ export const restart = (params: RestartParams) => {
 
   currentPaletteIndex.value = getRandomPaletteIndex();
   nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);
-
-  runOnJS(setAliveUI)(true);
-  runOnJS(setDisplayScoreUI)(0);
 };

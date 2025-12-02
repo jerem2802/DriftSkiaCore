@@ -4,15 +4,16 @@
 
 import { useFrameCallback } from 'react-native-reanimated';
 import {
-  CANVAS_WIDTH,
+
   DASH_BASE,
   DASH_EXTRA_MAX,
   DASH_CAP,
   GODLIKE_SCORE,
+  RING_RADIUS,
 } from '../../constants/gameplay';
 import { completeRing } from '../logic/gameLifecycle';
 
-const RING_RADIUS = CANVAS_WIDTH * 0.25;
+
 
 // Même courbe de difficulté que dans l'ancien projet
 const expo01 = (t: number) => {
@@ -60,18 +61,23 @@ export const useGameLoop = (params: any) => {
       fadingRingScale,
       fadingRingOpacity,
 
-      // scoring / vies
-      score,
-      streak,
-      combo,
-      lives,
-      currentHasLife,
-      nextHasLife,
-      currentHasAutoPlay,
+     // scoring / vies
+  score,
+  streak,
+  combo,
+  lives,
+  currentHasLife,
+  nextHasLife,
+  currentHasAutoPlay,
 
-      // auto-play
-      autoPlayActive,
-      autoPlayTimeLeft,
+  // bouclier
+  currentHasShield,
+  shieldAvailable,
+
+  // auto-play
+  autoPlayActive,
+  autoPlayTimeLeft,
+
 
       // palettes
       currentPaletteIndex,
@@ -93,7 +99,7 @@ export const useGameLoop = (params: any) => {
     // --------------------
     if (autoPlayActive.value && autoPlayTimeLeft.value > 0) {
       autoPlayTimeLeft.value = Math.max(0, autoPlayTimeLeft.value - dt * 1000);
-      
+
       if (autoPlayTimeLeft.value === 0) {
         autoPlayActive.value = false;
       }
@@ -105,7 +111,7 @@ export const useGameLoop = (params: any) => {
     if (mode.value === 'orbit' && autoPlayActive.value) {
       const angleDiff = Math.abs(angle.value - gateAngle.value);
       const normalizedDiff = angleDiff > Math.PI ? 2 * Math.PI - angleDiff : angleDiff;
-      
+
       if (normalizedDiff < 0.05) { // Tap parfait
         mode.value = 'dash';
         dashStartTime.value = Date.now();
@@ -188,6 +194,8 @@ export const useGameLoop = (params: any) => {
           currentHasLife,
           nextHasLife,
           currentHasAutoPlay,
+          currentHasShield,
+          shieldAvailable,
           isPerfect: false,
           RING_RADIUS,
         });

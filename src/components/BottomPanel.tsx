@@ -11,6 +11,11 @@ interface BottomPanelProps {
   autoPlayActive: SharedValue<boolean>;
   autoPlayTimeLeft: SharedValue<number>;
   onActivateAutoPlay: () => void;
+
+  // Shield
+  shieldAvailable: boolean;
+  shieldArmed: boolean;
+  onActivateShield: () => void;
 }
 
 export const BottomPanel: React.FC<BottomPanelProps> = ({
@@ -18,43 +23,84 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   autoPlayActive,
   autoPlayTimeLeft,
   onActivateAutoPlay,
+  shieldAvailable,
+  shieldArmed,
+  onActivateShield,
 }) => {
   const [timeLeftUI, setTimeLeftUI] = React.useState(0);
   const [isActiveUI, setIsActiveUI] = React.useState(false);
 
-  // Sync timer UI
+  // Sync timer UI (on met à jour le JS seulement si la seconde affichée change
+  // ou si l'état actif/inactif change)
   useAnimatedReaction(
-    () => ({ time: autoPlayTimeLeft.value, active: autoPlayActive.value }),
-    (state) => {
+    () => ({
+      time: autoPlayTimeLeft.value,
+      active: autoPlayActive.value,
+    }),
+    (state, prev) => {
+      const currentSecond = Math.ceil(state.time / 1000);
+      const prevSecond = prev != null ? Math.ceil(prev.time / 1000) : null;
+
+      const activeChanged = !prev || prev.active !== state.active;
+      const secondChanged = !prev || currentSecond !== prevSecond;
+
+      if (!activeChanged && !secondChanged) {
+        return; // rien de nouveau à afficher → pas de runOnJS
+      }
+
       runOnJS(setTimeLeftUI)(state.time);
       runOnJS(setIsActiveUI)(state.active);
     }
   );
 
-  // Afficher si en inventory OU si actif
-  if (!autoPlayInInventory && !isActiveUI) {
+  const hasAutoPlayVisible = autoPlayInInventory || isActiveUI;
+  const hasShieldVisible = shieldAvailable || shieldArmed;
+
+  // Panel visible seulement s'il y a au moins un bonus à afficher
+  if (!hasAutoPlayVisible && !hasShieldVisible) {
     return null;
   }
 
   const secondsLeft = Math.ceil(timeLeftUI / 1000);
+  const canPressShield = shieldAvailable && !shieldArmed;
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={[
-          styles.bonusButton,
-          isActiveUI && styles.bonusButtonActive
-        ]}
-        onPress={onActivateAutoPlay}
-        activeOpacity={0.7}
-        disabled={isActiveUI}
-      >
-        {isActiveUI ? (
-          <Text style={styles.timerText}>{secondsLeft}s</Text>
-        ) : (
-          <View style={styles.autoPlayIcon} />
-        )}
-      </TouchableOpacity>
+      {hasAutoPlayVisible && (
+        <TouchableOpacity
+          style={[
+            styles.bonusButton,
+            styles.autoPlayButton,
+            isActiveUI && styles.bonusButtonActive,
+          ]}
+          onPress={onActivateAutoPlay}
+          activeOpacity={0.7}
+          disabled={isActiveUI}
+        >
+          {isActiveUI ? (
+            <Text style={styles.timerText}>{secondsLeft}s</Text>
+          ) : (
+            <View style={styles.autoPlayIcon} />
+          )}
+        </TouchableOpacity>
+      )}
+
+      {hasShieldVisible && (
+        <TouchableOpacity
+          style={[
+            styles.bonusButton,
+            styles.shieldButton,
+            shieldArmed && styles.shieldButtonArmed,
+            !canPressShield && styles.bonusButtonDisabled,
+          ]}
+          onPress={onActivateShield}
+          activeOpacity={0.7}
+          disabled={!canPressShield}
+        >
+          {/* Icône shield simple, tu pourras la remplacer par un vrai SVG plus tard */}
+          <Text style={styles.shieldIconText}>🛡</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -75,12 +121,17 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: '#1a1a1a',
     borderWidth: 4,
-    borderColor: '#8b5cf6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   bonusButtonActive: {
     backgroundColor: '#2a1a3a',
+  },
+  bonusButtonDisabled: {
+    opacity: 0.4,
+  },
+  autoPlayButton: {
+    borderColor: '#8b5cf6',
   },
   autoPlayIcon: {
     width: 50,
@@ -88,9 +139,20 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     backgroundColor: '#8b5cf6',
   },
+  shieldButton: {
+    marginLeft: 24,
+    borderColor: '#22d3ee',
+    backgroundColor: '#0b1120',
+  },
+  shieldButtonArmed: {
+    backgroundColor: '#022c3a',
+  },
   timerText: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#a78bfa',
+  },
+  shieldIconText: {
+    fontSize: 40,
   },
 });

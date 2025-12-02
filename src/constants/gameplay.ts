@@ -8,7 +8,7 @@ export const CANVAS_WIDTH = W;
 export const CANVAS_HEIGHT = H;
 
 // Ring & Ball
-export const RING_RADIUS = W * 0.35;
+export const RING_RADIUS = CANVAS_WIDTH * 0.25;
 export const BALL_RADIUS = 10;
 
 // Speed
