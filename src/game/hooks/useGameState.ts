@@ -11,10 +11,8 @@ import {
   RING_RADIUS,
 } from '../../constants/gameplay';
 
-
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
-
 
 export const useGameState = () => {
   // Game state
@@ -37,12 +35,11 @@ export const useGameState = () => {
   const autoPlayActive = useSharedValue(false);
   const autoPlayTimeLeft = useSharedValue(0);
 
-    // Shield / Safe Miss
-  const currentHasShield = useSharedValue(false);
-  const nextHasShield = useSharedValue(false);
-  const shieldAvailable = useSharedValue(false);
-  const shieldArmed = useSharedValue(false); 
-
+  // Shield / Safe Miss
+  const currentHasShield = useSharedValue(false);   // orbe bleue sur le ring courant
+  const shieldAvailable = useSharedValue(false);    // bouclier en inventaire (icône bottom)
+  const shieldArmed = useSharedValue(false);        // bouclier armé (Safe Miss actif)
+  const shieldChargesLeft = useSharedValue(0);      // nb de Safe Miss restantes
 
   // Positions - Current ring
   const currentX = useSharedValue(CENTER_X);
@@ -114,11 +111,11 @@ export const useGameState = () => {
     gateWidth,
     dashStartTime,
 
-       // Shield / Safe Miss
+    // Shield / Safe Miss
     currentHasShield,
-    nextHasShield,
     shieldAvailable,
     shieldArmed,
+    shieldChargesLeft,
 
     // Fading ring
     fadingRingX,

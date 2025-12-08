@@ -96,6 +96,8 @@ const PALETTE_HUES: number[] = [
   265, // 8 violet
   225, // 9 indigo/bleu nuit
 ];
+export const SHIELD_HALO_COLOR = '#38bdf8'; // bleu néon pour le halo shield
+
 
 // Distance minimale pour considérer 2 palettes "vraiment différentes"
 const MIN_HUE_DIFF = 70;

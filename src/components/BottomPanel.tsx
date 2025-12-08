@@ -15,6 +15,7 @@ interface BottomPanelProps {
   // Shield
   shieldAvailable: boolean;
   shieldArmed: boolean;
+  shieldCharges: number;
   onActivateShield: () => void;
 }
 
@@ -25,13 +26,13 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   onActivateAutoPlay,
   shieldAvailable,
   shieldArmed,
+  shieldCharges,
   onActivateShield,
 }) => {
   const [timeLeftUI, setTimeLeftUI] = React.useState(0);
   const [isActiveUI, setIsActiveUI] = React.useState(false);
 
-  // Sync timer UI (on met à jour le JS seulement si la seconde affichée change
-  // ou si l'état actif/inactif change)
+  // Sync timer UI pour l'auto-play
   useAnimatedReaction(
     () => ({
       time: autoPlayTimeLeft.value,
@@ -45,7 +46,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
       const secondChanged = !prev || currentSecond !== prevSecond;
 
       if (!activeChanged && !secondChanged) {
-        return; // rien de nouveau à afficher → pas de runOnJS
+        return; // rien de nouveau → pas de runOnJS
       }
 
       runOnJS(setTimeLeftUI)(state.time);
@@ -54,7 +55,12 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   );
 
   const hasAutoPlayVisible = autoPlayInInventory || isActiveUI;
-  const hasShieldVisible = shieldAvailable || shieldArmed;
+
+  // Icône shield visible si :
+  // - shield en stock (shieldAvailable)
+  // - ou shield armé
+  // - ou il reste des charges
+  const hasShieldVisible = shieldAvailable || shieldArmed || shieldCharges > 0;
 
   // Panel visible seulement s'il y a au moins un bonus à afficher
   if (!hasAutoPlayVisible && !hasShieldVisible) {
@@ -62,6 +68,11 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   }
 
   const secondsLeft = Math.ceil(timeLeftUI / 1000);
+
+  // On peut cliquer sur le shield si :
+  // - on a un shield en stock
+  // - il n'est pas encore armé
+  // (les charges sont gérées par la logique loseLife)
   const canPressShield = shieldAvailable && !shieldArmed;
 
   return (
@@ -97,7 +108,6 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           activeOpacity={0.7}
           disabled={!canPressShield}
         >
-          {/* Icône shield simple, tu pourras la remplacer par un vrai SVG plus tard */}
           <Text style={styles.shieldIconText}>🛡</Text>
         </TouchableOpacity>
       )}

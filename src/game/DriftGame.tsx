@@ -22,8 +22,9 @@ import {
   START_GATE_WIDTH,
   AUTO_PLAY_DURATION,
   RING_RADIUS,
+  SHIELD_CHARGES_PER_ACTIVATION,
 } from '../constants/gameplay';
-import { BALL_COLOR } from '../constants/colors';
+import { BALL_COLOR, SHIELD_HALO_COLOR } from '../constants/colors';
 import { SHIELD_COLLISION_DIST, grantShield } from './logic/shieldBonus';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
@@ -59,7 +60,8 @@ const DriftGame: React.FC = () => {
   const [autoPlayInInventoryUI, setAutoPlayInInventoryUI] = React.useState(false);
   const [hasUsedContinue, setHasUsedContinue] = React.useState(false);
   const [shieldAvailableUI, setShieldAvailableUI] = React.useState(false);
-const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
+  const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
+  const [shieldChargesUI, setShieldChargesUI] = React.useState(0);
 
   // ----- GATE -----
   const gateStart = useDerivedValue(
@@ -144,6 +146,47 @@ const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
       gameState.currentR.value * Math.sin(shieldOrbAngle.value)
   );
 
+  // Halo autour de la bille quand le shield est armé
+  const shieldHaloVisible = useDerivedValue(
+    () =>
+      gameState.shieldArmed.value && gameState.shieldChargesLeft.value > 0
+        ? 1
+        : 0
+  );
+
+  // 3 petits indicateurs de charges sous les vies
+  const shieldCharge1Visible = useDerivedValue(
+    () => (gameState.shieldChargesLeft.value >= 1 ? 1 : 0)
+  );
+  const shieldCharge2Visible = useDerivedValue(
+    () => (gameState.shieldChargesLeft.value >= 2 ? 1 : 0)
+  );
+  const shieldCharge3Visible = useDerivedValue(
+    () => (gameState.shieldChargesLeft.value >= 3 ? 1 : 0)
+  );
+
+  // --- SYNC UI → React pour le shield (dispo + armé + charges) ---
+  useAnimatedReaction(
+    () => gameState.shieldAvailable.value,
+    (available) => {
+      runOnJS(setShieldAvailableUI)(available);
+    }
+  );
+
+  useAnimatedReaction(
+    () => gameState.shieldArmed.value,
+    (armed) => {
+      runOnJS(setShieldArmedUI)(armed);
+    }
+  );
+
+  useAnimatedReaction(
+    () => gameState.shieldChargesLeft.value,
+    (charges) => {
+      runOnJS(setShieldChargesUI)(charges);
+    }
+  );
+
   // Collision bille/orbe vie
   useAnimatedReaction(
     () => ({
@@ -164,7 +207,6 @@ const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
       const orbAngle = state.gateAngle + LIFE_ORB_OFFSET;
       const orbX = cx + r * Math.cos(orbAngle);
       const orbY = cy + r * Math.sin(orbAngle);
-
       const dx = state.ballX - orbX;
       const dy = state.ballY - orbY;
       const distSq = dx * dx + dy * dy;
@@ -206,23 +248,6 @@ const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
       }
     }
   );
-
-  // Sync inventaire shield vers l'UI React (BottomPanel)
-useAnimatedReaction(
-  () => gameState.shieldAvailable.value,
-  (available) => {
-    runOnJS(setShieldAvailableUI)(available);
-  }
-);
-
-// Sync état armé du shield vers l'UI React
-useAnimatedReaction(
-  () => gameState.shieldArmed.value,
-  (armed) => {
-    runOnJS(setShieldArmedUI)(armed);
-  }
-);
-
 
   // Collision bille/orbe shield
   useAnimatedReaction(
@@ -318,21 +343,21 @@ useAnimatedReaction(
   };
 
   const onActivateShield = () => {
-  // Pas de shield en stock → rien à faire
-  if (!gameState.shieldAvailable.value) {
-    return;
-  }
+    // Pas de shield en stock → rien à faire
+    if (!gameState.shieldAvailable.value) {
+      return;
+    }
 
-  // Si déjà armé, on ne fait rien (sécurité)
-  if (gameState.shieldArmed.value) {
-    return;
-  }
+    // Si déjà armé, on ne fait rien (sécurité)
+    if (gameState.shieldArmed.value) {
+      return;
+    }
 
-  // On consomme le stock et on arme le bouclier
-  gameState.shieldAvailable.value = false;
-  gameState.shieldArmed.value = true;
-};
-
+    // On consomme le stock, on arme le bouclier et on donne 3 chances
+    gameState.shieldAvailable.value = false;
+    gameState.shieldArmed.value = true;
+    gameState.shieldChargesLeft.value = SHIELD_CHARGES_PER_ACTIVATION;
+  };
 
   const handleRestart = React.useCallback(() => {
     setHasUsedContinue(false);
@@ -394,21 +419,23 @@ useAnimatedReaction(
     if (tapResult === 'hit') {
       gameState.mode.value = 'dash';
       gameState.dashStartTime.value = Date.now();
- } else if (tapResult === 'miss') {
-  loseLife({
-    lives: gameState.lives,
-    alive: gameState.alive,
-    streak: gameState.streak,
-    combo: gameState.combo,
-    currentHasLife: gameState.currentHasLife,
-    nextHasLife: gameState.nextHasLife,
-    currentHasAutoPlay: gameState.currentHasAutoPlay,
-    shieldAvailable: gameState.shieldAvailable, // on peut garder pour compat
-    shieldArmed: gameState.shieldArmed,         // ⬅️ NOUVEAU
-  });
-}
-
+    } else if (tapResult === 'miss') {
+      loseLife({
+        lives: gameState.lives,
+        alive: gameState.alive,
+        streak: gameState.streak,
+        combo: gameState.combo,
+        currentHasLife: gameState.currentHasLife,
+        nextHasLife: gameState.nextHasLife,
+        currentHasAutoPlay: gameState.currentHasAutoPlay,
+        shieldAvailable: gameState.shieldAvailable,
+        shieldArmed: gameState.shieldArmed,
+        shieldChargesLeft: gameState.shieldChargesLeft,
+      });
+    }
   };
+
+  const shieldDotsY = 98; // bien sous les vies
 
   return (
     <Pressable style={styles.container} onPress={onTap}>
@@ -499,7 +526,14 @@ useAnimatedReaction(
           color={useDerivedValue(() => palettes.nextPalette.value.gate)}
         />
 
-        {/* BALL */}
+        {/* BALL + HALO SHIELD */}
+        <Circle
+          cx={gameState.ballX}
+          cy={gameState.ballY}
+          r={14}
+          color={SHIELD_HALO_COLOR}
+          opacity={shieldHaloVisible}
+        />
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
 
         {/* SCORE */}
@@ -521,6 +555,29 @@ useAnimatedReaction(
             color={i < livesUI ? '#ef4444' : '#334155'}
           />
         ))}
+
+        {/* SHIELD CHARGES (3 petits points sous les vies) */}
+        <Circle
+          cx={CANVAS_WIDTH - 60}
+          cy={shieldDotsY}
+          r={4}
+          color="#22d3ee"
+          opacity={shieldCharge1Visible}
+        />
+        <Circle
+          cx={CANVAS_WIDTH - 60 - 22}
+          cy={shieldDotsY}
+          r={4}
+          color="#22d3ee"
+          opacity={shieldCharge2Visible}
+        />
+        <Circle
+          cx={CANVAS_WIDTH - 60 - 44}
+          cy={shieldDotsY}
+          r={4}
+          color="#22d3ee"
+          opacity={shieldCharge3Visible}
+        />
       </Canvas>
 
       <BottomPanel
@@ -528,9 +585,10 @@ useAnimatedReaction(
         autoPlayActive={gameState.autoPlayActive}
         autoPlayTimeLeft={gameState.autoPlayTimeLeft}
         onActivateAutoPlay={onActivateAutoPlay}
-        shieldAvailable={shieldAvailableUI}   // ⬅️ NOUVEAU
-  shieldArmed={shieldArmedUI}           // ⬅️ NOUVEAU
-  onActivateShield={onActivateShield} 
+        shieldAvailable={shieldAvailableUI}
+        shieldArmed={shieldArmedUI}
+        shieldCharges={shieldChargesUI}
+        onActivateShield={onActivateShield}
       />
 
       <GameOverOverlay

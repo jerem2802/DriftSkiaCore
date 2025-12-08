@@ -227,6 +227,7 @@ interface LoseLifeParams {
   currentHasAutoPlay: SharedValue<boolean>;
   shieldAvailable: SharedValue<boolean>;
   shieldArmed: SharedValue<boolean>;
+  shieldChargesLeft: SharedValue<number>;
 }
 
 export const loseLife = (params: LoseLifeParams) => {
@@ -239,35 +240,43 @@ export const loseLife = (params: LoseLifeParams) => {
     currentHasLife,
     nextHasLife,
     currentHasAutoPlay,
+    shieldAvailable,
     shieldArmed,
+    shieldChargesLeft,
   } = params;
 
-  // 1) Est-ce qu'un shield est ARMÉ pour ce miss ?
-  const hadArmedShield = shieldArmed.value === true;
-
-  if (hadArmedShield) {
-    // On consomme le shield armé (Safe Miss)
-    shieldArmed.value = false;
-  }
-
-  // 2) Reset du contexte de scoring / orbes (un miss reste un miss)
+  // 1) Reset du contexte de scoring / orbes (un miss reste un miss)
   streak.value = 0;
   combo.value = 0;
   currentHasLife.value = false;
   nextHasLife.value = false;
   currentHasAutoPlay.value = false;
 
-  // 3) Perte de vie uniquement si PAS de shield armé
-  if (!hadArmedShield) {
-    if (lives.value === 1) {
-      // C'était la dernière → Game Over
-      lives.value = 0;
-      alive.value = false;
+  // 2) Si un shield est armé → on consomme UNE charge
+  if (shieldArmed.value && shieldChargesLeft.value > 0) {
+    if (shieldChargesLeft.value > 1) {
+      // Il restera des charges après ce miss
+      shieldChargesLeft.value = shieldChargesLeft.value - 1;
     } else {
-      // Il reste des vies
-      lives.value = lives.value - 1;
+      // C'était la DERNIÈRE charge : on vide tout
+      shieldChargesLeft.value = 0;
+      shieldArmed.value = false;
+      shieldAvailable.value = false; // ⬅️ ICI on coupe l'icône bottom
     }
+
+    // Safe miss : pas de perte de vie
+    return;
   }
+
+  // 3) Comportement normal : on perd une vie
+  if (lives.value <= 1) {
+    // C'était la dernière → Game Over
+    lives.value = 0;
+    alive.value = false;
+    return;
+  }
+
+  lives.value = lives.value - 1;
 };
 
 // Restart : reset complet
@@ -307,6 +316,7 @@ interface RestartParams {
   autoPlayTimeLeft: SharedValue<number>;
   shieldAvailable: SharedValue<boolean>;
   shieldArmed: SharedValue<boolean>;
+  shieldChargesLeft: SharedValue<number>;
   getRandomPaletteIndex: (exclude?: number) => number;
 
   CENTER_X: number;
@@ -349,6 +359,7 @@ export const restart = (params: RestartParams) => {
     autoPlayTimeLeft,
     shieldAvailable,
     shieldArmed,
+    shieldChargesLeft,
     getRandomPaletteIndex,
     CENTER_X,
     CENTER_Y,
@@ -378,6 +389,7 @@ export const restart = (params: RestartParams) => {
 
   shieldAvailable.value = false;
   shieldArmed.value = false;
+  shieldChargesLeft.value = 0;
 
   currentX.value = CENTER_X;
   currentY.value = CENTER_Y;
