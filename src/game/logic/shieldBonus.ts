@@ -4,7 +4,7 @@
 import type { SharedValue } from 'react-native-reanimated';
 
 // Probabilité qu'une orbe bouclier spawn sur un nouveau ring
-const SHIELD_SPAWN_CHANCE = 0.08; // 8%
+const SHIELD_SPAWN_CHANCE = 0.5; // 50%
 
 // Distance de collision bille/orbe bouclier (au carré, comme pour les autres orbes)
 export const SHIELD_COLLISION_DIST = 625;

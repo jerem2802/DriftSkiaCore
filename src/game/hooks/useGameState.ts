@@ -130,3 +130,6 @@ export const useGameState = () => {
     RING_RADIUS,
   };
 };
+
+// IMPORTANT pour le hook useShieldSystem
+export type GameState = ReturnType<typeof useGameState>;

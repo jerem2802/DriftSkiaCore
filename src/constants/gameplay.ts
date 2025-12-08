@@ -33,13 +33,16 @@ export const MISS_MARGIN = 0.06;
 export const LIVES_MAX = 3;
 export const INVULN_TIME = 600;
 export const STREAK_FOR_LIFE = 8;
-
-// Shield : nombre de Safe Miss par activation
 export const SHIELD_CHARGES_PER_ACTIVATION = 3;
 
 // Auto-play bonus
 export const AUTO_PLAY_DURATION = 10000; // 10 secondes
 export const AUTOPLAY_SPAWN_CHANCE = 0.08; // 8% par ring
+
+// Orbs geometry / collisions (utilisés pour vie + auto-play)
+export const LIFE_ORB_OFFSET = Math.PI;
+export const AUTOPLAY_ORB_OFFSET = Math.PI / 2;
+export const ORB_COLLISION_DIST = 625;
 
 // Timing
 export const DASH_TIMEOUT = 3000;
