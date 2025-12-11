@@ -23,8 +23,8 @@ export const DASH_CAP = 1200;
 export const GODLIKE_SCORE = 100;
 
 // Gate
-export const START_GATE_WIDTH = 1.10;
-export const MIN_GATE_WIDTH = 0.30;
+export const START_GATE_WIDTH = 1.1;
+export const MIN_GATE_WIDTH = 0.3;
 export const SHRINK_PER_RING = 0.012;
 export const PERFECT_THRESHOLD = 0.15;
 export const MISS_MARGIN = 0.06;
@@ -51,3 +51,8 @@ export const DASH_TIMEOUT = 3000;
 export const CENTER_Y_CURRENT = H * 0.6;
 export const CENTER_Y_NEXT = H * 0.3;
 export const RING_GENERATION_MARGIN = 80;
+
+// Move Rings (drift des anneaux)
+export const MOVE_RINGS_SCORE_THRESHOLD = 20; // à partir de 20 pts
+export const MOVE_RINGS_SPEED_MIN = 10;       // px/s
+export const MOVE_RINGS_SPEED_MAX = 30;       // px/s

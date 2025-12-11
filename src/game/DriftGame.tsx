@@ -1,10 +1,17 @@
 // src/game/DriftGame.tsx
-// ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
+// ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS côté gameplay
 
 import React from 'react';
-import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
+import {
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Platform,
+  AppState,
+  AppStateStatus,
+} from 'react-native';
 import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
-import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction, runOnUI } from 'react-native-reanimated';
 
 import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
@@ -48,28 +55,46 @@ const DriftGame: React.FC = () => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
+  // ----- PAUSE AUTO SUR CHANGEMENT D'ÉTAT APP -----
+  const appState = React.useRef(AppState.currentState);
+
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        const prevState = appState.current;
+        appState.current = nextState;
+
+        // On passe de "active" -> "background" ou "inactive" → mettre en pause
+        if (
+          prevState === 'active' &&
+          (nextState === 'background' || nextState === 'inactive')
+        ) {
+          if (gameState.alive.value) {
+            gameState.isPaused.value = true;
+          }
+        }
+      }
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [gameState]);
+
   // Score 100 % côté Skia / SharedValue
   const scoreText = useDerivedValue(
     () => Math.round(gameState.score.value).toString()
   );
 
-  // UI React
-  const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
-  const [autoPlayInInventoryUI, setAutoPlayInInventoryUI] = React.useState(false);
-  const [shieldAvailableUI, setShieldAvailableUI] = React.useState(false);
-  const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
-
   // ----- SYSTÈME SHIELD (hook dédié) -----
   const shield = useShieldSystem({
     gameState,
-    setShieldAvailableUI,
-    setShieldArmedUI,
   });
 
   // ----- SYSTÈME AUTO-PLAY (hook dédié) -----
   const autoPlay = useAutoPlaySystem({
     gameState,
-    setAutoPlayInInventoryUI,
     orbCollisionDist: ORB_COLLISION_DIST,
   });
 
@@ -137,7 +162,7 @@ const DriftGame: React.FC = () => {
       gameState.currentR.value * Math.sin(lifeOrbAngle.value)
   );
 
-  // Collision bille/orbe vie
+  // Collision bille/orbe vie (100 % UI thread)
   useAnimatedReaction(
     () => ({
       hasLife: gameState.currentHasLife.value,
@@ -168,14 +193,6 @@ const DriftGame: React.FC = () => {
     }
   );
 
-  // Sync des vies vers l'UI React (petits cercles rouges)
-  useAnimatedReaction(
-    () => gameState.lives.value,
-    (lives) => {
-      runOnJS(setLivesUI)(lives);
-    }
-  );
-
   // LIVES POSITIONS (Skia circles en haut à droite)
   const livesPositions = React.useMemo(() => {
     const positions = [];
@@ -186,6 +203,17 @@ const DriftGame: React.FC = () => {
     }
     return positions;
   }, []);
+
+  // Opacité des 3 vies (full Skia, plus de setState React)
+  const life1Opacity = useDerivedValue(
+    () => (gameState.lives.value >= 1 ? 1 : 0.2)
+  );
+  const life2Opacity = useDerivedValue(
+    () => (gameState.lives.value >= 2 ? 1 : 0.2)
+  );
+  const life3Opacity = useDerivedValue(
+    () => (gameState.lives.value >= 3 ? 1 : 0.2)
+  );
 
   // ----- GAME LOOP (UI thread, pas de re-render Canvas) -----
   useGameLoop({
@@ -199,34 +227,44 @@ const DriftGame: React.FC = () => {
       return;
     }
 
-    // Sinon on est en jeu : tap valide ou pas
-    if (gameState.mode.value !== 'orbit') {
-      return;
-    }
+    // Traitement du tap côté UI thread
+    runOnUI(() => {
+      'worklet';
 
-    const tapResult = validateTap(
-      gameState.angle.value,
-      gameState.gateAngle.value,
-      gameState.gateWidth.value
-    );
+      // Si en pause, le tap sert uniquement à reprendre
+      if (gameState.isPaused.value) {
+        gameState.isPaused.value = false;
+        return;
+      }
 
-    if (tapResult === 'hit') {
-      gameState.mode.value = 'dash';
-      gameState.dashStartTime.value = Date.now();
-    } else if (tapResult === 'miss') {
-      loseLife({
-        lives: gameState.lives,
-        alive: gameState.alive,
-        streak: gameState.streak,
-        combo: gameState.combo,
-        currentHasLife: gameState.currentHasLife,
-        nextHasLife: gameState.nextHasLife,
-        currentHasAutoPlay: gameState.currentHasAutoPlay,
-        shieldAvailable: gameState.shieldAvailable,
-        shieldArmed: gameState.shieldArmed,
-        shieldChargesLeft: gameState.shieldChargesLeft,
-      });
-    }
+      if (gameState.mode.value !== 'orbit') {
+        return;
+      }
+
+      const tapResult = validateTap(
+        gameState.angle.value,
+        gameState.gateAngle.value,
+        gameState.gateWidth.value
+      );
+
+      if (tapResult === 'hit') {
+        gameState.mode.value = 'dash';
+        gameState.dashStartTime.value = Date.now();
+      } else if (tapResult === 'miss') {
+        loseLife({
+          lives: gameState.lives,
+          alive: gameState.alive,
+          streak: gameState.streak,
+          combo: gameState.combo,
+          currentHasLife: gameState.currentHasLife,
+          nextHasLife: gameState.nextHasLife,
+          currentHasAutoPlay: gameState.currentHasAutoPlay,
+          shieldAvailable: gameState.shieldAvailable,
+          shieldArmed: gameState.shieldArmed,
+          shieldChargesLeft: gameState.shieldChargesLeft,
+        });
+      }
+    })();
   };
 
   const shieldDotsY = 98; // sous les vies
@@ -339,16 +377,28 @@ const DriftGame: React.FC = () => {
           font={font}
         />
 
-        {/* LIVES */}
-        {livesPositions.map((pos, i) => (
-          <Circle
-            key={i}
-            cx={pos.x}
-            cy={pos.y}
-            r={7}
-            color={i < livesUI ? '#ef4444' : '#334155'}
-          />
-        ))}
+        {/* LIVES (full Skia) */}
+        <Circle
+          cx={livesPositions[0].x}
+          cy={livesPositions[0].y}
+          r={7}
+          color="#ef4444"
+          opacity={life1Opacity}
+        />
+        <Circle
+          cx={livesPositions[1].x}
+          cy={livesPositions[1].y}
+          r={7}
+          color="#ef4444"
+          opacity={life2Opacity}
+        />
+        <Circle
+          cx={livesPositions[2].x}
+          cy={livesPositions[2].y}
+          r={7}
+          color="#ef4444"
+          opacity={life3Opacity}
+        />
 
         {/* SHIELD CHARGES (3 points sous les vies) */}
         <Circle
@@ -375,12 +425,12 @@ const DriftGame: React.FC = () => {
       </Canvas>
 
       <BottomPanel
-        autoPlayInInventory={autoPlayInInventoryUI}
+        autoPlayInInventory={gameState.autoPlayInInventory}
         autoPlayActive={gameState.autoPlayActive}
         autoPlayTimeLeft={gameState.autoPlayTimeLeft}
         onActivateAutoPlay={autoPlay.onActivateAutoPlay}
-        shieldAvailable={shieldAvailableUI}
-        shieldArmed={shieldArmedUI}
+        shieldAvailable={gameState.shieldAvailable}
+        shieldArmed={gameState.shieldArmed}
         onActivateShield={shield.onActivateShield}
       />
 

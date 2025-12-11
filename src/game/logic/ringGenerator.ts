@@ -1,16 +1,23 @@
 // src/game/logic/ringGenerator.ts
 // Logique de génération des rings
 
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../constants/gameplay';
+import {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  MOVE_RINGS_SPEED_MIN,
+  MOVE_RINGS_SPEED_MAX,
+} from '../../constants/gameplay';
 
 interface RingPosition {
   x: number;
   y: number;
   r: number;
+  vx: number;
+  vy: number;
 }
 
 /**
- * Génère la position et taille d'un nouveau ring
+ * Génère la position, taille et vitesse d'un nouveau ring
  * Avec anti-imbrication pour éviter overlaps excessifs
  */
 export const generateNextRing = (
@@ -42,5 +49,14 @@ export const generateNextRing = (
     y = minDistanceFromEdge + Math.random() * spawnZoneHeight;
   }
 
-  return { x, y, r };
+  // Petite vitesse aléatoire pour MoveRings
+  const angle = Math.random() * Math.PI * 2;
+  const speed =
+    MOVE_RINGS_SPEED_MIN +
+    Math.random() * (MOVE_RINGS_SPEED_MAX - MOVE_RINGS_SPEED_MIN);
+
+  const vx = Math.cos(angle) * speed;
+  const vy = Math.sin(angle) * speed;
+
+  return { x, y, r, vx, vy };
 };

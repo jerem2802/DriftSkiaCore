@@ -20,6 +20,7 @@ export const useGameState = () => {
   const lives = useSharedValue(LIVES_MAX);
   const score = useSharedValue(0);
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
+  const isPaused = useSharedValue(false);
 
   // Scoring avancé
   const streak = useSharedValue(0);
@@ -46,10 +47,18 @@ export const useGameState = () => {
   const currentY = useSharedValue(CENTER_Y);
   const currentR = useSharedValue(RING_RADIUS);
 
+  // Vitesse - Current ring
+  const currentVX = useSharedValue(0);
+  const currentVY = useSharedValue(0);
+
   // Positions - Next ring
   const nextX = useSharedValue(CENTER_X);
   const nextY = useSharedValue(CENTER_Y - 200);
   const nextR = useSharedValue(RING_RADIUS * 0.9);
+
+  // Vitesse - Next ring
+  const nextVX = useSharedValue(0);
+  const nextVY = useSharedValue(0);
 
   // Ball
   const angle = useSharedValue(0);
@@ -77,6 +86,7 @@ export const useGameState = () => {
     lives,
     score,
     mode,
+    isPaused,
     streak,
     combo,
 
@@ -94,11 +104,15 @@ export const useGameState = () => {
     currentX,
     currentY,
     currentR,
+    currentVX,
+    currentVY,
 
     // Next ring
     nextX,
     nextY,
     nextR,
+    nextVX,
+    nextVY,
 
     // Ball
     angle,

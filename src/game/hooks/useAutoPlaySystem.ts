@@ -1,20 +1,18 @@
 // src/game/hooks/useAutoPlaySystem.ts
 // Logique AUTO-PLAY : orbe, collision, inventaire, activation
 
-import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction } from 'react-native-reanimated';
 import { AUTO_PLAY_DURATION } from '../../constants/gameplay';
 
 const AUTOPLAY_ORB_OFFSET = Math.PI / 2;
 
 interface UseAutoPlaySystemParams {
   gameState: any;
-  setAutoPlayInInventoryUI: (inInventory: boolean) => void;
   orbCollisionDist: number;
 }
 
 export const useAutoPlaySystem = ({
   gameState,
-  setAutoPlayInInventoryUI,
   orbCollisionDist,
 }: UseAutoPlaySystemParams) => {
   // ----- ORBE AUTO-PLAY (violette, 90° de la gate) -----
@@ -69,15 +67,7 @@ export const useAutoPlaySystem = ({
     }
   );
 
-  // Sync inventaire auto-play vers l'UI React (BottomPanel)
-  useAnimatedReaction(
-    () => gameState.autoPlayInInventory.value,
-    (inInventory) => {
-      runOnJS(setAutoPlayInInventoryUI)(inInventory);
-    }
-  );
-
-  // Activation via le bouton du bas
+  // Activation via le bouton du bas (appelée côté JS, peu fréquent)
   const onActivateAutoPlay = () => {
     if (!gameState.autoPlayInInventory.value) {
       return;

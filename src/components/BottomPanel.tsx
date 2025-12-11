@@ -7,14 +7,14 @@ import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
 interface BottomPanelProps {
-  autoPlayInInventory: boolean;
+  autoPlayInInventory: SharedValue<boolean>;
   autoPlayActive: SharedValue<boolean>;
   autoPlayTimeLeft: SharedValue<number>;
   onActivateAutoPlay: () => void;
 
   // Shield
-  shieldAvailable: boolean;
-  shieldArmed: boolean;
+  shieldAvailable: SharedValue<boolean>;
+  shieldArmed: SharedValue<boolean>;
   onActivateShield: () => void;
 }
 
@@ -29,6 +29,16 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
 }) => {
   const [timeLeftUI, setTimeLeftUI] = React.useState(0);
   const [isActiveUI, setIsActiveUI] = React.useState(false);
+
+  const [autoPlayInInventoryUI, setAutoPlayInInventoryUI] = React.useState(
+    autoPlayInInventory.value
+  );
+  const [shieldAvailableUI, setShieldAvailableUI] = React.useState(
+    shieldAvailable.value
+  );
+  const [shieldArmedUI, setShieldArmedUI] = React.useState(
+    shieldArmed.value
+  );
 
   // Sync timer UI (on met à jour le JS seulement si la seconde affichée change
   // ou si l'état actif/inactif change)
@@ -53,20 +63,35 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
     }
   );
 
-  // Affichage des bonus
-  const hasAutoPlayVisible = autoPlayInInventory || isActiveUI;
-  // Pour le shield, la logique de “tout consommé => plus dispo”
-  // est gérée dans useShieldSystem : si charges = 0, on met
-  // shieldAvailable = false et shieldArmed = false.
-  const hasShieldVisible = shieldAvailable || shieldArmed;
+  // Sync inventaire Auto-Play
+  useAnimatedReaction(
+    () => autoPlayInInventory.value,
+    (val, prev) => {
+      if (prev === val) return;
+      runOnJS(setAutoPlayInInventoryUI)(val);
+    }
+  );
 
-  // Panel visible seulement s'il y a au moins un bonus à afficher
-  if (!hasAutoPlayVisible && !hasShieldVisible) {
-    return null;
-  }
+  // Sync shield disponible / armé
+  useAnimatedReaction(
+    () => ({
+      available: shieldAvailable.value,
+      armed: shieldArmed.value,
+    }),
+    (state, prev) => {
+      if (prev && prev.available === state.available && prev.armed === state.armed) {
+        return;
+      }
+      runOnJS(setShieldAvailableUI)(state.available);
+      runOnJS(setShieldArmedUI)(state.armed);
+    }
+  );
+
+  const hasAutoPlayVisible = autoPlayInInventoryUI || isActiveUI;
+  const hasShieldVisible = shieldAvailableUI || shieldArmedUI;
 
   const secondsLeft = Math.ceil(timeLeftUI / 1000);
-  const canPressShield = shieldAvailable && !shieldArmed;
+  const canPressShield = shieldAvailableUI && !shieldArmedUI;
 
   return (
     <View style={styles.container}>
@@ -94,7 +119,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           style={[
             styles.bonusButton,
             styles.shieldButton,
-            shieldArmed && styles.shieldButtonArmed,
+            shieldArmedUI && styles.shieldButtonArmed,
             !canPressShield && styles.bonusButtonDisabled,
           ]}
           onPress={onActivateShield}
@@ -119,10 +144,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bonusButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#1a1a1a',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     borderWidth: 4,
     justifyContent: 'center',
     alignItems: 'center',

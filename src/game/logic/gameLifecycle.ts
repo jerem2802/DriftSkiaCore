@@ -36,6 +36,12 @@ interface CompleteRingParams {
   nextY: SharedValue<number>;
   nextR: SharedValue<number>;
 
+  // Vitesse des rings
+  currentVX: SharedValue<number>;
+  currentVY: SharedValue<number>;
+  nextVX: SharedValue<number>;
+  nextVY: SharedValue<number>;
+
   // Ball & gate
   score: SharedValue<number>;
   speed: SharedValue<number>;
@@ -93,6 +99,12 @@ export const completeRing = (params: CompleteRingParams) => {
     nextY,
     nextR,
 
+    // Vitesse rings
+    currentVX,
+    currentVY,
+    nextVX,
+    nextVY,
+
     // Ball & gate
     score,
     speed,
@@ -137,13 +149,12 @@ export const completeRing = (params: CompleteRingParams) => {
   }
   score.value = score.value + gained;
 
-  // 2) Si le ring courant avait une orbe non prise → orbe ratée (juste supprimée)
+  // 2) Si le ring courant avait une orbe non prise → orbe ratée
   if (currentHasLife.value) {
     currentHasLife.value = false;
   }
   nextHasLife.value = false;
 
-  // Auto-play orbe ratée aussi
   if (currentHasAutoPlay.value) {
     currentHasAutoPlay.value = false;
   }
@@ -155,7 +166,6 @@ export const completeRing = (params: CompleteRingParams) => {
   streak.value = streak.value + 1;
 
   // 4) PALETTES (jamais 2 rings de la même couleur)
-  // current = next, next = random ≠ current
   currentPaletteIndex.value = nextPaletteIndex.value;
   const newIndex = getRandomPaletteIndex(currentPaletteIndex.value);
   nextPaletteIndex.value = newIndex;
@@ -170,19 +180,23 @@ export const completeRing = (params: CompleteRingParams) => {
   fadingRingOpacity.value = withTiming(0, { duration: 400 });
   fadingRingScale.value = withTiming(1.25, { duration: 400 });
 
-  // 6) CALCULER L'ANGLE D'ARRIVÉE (AVANT de modifier current!)
+  // 6) CALCULER L'ANGLE D'ARRIVÉE (avant de modifier current!)
   angle.value = Math.atan2(ballY.value - nextY.value, ballX.value - nextX.value);
 
-  // 7) TRANSITION : NEXT → CURRENT
+  // 7) TRANSITION : NEXT → CURRENT (positions + vitesses)
   currentX.value = nextX.value;
   currentY.value = nextY.value;
   currentR.value = nextR.value;
+  currentVX.value = nextVX.value;
+  currentVY.value = nextVY.value;
 
   // 8) GÉNÉRATION DU NOUVEAU RING "NEXT"
   const next = generateNextRing(currentX.value, currentY.value, currentR.value, RING_RADIUS);
   nextX.value = next.x;
   nextY.value = next.y;
   nextR.value = next.r;
+  nextVX.value = next.vx;
+  nextVY.value = next.vy;
 
   // 9) SPEED / GATE
   speed.value = Math.min(speed.value + SPEED_INC_PER_RING, SPEED_CAP);
@@ -245,32 +259,29 @@ export const loseLife = (params: LoseLifeParams) => {
     shieldChargesLeft,
   } = params;
 
-  // 1) Reset du contexte de scoring / orbes (un miss reste un miss)
+  // 1) Reset du contexte de scoring / orbes
   streak.value = 0;
   combo.value = 0;
   currentHasLife.value = false;
   nextHasLife.value = false;
   currentHasAutoPlay.value = false;
 
-  // 2) Si un shield est armé → on consomme UNE charge
+  // 2) Safe miss via shield
   if (shieldArmed.value && shieldChargesLeft.value > 0) {
     if (shieldChargesLeft.value > 1) {
-      // Il restera des charges après ce miss
       shieldChargesLeft.value = shieldChargesLeft.value - 1;
     } else {
-      // C'était la DERNIÈRE charge : on vide tout
       shieldChargesLeft.value = 0;
       shieldArmed.value = false;
-      shieldAvailable.value = false; // ⬅️ ICI on coupe l'icône bottom
+      shieldAvailable.value = false;
     }
 
-    // Safe miss : pas de perte de vie
+    // Pas de perte de vie
     return;
   }
 
   // 3) Comportement normal : on perd une vie
   if (lives.value <= 1) {
-    // C'était la dernière → Game Over
     lives.value = 0;
     alive.value = false;
     return;
@@ -297,6 +308,11 @@ interface RestartParams {
   nextX: SharedValue<number>;
   nextY: SharedValue<number>;
   nextR: SharedValue<number>;
+
+  currentVX: SharedValue<number>;
+  currentVY: SharedValue<number>;
+  nextVX: SharedValue<number>;
+  nextVY: SharedValue<number>;
 
   gateAngle: SharedValue<number>;
   angle: SharedValue<number>;
@@ -343,6 +359,10 @@ export const restart = (params: RestartParams) => {
     nextX,
     nextY,
     nextR,
+    currentVX,
+    currentVY,
+    nextVX,
+    nextVY,
     gateAngle,
     angle,
     ballX,
@@ -394,6 +414,12 @@ export const restart = (params: RestartParams) => {
   currentX.value = CENTER_X;
   currentY.value = CENTER_Y;
   currentR.value = RING_RADIUS;
+
+  // vitesses reset au départ (rings statiques au début)
+  currentVX.value = 0;
+  currentVY.value = 0;
+  nextVX.value = 0;
+  nextVY.value = 0;
 
   nextX.value = CENTER_X;
   nextY.value = CENTER_Y - 200;

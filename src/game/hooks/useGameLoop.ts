@@ -1,19 +1,20 @@
 // src/game/hooks/useGameLoop.ts
 // Boucle de jeu 100% Reanimated (aucun re-render Canvas)
-// Comportement de dash calqué sur l'ancien projet (centre → centre, vitesse en fonction du score/combo)
+// Dash centre → centre, vitesse en fonction du score/combo
+// + MoveRings à partir d'un certain score
 
 import { useFrameCallback } from 'react-native-reanimated';
 import {
-
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
   DASH_BASE,
   DASH_EXTRA_MAX,
   DASH_CAP,
   GODLIKE_SCORE,
   RING_RADIUS,
+  MOVE_RINGS_SCORE_THRESHOLD,
 } from '../../constants/gameplay';
 import { completeRing } from '../logic/gameLifecycle';
-
-
 
 // Même courbe de difficulté que dans l'ancien projet
 const expo01 = (t: number) => {
@@ -36,20 +37,28 @@ export const useGameLoop = (params: any) => {
       // état principal
       alive,
       mode,
+      isPaused,
       angle,
       speed,
 
+      // rings
       currentX,
       currentY,
       currentR,
+      currentVX,
+      currentVY,
 
       nextX,
       nextY,
       nextR,
+      nextVX,
+      nextVY,
 
+      // balle
       ballX,
       ballY,
 
+      // gate
       gateAngle,
       gateWidth,
       dashStartTime,
@@ -61,23 +70,22 @@ export const useGameLoop = (params: any) => {
       fadingRingScale,
       fadingRingOpacity,
 
-     // scoring / vies
-  score,
-  streak,
-  combo,
-  lives,
-  currentHasLife,
-  nextHasLife,
-  currentHasAutoPlay,
+      // scoring / vies
+      score,
+      streak,
+      combo,
+      lives,
+      currentHasLife,
+      nextHasLife,
+      currentHasAutoPlay,
 
-  // bouclier
-  currentHasShield,
-  shieldAvailable,
+      // bouclier
+      currentHasShield,
+      shieldAvailable,
 
-  // auto-play
-  autoPlayActive,
-  autoPlayTimeLeft,
-
+      // auto-play
+      autoPlayActive,
+      autoPlayTimeLeft,
 
       // palettes
       currentPaletteIndex,
@@ -89,10 +97,61 @@ export const useGameLoop = (params: any) => {
       return;
     }
 
+    // PAUSE : on freeze toute la boucle
+    if (isPaused && isPaused.value) {
+      return;
+    }
+
     const dt =
       frameInfo.timeSincePreviousFrame != null
         ? frameInfo.timeSincePreviousFrame / 1000
         : 1 / 60;
+
+    // --------------------
+    // MOVE RINGS : drift des anneaux à partir de MOVE_RINGS_SCORE_THRESHOLD
+    // --------------------
+    if (score.value >= MOVE_RINGS_SCORE_THRESHOLD) {
+      // Déplacement
+      currentX.value += currentVX.value * dt;
+      currentY.value += currentVY.value * dt;
+      nextX.value += nextVX.value * dt;
+      nextY.value += nextVY.value * dt;
+
+      // Rebond simple sur les bords pour le current ring
+      const marginCurrent = currentR.value;
+      if (currentX.value < marginCurrent || currentX.value > CANVAS_WIDTH - marginCurrent) {
+        currentVX.value = -currentVX.value;
+        if (currentX.value < marginCurrent) currentX.value = marginCurrent;
+        if (currentX.value > CANVAS_WIDTH - marginCurrent) {
+          currentX.value = CANVAS_WIDTH - marginCurrent;
+        }
+      }
+      if (currentY.value < marginCurrent || currentY.value > CANVAS_HEIGHT - marginCurrent) {
+        currentVY.value = -currentVY.value;
+        if (currentY.value < marginCurrent) currentY.value = marginCurrent;
+        if (currentY.value > CANVAS_HEIGHT - marginCurrent) {
+          currentY.value = CANVAS_HEIGHT - marginCurrent;
+        }
+      }
+
+      // Rebond pour le next ring
+      const marginNext = nextR.value;
+      if (nextX.value < marginNext || nextX.value > CANVAS_WIDTH - marginNext) {
+        nextVX.value = -nextVX.value;
+        if (nextX.value < marginNext) nextX.value = marginNext;
+        if (nextX.value > CANVAS_WIDTH - marginNext) {
+          nextX.value = CANVAS_WIDTH - marginNext;
+        }
+      }
+      if (nextY.value < marginNext || nextY.value > CANVAS_HEIGHT - marginNext) {
+        nextVY.value = -nextVY.value;
+        if (nextY.value < marginNext) nextY.value = marginNext;
+        if (nextY.value > CANVAS_HEIGHT - marginNext) {
+          nextY.value = CANVAS_HEIGHT - marginNext;
+        }
+      }
+
+    }
 
     // --------------------
     // AUTO-PLAY: décrémenter timer
@@ -110,9 +169,10 @@ export const useGameLoop = (params: any) => {
     // --------------------
     if (mode.value === 'orbit' && autoPlayActive.value) {
       const angleDiff = Math.abs(angle.value - gateAngle.value);
-      const normalizedDiff = angleDiff > Math.PI ? 2 * Math.PI - angleDiff : angleDiff;
+      const normalizedDiff =
+        angleDiff > Math.PI ? 2 * Math.PI - angleDiff : angleDiff;
 
-      if (normalizedDiff < 0.05) { // Tap parfait
+      if (normalizedDiff < 0.05) {
         mode.value = 'dash';
         dashStartTime.value = Date.now();
       }
@@ -129,8 +189,7 @@ export const useGameLoop = (params: any) => {
     }
 
     // --------------------
-    // DASH : comportement "ancien projet"
-    // centre → centre, dashSpeed dépend de score + combo
+    // DASH : centre → centre, dashSpeed dépend de score + combo
     // --------------------
     if (mode.value === 'dash') {
       // 1) Vitesse de dash comme avant
@@ -165,20 +224,33 @@ export const useGameLoop = (params: any) => {
 
       if (insideNext) {
         completeRing({
+          // Palettes
           currentPaletteIndex,
           nextPaletteIndex,
           getRandomPaletteIndex,
+
+          // Fading ring
           fadingRingX,
           fadingRingY,
           fadingRingR,
           fadingRingScale,
           fadingRingOpacity,
+
+          // Rings
           currentX,
           currentY,
           currentR,
           nextX,
           nextY,
           nextR,
+
+          // Vitesses
+          currentVX,
+          currentVY,
+          nextVX,
+          nextVY,
+
+          // Ball & gate
           score,
           speed,
           gateAngle,
@@ -186,16 +258,28 @@ export const useGameLoop = (params: any) => {
           angle,
           ballX,
           ballY,
+
+          // Mode & timing
           mode,
           dashStartTime,
+
+          // Scoring / vies
           streak,
           combo,
           lives,
+
+          // Vie sur ring
           currentHasLife,
           nextHasLife,
+
+          // Auto-play
           currentHasAutoPlay,
+
+          // Shield
           currentHasShield,
           shieldAvailable,
+
+          // Divers
           isPerfect: false,
           RING_RADIUS,
         });

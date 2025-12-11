@@ -1,7 +1,7 @@
 // src/game/hooks/useShieldSystem.ts
 // Gère TOUT le système de shield (orbe, halo, inventaire, charges)
 
-import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction } from 'react-native-reanimated';
 import type { GameState } from './useGameState';
 import { SHIELD_COLLISION_DIST, grantShield } from '../logic/shieldBonus';
 import { SHIELD_CHARGES_PER_ACTIVATION } from '../../constants/gameplay';
@@ -10,14 +10,10 @@ const SHIELD_ORB_OFFSET = -Math.PI / 2;
 
 interface UseShieldSystemParams {
   gameState: GameState;
-  setShieldAvailableUI: (available: boolean) => void;
-  setShieldArmedUI: (armed: boolean) => void;
 }
 
 export const useShieldSystem = ({
   gameState,
-  setShieldAvailableUI,
-  setShieldArmedUI,
 }: UseShieldSystemParams) => {
   // ----- ORBE SHIELD SUR LE RING COURANT -----
   const shieldOrbVisible = useDerivedValue(
@@ -55,21 +51,6 @@ export const useShieldSystem = ({
   );
   const shieldCharge3Visible = useDerivedValue(
     () => (gameState.shieldChargesLeft.value >= 3 ? 1 : 0)
-  );
-
-  // ----- SYNC INVENTAIRE / ARMÉ VERS L'UI REACT -----
-  useAnimatedReaction(
-    () => gameState.shieldAvailable.value,
-    (available) => {
-      runOnJS(setShieldAvailableUI)(available);
-    }
-  );
-
-  useAnimatedReaction(
-    () => gameState.shieldArmed.value,
-    (armed) => {
-      runOnJS(setShieldArmedUI)(armed);
-    }
   );
 
   // ⚠️ IMPORTANT :
