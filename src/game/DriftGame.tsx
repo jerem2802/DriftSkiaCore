@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
-import { Canvas, Circle, Path, Rect, Text, matchFont } from '@shopify/react-native-skia';
+import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
 import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 
 import { NeonRing } from '../components/NeonRing';
@@ -37,86 +37,48 @@ const LIFE_ORB_OFFSET = Math.PI;
 const ORB_COLLISION_DIST = 625;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
-const fontStyle = {
+
+const scoreFontStyle = {
   fontFamily,
   fontSize: 48,
   fontWeight: 'bold' as const,
 };
-const font = matchFont(fontStyle);
+const scoreFont = matchFont(scoreFontStyle);
 
-const smallFont = matchFont({
+const popupFontStyle = {
   fontFamily,
-  fontSize: 24,
-  fontWeight: 'bold',
-});
-
-const popupFont = matchFont({
-  fontFamily,
-  fontSize: 28,
-  fontWeight: 'bold',
-});
+  fontSize: 26,
+  fontWeight: 'bold' as const,
+};
+const popupFont = matchFont(popupFontStyle);
 
 const DriftGame: React.FC = () => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
-  // Score 100 % côté Skia / SharedValue
+  // Score (Skia)
   const scoreText = useDerivedValue(
     () => Math.round(gameState.score.value).toString()
   );
 
-  // BG pulse douceur, coloré par la palette courante
-  const bgPulseOpacity = useDerivedValue(
-    () => gameState.bgPulse.value * 0.35
-  );
-
-  const bgPulseColor = useDerivedValue(
-    () => palettes.currentPalette.value.outer
-  );
-
-  // Label combo (CLEAN / SHARP / LEGENDARY)
-  const comboLabelText = useDerivedValue(() => {
-    const tier = gameState.comboTier.value;
-    if (tier <= 0) return '';
-    if (tier === 1) return 'CLEAN';
-    if (tier === 2) return 'SHARP';
-    return 'LEGENDARY';
-  });
-
-  // Popup score texte
+  // Popup score
   const scorePopupTextDV = useDerivedValue(
     () => gameState.scorePopupText.value
   );
 
-  // UI React
+  // UI React minimal : vies
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
-  const [autoPlayInInventoryUI, setAutoPlayInInventoryUI] = React.useState(false);
-  const [shieldAvailableUI, setShieldAvailableUI] = React.useState(false);
-  const [shieldArmedUI, setShieldArmedUI] = React.useState(false);
 
-  // ----- SYSTÈME SHIELD (hook dédié) -----
-  const shield = useShieldSystem({
-    gameState,
-    setShieldAvailableUI,
-    setShieldArmedUI,
-  });
+  // ----- SHIELD -----
+  const shield = useShieldSystem({ gameState });
 
-  // ----- SYSTÈME AUTO-PLAY (hook dédié) -----
+  // ----- AUTO-PLAY -----
   const autoPlay = useAutoPlaySystem({
     gameState,
     orbCollisionDist: ORB_COLLISION_DIST,
   });
 
-  // Bridge autoPlayInInventory → UI bool (rare, seulement quand ça change)
-  useAnimatedReaction(
-    () => gameState.autoPlayInInventory.value,
-    (inInventory, prev) => {
-      if (prev === inInventory) return;
-      runOnJS(setAutoPlayInInventoryUI)(inInventory);
-    }
-  );
-
-  // ----- SYSTÈME GAME OVER (hook dédié) -----
+  // ----- GAME OVER -----
   const {
     aliveUI,
     lastScoreUI,
@@ -160,7 +122,7 @@ const DriftGame: React.FC = () => {
     () => gameState.fadingRingR.value * gameState.fadingRingScale.value
   );
 
-  // ----- ORBE DE VIE (rouge, opposée à la gate) -----
+  // ----- ORBE DE VIE -----
   const lifeOrbVisible = useDerivedValue(
     () => (gameState.currentHasLife.value ? 1 : 0)
   );
@@ -180,7 +142,7 @@ const DriftGame: React.FC = () => {
       gameState.currentR.value * Math.sin(lifeOrbAngle.value)
   );
 
-  // Collision bille/orbe vie
+  // Collision bille / orbe de vie
   useAnimatedReaction(
     () => ({
       hasLife: gameState.currentHasLife.value,
@@ -211,7 +173,7 @@ const DriftGame: React.FC = () => {
     }
   );
 
-  // Sync des vies vers l'UI React (petits cercles rouges)
+  // Sync vies → UI React
   useAnimatedReaction(
     () => gameState.lives.value,
     (lives) => {
@@ -219,7 +181,7 @@ const DriftGame: React.FC = () => {
     }
   );
 
-  // LIVES POSITIONS (Skia circles en haut à droite)
+  // LIVES POSITIONS
   const livesPositions = React.useMemo(() => {
     const positions = [];
     const startX = CANVAS_WIDTH - 60;
@@ -230,7 +192,7 @@ const DriftGame: React.FC = () => {
     return positions;
   }, []);
 
-  // ----- GAME LOOP (UI thread, pas de re-render Canvas) -----
+  // ----- GAME LOOP -----
   useGameLoop({
     ...gameState,
     ...palettes,
@@ -270,23 +232,13 @@ const DriftGame: React.FC = () => {
     }
   };
 
-  const shieldDotsY = 98; // sous les vies
+  const shieldDotsY = 98;
 
   return (
     <Pressable style={styles.container} onPress={onTap}>
       <StatusBar hidden />
 
       <Canvas style={styles.canvas}>
-        {/* BG PULSE DOUX */}
-        <Rect
-          x={0}
-          y={0}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          color={bgPulseColor}
-          opacity={bgPulseOpacity}
-        />
-
         {/* FADING RING */}
         <Circle
           cx={gameState.fadingRingX}
@@ -317,7 +269,7 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* 🔴 ORBE DE VIE */}
+        {/* ORBE DE VIE */}
         <Circle
           cx={lifeOrbX}
           cy={lifeOrbY}
@@ -326,7 +278,7 @@ const DriftGame: React.FC = () => {
           opacity={lifeOrbVisible}
         />
 
-        {/* 🟣 ORBE AUTO-PLAY */}
+        {/* ORBE AUTO-PLAY */}
         <Circle
           cx={autoPlay.autoPlayOrbX}
           cy={autoPlay.autoPlayOrbY}
@@ -335,7 +287,7 @@ const DriftGame: React.FC = () => {
           opacity={autoPlay.autoPlayOrbVisible}
         />
 
-        {/* 🛡️ ORBE SHIELD */}
+        {/* ORBE SHIELD */}
         <Circle
           cx={shield.shieldOrbX}
           cy={shield.shieldOrbY}
@@ -387,25 +339,15 @@ const DriftGame: React.FC = () => {
           y={80}
           text={scoreText}
           color="white"
-          font={font}
+          font={scoreFont}
         />
 
-        {/* COMBO LABEL */}
-        <Text
-          x={CANVAS_WIDTH / 2 - 60}
-          y={120}
-          text={comboLabelText}
-          color="#f97316"
-          font={smallFont}
-          opacity={gameState.comboLabelOpacity}
-        />
-
-        {/* POPUP SCORE dans le secondary ring */}
+        {/* POPUP SCORE (dans le ring secondary → current) */}
         <Text
           x={gameState.scorePopupX}
-          y={gameState.scorePopupY}
+          y={useDerivedValue(() => gameState.scorePopupY.value + 10)}
           text={scorePopupTextDV}
-          color="#facc15"
+          color="white"
           font={popupFont}
           opacity={gameState.scorePopupOpacity}
         />
@@ -421,7 +363,7 @@ const DriftGame: React.FC = () => {
           />
         ))}
 
-        {/* SHIELD CHARGES (3 points sous les vies) */}
+        {/* SHIELD CHARGES */}
         <Circle
           cx={CANVAS_WIDTH - 60}
           cy={shieldDotsY}
@@ -446,12 +388,12 @@ const DriftGame: React.FC = () => {
       </Canvas>
 
       <BottomPanel
-        autoPlayInInventory={autoPlayInInventoryUI}
+        autoPlayInInventory={gameState.autoPlayInInventory}
         autoPlayActive={gameState.autoPlayActive}
         autoPlayTimeLeft={gameState.autoPlayTimeLeft}
         onActivateAutoPlay={autoPlay.onActivateAutoPlay}
-        shieldAvailable={shieldAvailableUI}
-        shieldArmed={shieldArmedUI}
+        shieldAvailable={gameState.shieldAvailable}
+        shieldArmed={gameState.shieldArmed}
         onActivateShield={shield.onActivateShield}
       />
 

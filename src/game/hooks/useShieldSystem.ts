@@ -1,28 +1,23 @@
 // src/game/hooks/useShieldSystem.ts
-// Gère TOUT le système de shield (orbe, halo, inventaire, charges)
+// Système de bouclier Safe Miss – 100 % Reanimated (pas d'état React)
 
-import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction } from 'react-native-reanimated';
 import type { GameState } from './useGameState';
-import { SHIELD_COLLISION_DIST, grantShield } from '../logic/shieldBonus';
-import { SHIELD_CHARGES_PER_ACTIVATION } from '../../constants/gameplay';
 
 const SHIELD_ORB_OFFSET = -Math.PI / 2;
+const MAX_CHARGES = 3;
+const PICKUP_DIST = 625;
 
 interface UseShieldSystemParams {
   gameState: GameState;
-  setShieldAvailableUI: (available: boolean) => void;
-  setShieldArmedUI: (armed: boolean) => void;
 }
 
-export const useShieldSystem = ({
-  gameState,
-  setShieldAvailableUI,
-  setShieldArmedUI,
-}: UseShieldSystemParams) => {
-  // ----- ORBE SHIELD SUR LE RING COURANT -----
-  const shieldOrbVisible = useDerivedValue(
-    () => (gameState.currentHasShield.value ? 1 : 0)
-  );
+export const useShieldSystem = ({ gameState }: UseShieldSystemParams) => {
+  // Orbe sur le ring courant (ne s'affiche pas si charges déjà full)
+  const shieldOrbVisible = useDerivedValue(() => {
+    const isFull = gameState.shieldChargesLeft.value >= MAX_CHARGES;
+    return gameState.currentHasShield.value && !isFull ? 1 : 0;
+  });
 
   const shieldOrbAngle = useDerivedValue(
     () => gameState.gateAngle.value + SHIELD_ORB_OFFSET
@@ -40,84 +35,86 @@ export const useShieldSystem = ({
       gameState.currentR.value * Math.sin(shieldOrbAngle.value)
   );
 
-  // ----- HALO AUTOUR DE LA BILLE QUAND SHIELD ARMÉ -----
+  // Halo autour de la bille quand bouclier armé
   const shieldHaloVisible = useDerivedValue(
-    () =>
-      gameState.shieldArmed.value && gameState.shieldChargesLeft.value > 0 ? 1 : 0
+    () => (gameState.shieldArmed.value ? 1 : 0)
   );
 
-  // ----- 3 POINTS SOUS LES VIES POUR LES CHARGES -----
+  // Charges affichées (3 points)
   const shieldCharge1Visible = useDerivedValue(
-    () => (gameState.shieldChargesLeft.value >= 1 ? 1 : 0)
+    () => (gameState.shieldChargesLeft.value >= 1 ? 1 : 0.2)
   );
   const shieldCharge2Visible = useDerivedValue(
-    () => (gameState.shieldChargesLeft.value >= 2 ? 1 : 0)
+    () => (gameState.shieldChargesLeft.value >= 2 ? 1 : 0.2)
   );
   const shieldCharge3Visible = useDerivedValue(
-    () => (gameState.shieldChargesLeft.value >= 3 ? 1 : 0)
+    () => (gameState.shieldChargesLeft.value >= 3 ? 1 : 0.2)
   );
 
-  // ----- SYNC INVENTAIRE / ARMÉ VERS L'UI REACT -----
+  // Sync robuste : shieldAvailable reflète TOUJOURS chargesLeft
+  // => garantit que l'icône/bouton disparaît dès que charges = 0
   useAnimatedReaction(
-    () => gameState.shieldAvailable.value,
-    (available) => {
-      runOnJS(setShieldAvailableUI)(available);
+    () => gameState.shieldChargesLeft.value,
+    (charges) => {
+      'worklet';
+      const hasAny = charges > 0;
+
+      gameState.shieldAvailable.value = hasAny;
+
+      // Si plus de charges, on force désarmé (évite icône bloquée / état incohérent)
+      if (!hasAny && gameState.shieldArmed.value) {
+        gameState.shieldArmed.value = false;
+      }
     }
   );
 
-  useAnimatedReaction(
-    () => gameState.shieldArmed.value,
-    (armed) => {
-      runOnJS(setShieldArmedUI)(armed);
-    }
-  );
-
-  // ⚠️ On NE remet pas shieldAvailable à false ici quand charges = 0 :
-  // c'est géré dans loseLife quand on consomme la dernière charge.
-
-  // ----- COLLISION BILLE / ORBE SHIELD -----
+  // Pickup de l'orbe shield
   useAnimatedReaction(
     () => ({
       hasShieldOrb: gameState.currentHasShield.value,
       ballX: gameState.ballX.value,
       ballY: gameState.ballY.value,
       gateAngle: gameState.gateAngle.value,
+      cx: gameState.currentX.value,
+      cy: gameState.currentY.value,
+      r: gameState.currentR.value,
+      charges: gameState.shieldChargesLeft.value,
     }),
     (state) => {
+      'worklet';
       if (!state.hasShieldOrb) return;
 
-      const cx = gameState.currentX.value;
-      const cy = gameState.currentY.value;
-      const r = gameState.currentR.value;
+      // Si déjà full, on ne propose pas l'orbe : on la retire si elle existe
+      if (state.charges >= MAX_CHARGES) {
+        gameState.currentHasShield.value = false;
+        return;
+      }
 
       const orbAngle = state.gateAngle + SHIELD_ORB_OFFSET;
-      const orbX = cx + r * Math.cos(orbAngle);
-      const orbY = cy + r * Math.sin(orbAngle);
+      const orbX = state.cx + state.r * Math.cos(orbAngle);
+      const orbY = state.cy + state.r * Math.sin(orbAngle);
 
       const dx = state.ballX - orbX;
       const dy = state.ballY - orbY;
       const distSq = dx * dx + dy * dy;
+      if (distSq > PICKUP_DIST) return;
 
-      if (distSq <= SHIELD_COLLISION_DIST) {
-        // → orbe consommée, inventaire shield rempli
-        grantShield(gameState.shieldAvailable, gameState.currentHasShield);
-      }
+      // Pickup → ajoute une charge (capée)
+      gameState.currentHasShield.value = false;
+      const newCharges = Math.min(MAX_CHARGES, state.charges + 1);
+      gameState.shieldChargesLeft.value = newCharges;
+      // shieldAvailable sera sync automatiquement par la réaction ci-dessus
     }
   );
 
-  // ----- ACTIVATION DU SHIELD DEPUIS LE BOTTOM PANEL -----
   const onActivateShield = () => {
     'worklet';
-
-    // Pas de shield en stock → rien
+    if (gameState.shieldArmed.value) return; // évite double armement
+    if (gameState.shieldChargesLeft.value <= 0) return; // source de vérité
+    // shieldAvailable est redondant ici mais ok si tu veux le garder
     if (!gameState.shieldAvailable.value) return;
-    // Déjà armé → rien
-    if (gameState.shieldArmed.value) return;
 
-    // On consomme l'inventaire, on arme, on donne N charges
-    gameState.shieldAvailable.value = false;
     gameState.shieldArmed.value = true;
-    gameState.shieldChargesLeft.value = SHIELD_CHARGES_PER_ACTIVATION;
   };
 
   return {

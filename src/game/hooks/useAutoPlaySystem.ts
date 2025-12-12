@@ -67,12 +67,10 @@ export const useAutoPlaySystem = ({
     }
   );
 
-  // Activation via le bouton du bas (appelée côté JS, peu fréquent)
+  // Activation via le bouton du bas (appelée côté JS, rarement)
   const onActivateAutoPlay = () => {
     'worklet';
-    if (!gameState.autoPlayInInventory.value) {
-      return;
-    }
+    if (!gameState.autoPlayInInventory.value) return;
 
     gameState.autoPlayInInventory.value = false;
     gameState.autoPlayActive.value = true;

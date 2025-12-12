@@ -5,6 +5,7 @@ import { withTiming } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { generateNextRing } from './ringGenerator';
 import { shouldSpawnShield } from './shieldBonus';
+import { triggerScorePopup } from './scorePopup';
 import {
   SPEED_INC_PER_RING,
   SPEED_CAP,
@@ -55,16 +56,11 @@ interface CompleteRingParams {
   mode: SharedValue<'orbit' | 'dash'>;
   dashStartTime: SharedValue<number>;
 
-  // Scoring / streak
+  // Scoring / vies
   streak: SharedValue<number>;
   combo: SharedValue<number>;
-  ringsCleared: SharedValue<number>;
   lives: SharedValue<number>;
-
-  // Combo / FX
-  comboTier: SharedValue<number>;
-  comboLabelOpacity: SharedValue<number>;
-  bgPulse: SharedValue<number>;
+  ringsCleared: SharedValue<number>;
 
   // Vie sur ring
   currentHasLife: SharedValue<boolean>;
@@ -76,8 +72,9 @@ interface CompleteRingParams {
   // Shield bonus
   currentHasShield: SharedValue<boolean>;
   shieldAvailable: SharedValue<boolean>;
+  shieldChargesLeft: SharedValue<number>;
 
-  // Popup score (secondary ring)
+  // Popup score (dans le secondary ring)
   scorePopupText: SharedValue<string>;
   scorePopupOpacity: SharedValue<number>;
   scorePopupX: SharedValue<number>;
@@ -130,16 +127,11 @@ export const completeRing = (params: CompleteRingParams) => {
     mode,
     dashStartTime,
 
-    // Scoring / streak
+    // Scoring / vies
     streak,
     combo,
-    ringsCleared,
     lives,
-
-    // Combo / FX
-    comboTier,
-    comboLabelOpacity,
-    bgPulse,
+    ringsCleared,
 
     // Vie sur ring
     currentHasLife,
@@ -151,6 +143,7 @@ export const completeRing = (params: CompleteRingParams) => {
     // Shield bonus
     currentHasShield,
     shieldAvailable,
+    shieldChargesLeft,
 
     // Popup score
     scorePopupText,
@@ -163,7 +156,7 @@ export const completeRing = (params: CompleteRingParams) => {
     RING_RADIUS,
   } = params;
 
-  // 1) SCORE simple : +1 par ring, +1 si perfect
+  // 1) SCORE : +1 par ring, +1 si perfect
   let gained = 1;
   if (isPerfect) {
     gained += 1;
@@ -173,10 +166,7 @@ export const completeRing = (params: CompleteRingParams) => {
   }
   score.value = score.value + gained;
 
-  // 1bis) Nombre de rings complétés (pour Move/Spin + difficulté)
-  ringsCleared.value = ringsCleared.value + 1;
-
-  // 2) Si le ring courant avait une orbe non prise → orbe ratée
+  // 2) Orbes non prises → reset
   if (currentHasLife.value) {
     currentHasLife.value = false;
   }
@@ -186,48 +176,19 @@ export const completeRing = (params: CompleteRingParams) => {
     currentHasAutoPlay.value = false;
   }
 
-  // Le bouclier sur le ring courant est forcément consommé ou raté
+  // Bouclier sur le ring courant : consommé/raté
   currentHasShield.value = false;
 
-  // 3) STREAK
+  // 3) STREAK + compteur de rings
   streak.value = streak.value + 1;
+  ringsCleared.value = ringsCleared.value + 1;
 
-  // 4) COMBO TIER + LABEL + BG PULSE
-  let newTier = 0;
-  if (combo.value >= 40) {
-    newTier = 3; // Legendary
-  } else if (combo.value >= 25) {
-    newTier = 2; // Sharp
-  } else if (combo.value >= 10) {
-    newTier = 1; // Clean
-  }
-
-  if (newTier !== comboTier.value) {
-    comboTier.value = newTier;
-
-    if (newTier > 0) {
-      comboLabelOpacity.value = 1;
-      comboLabelOpacity.value = withTiming(0, { duration: 800 });
-    }
-  }
-
-  // BG pulse doux à chaque ring réussi
-  bgPulse.value = 0.9;
-  bgPulse.value = withTiming(0, { duration: 450 });
-
-  // 5) POPUP SCORE dans le secondary ring
-  scorePopupText.value = `+${gained}`;
-  scorePopupX.value = nextX.value;
-  scorePopupY.value = nextY.value;
-  scorePopupOpacity.value = 1;
-  scorePopupOpacity.value = withTiming(0, { duration: 400 });
-
-  // 6) PALETTES (jamais 2 rings de la même couleur)
+  // 4) PALETTES (jamais 2 rings de la même couleur)
   currentPaletteIndex.value = nextPaletteIndex.value;
   const newIndex = getRandomPaletteIndex(currentPaletteIndex.value);
   nextPaletteIndex.value = newIndex;
 
-  // 7) FADING RING = on fige l'ancien ring pour l'anim
+  // 5) FADING RING
   fadingRingX.value = currentX.value;
   fadingRingY.value = currentY.value;
   fadingRingR.value = currentR.value;
@@ -237,37 +198,56 @@ export const completeRing = (params: CompleteRingParams) => {
   fadingRingOpacity.value = withTiming(0, { duration: 400 });
   fadingRingScale.value = withTiming(1.25, { duration: 400 });
 
-  // 8) CALCULER L'ANGLE D'ARRIVÉE (avant de modifier current!)
+  // 6) ANGLE D'ARRIVÉE (avant de modifier current !)
   angle.value = Math.atan2(ballY.value - nextY.value, ballX.value - nextX.value);
 
-  // 9) TRANSITION : NEXT → CURRENT (positions + vitesses)
+  // 7) TRANSITION : NEXT → CURRENT
   currentX.value = nextX.value;
   currentY.value = nextY.value;
   currentR.value = nextR.value;
   currentVX.value = nextVX.value;
   currentVY.value = nextVY.value;
 
-  // 10) GÉNÉRATION DU NOUVEAU RING "NEXT"
-  const next = generateNextRing(currentX.value, currentY.value, currentR.value, RING_RADIUS);
+  // 8) GÉNÉRATION NOUVEAU RING "NEXT"
+  const next = generateNextRing(
+    currentX.value,
+    currentY.value,
+    currentR.value,
+    RING_RADIUS
+  );
   nextX.value = next.x;
   nextY.value = next.y;
   nextR.value = next.r;
   nextVX.value = next.vx;
   nextVY.value = next.vy;
 
-  // 11) SPEED / GATE
+  // 9) SPEED / GATE
   speed.value = Math.min(speed.value + SPEED_INC_PER_RING, SPEED_CAP);
   gateWidth.value = Math.max(gateWidth.value - SHRINK_PER_RING, MIN_GATE_WIDTH);
   gateAngle.value = Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value);
 
-  // 12) PLACER LA BILLE SUR LE NOUVEAU RING (à l'angle d'arrivée)
+  // 10) PLACER LA BILLE SUR LE NOUVEAU RING
   ballX.value = currentX.value + currentR.value * Math.cos(angle.value);
   ballY.value = currentY.value + currentR.value * Math.sin(angle.value);
 
   mode.value = 'orbit';
   dashStartTime.value = 0;
 
-  // 13) SPAWN D'UNE ORBE DE VIE SUR LE NOUVEAU CURRENT RING
+  // 11) POPUP DE SCORE dans le ring (ex-secondary devenu current)
+  triggerScorePopup({
+    gained,
+    currentX,
+    currentY,
+    scorePopupText,
+    scorePopupOpacity,
+    scorePopupX,
+    scorePopupY,
+  });
+
+  // Synchronisation "disponible" ← charges (évite tout état incohérent)
+  shieldAvailable.value = shieldChargesLeft.value > 0;
+
+  // 12) SPAWN ORBE DE VIE
   if (
     streak.value >= STREAK_FOR_LIFE &&
     lives.value < LIVES_MAX &&
@@ -277,13 +257,13 @@ export const completeRing = (params: CompleteRingParams) => {
     currentHasLife.value = true;
   }
 
-  // 14) SPAWN AUTO-PLAY (chance aléatoire)
+  // 13) SPAWN AUTO-PLAY
   if (Math.random() < AUTOPLAY_SPAWN_CHANCE && !currentHasAutoPlay.value) {
     currentHasAutoPlay.value = true;
   }
 
-  // 15) SPAWN SHIELD (bouclier Safe Miss)
-  if (shouldSpawnShield(shieldAvailable, currentHasShield)) {
+  // 14) SPAWN SHIELD (autorisé tant que charges < 3)
+  if (shouldSpawnShield(shieldChargesLeft, currentHasShield)) {
     currentHasShield.value = true;
   }
 };
@@ -316,28 +296,28 @@ export const loseLife = (params: LoseLifeParams) => {
     shieldChargesLeft,
   } = params;
 
-  // 1) Reset du contexte de scoring / orbes
+  // 1) Reset scoring / orbes
   streak.value = 0;
   combo.value = 0;
   currentHasLife.value = false;
   nextHasLife.value = false;
   currentHasAutoPlay.value = false;
 
-  // 2) Safe miss via shield
+  // 2) Safe miss via shield (1 charge consommée, puis désarmement)
   if (shieldArmed.value && shieldChargesLeft.value > 0) {
-    if (shieldChargesLeft.value > 1) {
-      shieldChargesLeft.value = shieldChargesLeft.value - 1;
-    } else {
-      shieldChargesLeft.value = 0;
-      shieldArmed.value = false;
-      shieldAvailable.value = false;
-    }
+    shieldChargesLeft.value = Math.max(0, shieldChargesLeft.value - 1);
 
-    // Pas de perte de vie
-    return;
+    // IMPORTANT: 1 activation = 1 safe miss
+    shieldArmed.value = false;
+
+    // Disponible tant qu'il reste des charges
+    shieldAvailable.value = shieldChargesLeft.value > 0;
+
+    return; // pas de perte de vie
   }
 
-  // 3) Comportement normal : on perd une vie
+
+  // 3) Perte de vie classique
   if (lives.value <= 1) {
     lives.value = 0;
     alive.value = false;
@@ -356,10 +336,10 @@ interface RestartParams {
   speed: SharedValue<number>;
   gateWidth: SharedValue<number>;
   mode: SharedValue<'orbit' | 'dash'>;
+  isPaused: SharedValue<boolean>;
   streak: SharedValue<number>;
   combo: SharedValue<number>;
   ringsCleared: SharedValue<number>;
-
   comboTier: SharedValue<number>;
   comboLabelOpacity: SharedValue<number>;
   bgPulse: SharedValue<number>;
@@ -417,6 +397,7 @@ export const restart = (params: RestartParams) => {
     speed,
     gateWidth,
     mode,
+    isPaused,
     streak,
     combo,
     ringsCleared,
@@ -468,11 +449,11 @@ export const restart = (params: RestartParams) => {
   speed.value = START_ORBIT_SPEED;
   gateWidth.value = START_GATE_WIDTH;
   mode.value = 'orbit';
+  isPaused.value = false;
 
   streak.value = 0;
   combo.value = 0;
   ringsCleared.value = 0;
-
   comboTier.value = 0;
   comboLabelOpacity.value = 0;
   bgPulse.value = 0;
@@ -489,6 +470,11 @@ export const restart = (params: RestartParams) => {
   shieldAvailable.value = false;
   shieldArmed.value = false;
   shieldChargesLeft.value = 0;
+
+  scorePopupText.value = '';
+  scorePopupOpacity.value = 0;
+  scorePopupX.value = CENTER_X;
+  scorePopupY.value = CENTER_Y;
 
   currentX.value = CENTER_X;
   currentY.value = CENTER_Y;
@@ -509,11 +495,6 @@ export const restart = (params: RestartParams) => {
   ballY.value = currentY.value;
 
   fadingRingOpacity.value = 0;
-
-  scorePopupText.value = '';
-  scorePopupOpacity.value = 0;
-  scorePopupX.value = CENTER_X;
-  scorePopupY.value = CENTER_Y;
 
   currentPaletteIndex.value = getRandomPaletteIndex();
   nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);

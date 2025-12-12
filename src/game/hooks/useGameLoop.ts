@@ -1,7 +1,7 @@
 // src/game/hooks/useGameLoop.ts
 // Boucle de jeu 100% Reanimated (aucun re-render Canvas)
 // Dash centre → centre, vitesse en fonction de la progression
-// MoveRings (drift des anneaux) + SpinRings (rotation des gates)
+// MoveRings + SpinRings + AutoPlay
 
 import { useFrameCallback } from 'react-native-reanimated';
 import {
@@ -30,7 +30,7 @@ const expo01 = (t: number) => {
 
 const diffFactor = (s: number) => {
   'worklet';
-  // s est ici ringsCleared, normalisé par GODLIKE_SCORE
+  // s = ringsCleared, normalisé par GODLIKE_SCORE
   return expo01(s / GODLIKE_SCORE);
 };
 
@@ -85,29 +85,25 @@ export const useGameLoop = (params: any) => {
       nextHasLife,
       currentHasAutoPlay,
 
-      // combo / FX
-      comboTier,
-      comboLabelOpacity,
-      bgPulse,
-
       // bouclier
       currentHasShield,
       shieldAvailable,
+      shieldChargesLeft, // ✅ AJOUT
 
       // auto-play
       autoPlayActive,
       autoPlayTimeLeft,
+
+      // palettes
+      currentPaletteIndex,
+      nextPaletteIndex,
+      getRandomPaletteIndex,
 
       // popup score
       scorePopupText,
       scorePopupOpacity,
       scorePopupX,
       scorePopupY,
-
-      // palettes
-      currentPaletteIndex,
-      nextPaletteIndex,
-      getRandomPaletteIndex,
     } = params;
 
     if (!alive.value) {
@@ -125,7 +121,7 @@ export const useGameLoop = (params: any) => {
         : 1 / 60;
 
     // --------------------
-    // SPIN RINGS : rotation progressive des gates / orbes
+    // SPIN RINGS
     // --------------------
     if (ringsCleared.value >= SPIN_RINGS_RINGS_THRESHOLD) {
       const ringsOver = ringsCleared.value - SPIN_RINGS_RINGS_THRESHOLD;
@@ -141,14 +137,13 @@ export const useGameLoop = (params: any) => {
     }
 
     // --------------------
-    // MOVE RINGS : drift des anneaux à partir de MOVE_RINGS_SCORE_THRESHOLD
-    // (threshold interprété comme nb de rings réussis)
+    // MOVE RINGS
     // --------------------
     if (ringsCleared.value >= MOVE_RINGS_SCORE_THRESHOLD) {
       const MOVE_RINGS_RAMP = 40;
       const rawProgress =
         (ringsCleared.value - MOVE_RINGS_SCORE_THRESHOLD) / MOVE_RINGS_RAMP;
-      const progress = Math.min(Math.max(rawProgress, 0), 1);
+      const progress = Math.min(Math.max(rawProgress, 0), 1); // 0..1
       const speedFactor = 1 + progress; // 1 → 2
 
       currentX.value += currentVX.value * speedFactor * dt;
@@ -156,6 +151,7 @@ export const useGameLoop = (params: any) => {
       nextX.value += nextVX.value * speedFactor * dt;
       nextY.value += nextVY.value * speedFactor * dt;
 
+      // Rebond simple sur les bords pour le current ring
       const marginCurrent = currentR.value;
       if (currentX.value < marginCurrent || currentX.value > CANVAS_WIDTH - marginCurrent) {
         currentVX.value = -currentVX.value;
@@ -172,6 +168,7 @@ export const useGameLoop = (params: any) => {
         }
       }
 
+      // Rebond pour le next ring
       const marginNext = nextR.value;
       if (nextX.value < marginNext || nextX.value > CANVAS_WIDTH - marginNext) {
         nextVX.value = -nextVX.value;
@@ -225,7 +222,7 @@ export const useGameLoop = (params: any) => {
     }
 
     // --------------------
-    // DASH : centre → centre, dashSpeed dépend de la progression
+    // DASH : centre → centre
     // --------------------
     if (mode.value === 'dash') {
       const comboDash = Math.min(combo.value * 12, 999);
@@ -297,13 +294,8 @@ export const useGameLoop = (params: any) => {
           // Scoring / vies
           streak,
           combo,
-          ringsCleared,
           lives,
-
-          // Combo / FX
-          comboTier,
-          comboLabelOpacity,
-          bgPulse,
+          ringsCleared,
 
           // Vie sur ring
           currentHasLife,
@@ -315,6 +307,7 @@ export const useGameLoop = (params: any) => {
           // Shield
           currentHasShield,
           shieldAvailable,
+          shieldChargesLeft, // ✅ AJOUT
 
           // Popup score
           scorePopupText,

@@ -8,14 +8,14 @@ import type { SharedValue } from 'react-native-reanimated';
 
 interface BottomPanelProps {
   // Auto-play
-  autoPlayInInventory: boolean;                // simple bool côté React
+  autoPlayInInventory: SharedValue<boolean>;
   autoPlayActive: SharedValue<boolean>;
   autoPlayTimeLeft: SharedValue<number>;
   onActivateAutoPlay: () => void;
 
   // Shield
-  shieldAvailable: boolean;                    // simple bool côté React
-  shieldArmed: boolean;                        // simple bool côté React
+  shieldAvailable: SharedValue<boolean>;
+  shieldArmed: SharedValue<boolean>;
   onActivateShield: () => void;
 }
 
@@ -30,6 +30,16 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
 }) => {
   const [timeLeftUI, setTimeLeftUI] = React.useState(0);
   const [isActiveUI, setIsActiveUI] = React.useState(false);
+
+  const [autoPlayInInventoryUI, setAutoPlayInInventoryUI] = React.useState(
+    autoPlayInInventory.value
+  );
+  const [shieldAvailableUI, setShieldAvailableUI] = React.useState(
+    shieldAvailable.value
+  );
+  const [shieldArmedUI, setShieldArmedUI] = React.useState(
+    shieldArmed.value
+  );
 
   // Sync timer UI (on met à jour le JS seulement si la seconde affichée change
   // ou si l'état actif/inactif change)
@@ -54,11 +64,35 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
     }
   );
 
-  const hasAutoPlayVisible = autoPlayInInventory || isActiveUI;
-  const hasShieldVisible = shieldAvailable || shieldArmed;
+  // Sync inventaire Auto-Play
+  useAnimatedReaction(
+    () => autoPlayInInventory.value,
+    (val, prev) => {
+      if (prev === val) return;
+      runOnJS(setAutoPlayInInventoryUI)(val);
+    }
+  );
+
+  // Sync shield disponible / armé
+  useAnimatedReaction(
+    () => ({
+      available: shieldAvailable.value,
+      armed: shieldArmed.value,
+    }),
+    (state, prev) => {
+      if (prev && prev.available === state.available && prev.armed === state.armed) {
+        return;
+      }
+      runOnJS(setShieldAvailableUI)(state.available);
+      runOnJS(setShieldArmedUI)(state.armed);
+    }
+  );
+
+  const hasAutoPlayVisible = autoPlayInInventoryUI || isActiveUI;
+  const hasShieldVisible = shieldAvailableUI || shieldArmedUI;
 
   const secondsLeft = Math.ceil(timeLeftUI / 1000);
-  const canPressShield = shieldAvailable && !shieldArmed;
+  const canPressShield = shieldAvailableUI && !shieldArmedUI;
 
   return (
     <View style={styles.container}>
@@ -86,7 +120,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           style={[
             styles.bonusButton,
             styles.shieldButton,
-            shieldArmed && styles.shieldButtonArmed,
+            shieldArmedUI && styles.shieldButtonArmed,
             !canPressShield && styles.bonusButtonDisabled,
           ]}
           onPress={onActivateShield}
