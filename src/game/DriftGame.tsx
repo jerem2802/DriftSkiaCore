@@ -4,7 +4,7 @@
 import React from 'react';
 import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
 import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
-import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue } from 'react-native-reanimated';
 
 import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
@@ -19,7 +19,10 @@ import { useGameLoop } from './hooks/useGameLoop';
 import { useShieldSystem } from './hooks/useShieldSystem';
 import { useAutoPlaySystem } from './hooks/useAutoPlaySystem';
 import { useGameOverSystem } from './hooks/useGameOverSystem';
+import { useLifeOrbSystem } from './hooks/useLifeOrbSystem';
+
 import { ScoreHUD } from './skia/ScoreHUD';
+import { LifeDot } from './skia/LifeDot';
 
 import {
   CANVAS_WIDTH,
@@ -34,7 +37,6 @@ import { BALL_COLOR, SHIELD_HALO_COLOR } from '../constants/colors';
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
 
-const LIFE_ORB_OFFSET = Math.PI;
 const ORB_COLLISION_DIST = 625;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
@@ -53,14 +55,17 @@ const DriftGame: React.FC = () => {
   // Popup score
   const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
 
-  // UI React minimal : vies
-  const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
-
   // ----- SHIELD -----
   const shield = useShieldSystem({ gameState });
 
   // ----- AUTO-PLAY -----
   const autoPlay = useAutoPlaySystem({
+    gameState,
+    orbCollisionDist: ORB_COLLISION_DIST,
+  });
+
+  // ----- LIFE ORB (hook dédié : pos + collision) -----
+  const lifeOrb = useLifeOrbSystem({
     gameState,
     orbCollisionDist: ORB_COLLISION_DIST,
   });
@@ -107,61 +112,6 @@ const DriftGame: React.FC = () => {
   // ----- FADING RING -----
   const fadingRingScaledR = useDerivedValue(
     () => gameState.fadingRingR.value * gameState.fadingRingScale.value
-  );
-
-  // ----- ORBE DE VIE -----
-  const lifeOrbVisible = useDerivedValue(() => (gameState.currentHasLife.value ? 1 : 0));
-
-  const lifeOrbAngle = useDerivedValue(() => gameState.gateAngle.value + LIFE_ORB_OFFSET);
-
-  const lifeOrbX = useDerivedValue(
-    () =>
-      gameState.currentX.value +
-      gameState.currentR.value * Math.cos(lifeOrbAngle.value)
-  );
-  const lifeOrbY = useDerivedValue(
-    () =>
-      gameState.currentY.value +
-      gameState.currentR.value * Math.sin(lifeOrbAngle.value)
-  );
-
-  // Collision bille / orbe de vie
-  useAnimatedReaction(
-    () => ({
-      hasLife: gameState.currentHasLife.value,
-      ballX: gameState.ballX.value,
-      ballY: gameState.ballY.value,
-      lives: gameState.lives.value,
-      gateAngle: gameState.gateAngle.value,
-    }),
-    (state) => {
-      if (!state.hasLife) return;
-      if (state.lives >= LIVES_MAX) return;
-
-      const cx = gameState.currentX.value;
-      const cy = gameState.currentY.value;
-      const r = gameState.currentR.value;
-
-      const orbAngle = state.gateAngle + LIFE_ORB_OFFSET;
-      const orbX = cx + r * Math.cos(orbAngle);
-      const orbY = cy + r * Math.sin(orbAngle);
-      const dx = state.ballX - orbX;
-      const dy = state.ballY - orbY;
-      const distSq = dx * dx + dy * dy;
-
-      if (distSq <= ORB_COLLISION_DIST) {
-        gameState.currentHasLife.value = false;
-        gameState.lives.value = Math.min(LIVES_MAX, state.lives + 1);
-      }
-    }
-  );
-
-  // Sync vies → UI React
-  useAnimatedReaction(
-    () => gameState.lives.value,
-    (lives) => {
-      runOnJS(setLivesUI)(lives);
-    }
   );
 
   // LIVES POSITIONS
@@ -247,8 +197,14 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* ORBE DE VIE */}
-        <Circle cx={lifeOrbX} cy={lifeOrbY} r={8} color="#ef4444" opacity={lifeOrbVisible} />
+        {/* ORBE DE VIE (via hook) */}
+        <Circle
+          cx={lifeOrb.lifeOrbX}
+          cy={lifeOrb.lifeOrbY}
+          r={8}
+          color="#ef4444"
+          opacity={lifeOrb.lifeOrbVisible}
+        />
 
         {/* ORBE AUTO-PLAY */}
         <Circle
@@ -306,11 +262,7 @@ const DriftGame: React.FC = () => {
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
 
         {/* SCORE + MULT + TIER (Skia) */}
-        <ScoreHUD
-          score={gameState.score}
-          streak={gameState.streak}
-          canvasWidth={CANVAS_WIDTH}
-        />
+        <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
 
         {/* POPUP SCORE (dans le ring secondary → current) */}
         <Text
@@ -322,15 +274,9 @@ const DriftGame: React.FC = () => {
           opacity={gameState.scorePopupOpacity}
         />
 
-        {/* LIVES */}
+        {/* LIVES (Skia pur, piloté par gameState.lives) */}
         {livesPositions.map((pos, i) => (
-          <Circle
-            key={i}
-            cx={pos.x}
-            cy={pos.y}
-            r={7}
-            color={i < livesUI ? '#ef4444' : '#334155'}
-          />
+          <LifeDot key={i} x={pos.x} y={pos.y} index={i} lives={gameState.lives} />
         ))}
 
         {/* SHIELD CHARGES */}
