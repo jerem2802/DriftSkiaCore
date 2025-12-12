@@ -19,6 +19,7 @@ import { useGameLoop } from './hooks/useGameLoop';
 import { useShieldSystem } from './hooks/useShieldSystem';
 import { useAutoPlaySystem } from './hooks/useAutoPlaySystem';
 import { useGameOverSystem } from './hooks/useGameOverSystem';
+import { ScoreHUD } from './skia/ScoreHUD';
 
 import {
   CANVAS_WIDTH,
@@ -38,13 +39,6 @@ const ORB_COLLISION_DIST = 625;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
 
-const scoreFontStyle = {
-  fontFamily,
-  fontSize: 48,
-  fontWeight: 'bold' as const,
-};
-const scoreFont = matchFont(scoreFontStyle);
-
 const popupFontStyle = {
   fontFamily,
   fontSize: 26,
@@ -56,15 +50,8 @@ const DriftGame: React.FC = () => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
-  // Score (Skia)
-  const scoreText = useDerivedValue(
-    () => Math.round(gameState.score.value).toString()
-  );
-
   // Popup score
-  const scorePopupTextDV = useDerivedValue(
-    () => gameState.scorePopupText.value
-  );
+  const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
 
   // UI React minimal : vies
   const [livesUI, setLivesUI] = React.useState(LIVES_MAX);
@@ -123,13 +110,9 @@ const DriftGame: React.FC = () => {
   );
 
   // ----- ORBE DE VIE -----
-  const lifeOrbVisible = useDerivedValue(
-    () => (gameState.currentHasLife.value ? 1 : 0)
-  );
+  const lifeOrbVisible = useDerivedValue(() => (gameState.currentHasLife.value ? 1 : 0));
 
-  const lifeOrbAngle = useDerivedValue(
-    () => gameState.gateAngle.value + LIFE_ORB_OFFSET
-  );
+  const lifeOrbAngle = useDerivedValue(() => gameState.gateAngle.value + LIFE_ORB_OFFSET);
 
   const lifeOrbX = useDerivedValue(
     () =>
@@ -199,13 +182,8 @@ const DriftGame: React.FC = () => {
   });
 
   const onTap = () => {
-    if (!aliveUI) {
-      return;
-    }
-
-    if (gameState.mode.value !== 'orbit') {
-      return;
-    }
+    if (!aliveUI) return;
+    if (gameState.mode.value !== 'orbit') return;
 
     const tapResult = validateTap(
       gameState.angle.value,
@@ -270,13 +248,7 @@ const DriftGame: React.FC = () => {
         />
 
         {/* ORBE DE VIE */}
-        <Circle
-          cx={lifeOrbX}
-          cy={lifeOrbY}
-          r={8}
-          color="#ef4444"
-          opacity={lifeOrbVisible}
-        />
+        <Circle cx={lifeOrbX} cy={lifeOrbY} r={8} color="#ef4444" opacity={lifeOrbVisible} />
 
         {/* ORBE AUTO-PLAY */}
         <Circle
@@ -333,13 +305,11 @@ const DriftGame: React.FC = () => {
         />
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
 
-        {/* SCORE */}
-        <Text
-          x={CANVAS_WIDTH / 2 - 30}
-          y={80}
-          text={scoreText}
-          color="white"
-          font={scoreFont}
+        {/* SCORE + MULT + TIER (Skia) */}
+        <ScoreHUD
+          score={gameState.score}
+          streak={gameState.streak}
+          canvasWidth={CANVAS_WIDTH}
         />
 
         {/* POPUP SCORE (dans le ring secondary → current) */}

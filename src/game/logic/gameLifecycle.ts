@@ -6,6 +6,8 @@ import type { SharedValue } from 'react-native-reanimated';
 import { generateNextRing } from './ringGenerator';
 import { shouldSpawnShield } from './shieldBonus';
 import { triggerScorePopup } from './scorePopup';
+import { computeGainedPoints } from './scoreRules';
+
 import {
   SPEED_INC_PER_RING,
   SPEED_CAP,
@@ -156,15 +158,23 @@ export const completeRing = (params: CompleteRingParams) => {
     RING_RADIUS,
   } = params;
 
-  // 1) SCORE : +1 par ring, +1 si perfect
-  let gained = 1;
-  if (isPerfect) {
-    gained += 1;
-    combo.value = combo.value + 1;
-  } else {
-    combo.value = 0;
-  }
-  score.value = score.value + gained;
+// 1) SCORE : base + perfect, puis multiplicateur sur streak
+const nextStreak = streak.value + 1; // streak après ce ring
+const basePoints = 1 + (isPerfect ? 1 : 0);
+
+if (isPerfect) {
+  combo.value = combo.value + 1;
+} else {
+  combo.value = 0;
+}
+
+const gained = computeGainedPoints({
+  basePoints,
+  streakAfterThisRing: nextStreak,
+});
+
+score.value = score.value + gained;
+
 
   // 2) Orbes non prises → reset
   if (currentHasLife.value) {
