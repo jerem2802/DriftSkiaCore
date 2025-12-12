@@ -44,6 +44,7 @@ interface CompleteRingParams {
 
   // Ball & gate
   score: SharedValue<number>;
+  ringsCleared: SharedValue<number>;
   speed: SharedValue<number>;
   gateAngle: SharedValue<number>;
   gateWidth: SharedValue<number>;
@@ -107,6 +108,7 @@ export const completeRing = (params: CompleteRingParams) => {
 
     // Ball & gate
     score,
+    ringsCleared,
     speed,
     gateAngle,
     gateWidth,
@@ -148,6 +150,9 @@ export const completeRing = (params: CompleteRingParams) => {
     combo.value = 0;
   }
   score.value = score.value + gained;
+
+  // 🔥 Progression réelle : 1 ring de plus passé
+  ringsCleared.value = ringsCleared.value + 1;
 
   // 2) Si le ring courant avait une orbe non prise → orbe ratée
   if (currentHasLife.value) {
@@ -295,6 +300,7 @@ interface RestartParams {
   alive: SharedValue<boolean>;
   lives: SharedValue<number>;
   score: SharedValue<number>;
+  ringsCleared: SharedValue<number>;
 
   speed: SharedValue<number>;
   gateWidth: SharedValue<number>;
@@ -348,6 +354,7 @@ export const restart = (params: RestartParams) => {
     alive,
     lives,
     score,
+    ringsCleared,
     speed,
     gateWidth,
     mode,
@@ -391,6 +398,7 @@ export const restart = (params: RestartParams) => {
   alive.value = true;
   lives.value = LIVES_MAX;
   score.value = 0;
+  ringsCleared.value = 0;
   speed.value = START_ORBIT_SPEED;
   gateWidth.value = START_GATE_WIDTH;
   mode.value = 'orbit';

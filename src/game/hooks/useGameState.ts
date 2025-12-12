@@ -19,6 +19,8 @@ export const useGameState = () => {
   const alive = useSharedValue(true);
   const lives = useSharedValue(LIVES_MAX);
   const score = useSharedValue(0);
+  // 🔥 nb de rings passés dans la run (pilote la difficulté MoveRings / dash)
+  const ringsCleared = useSharedValue(0);
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
   const isPaused = useSharedValue(false);
 
@@ -85,6 +87,7 @@ export const useGameState = () => {
     alive,
     lives,
     score,
+    ringsCleared,
     mode,
     isPaused,
     streak,

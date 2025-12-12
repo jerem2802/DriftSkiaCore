@@ -1,7 +1,7 @@
 // src/game/hooks/useGameLoop.ts
 // Boucle de jeu 100% Reanimated (aucun re-render Canvas)
-// Dash centre → centre, vitesse en fonction du score/combo
-// + MoveRings à partir d'un certain score
+// Dash centre → centre, vitesse en fonction de la progression/combo
+// + MoveRings à partir d'un certain nombre de rings passés
 
 import { useFrameCallback } from 'react-native-reanimated';
 import {
@@ -12,7 +12,7 @@ import {
   DASH_CAP,
   GODLIKE_SCORE,
   RING_RADIUS,
-  MOVE_RINGS_SCORE_THRESHOLD,
+  MOVE_RINGS_RINGS_THRESHOLD,
 } from '../../constants/gameplay';
 import { completeRing } from '../logic/gameLifecycle';
 
@@ -24,6 +24,7 @@ const expo01 = (t: number) => {
   return (Math.exp(K * x) - 1) / (Math.exp(K * 1) - 1);
 };
 
+// t = progression normalisée (ici basée sur ringsCleared / GODLIKE_SCORE)
 const diffFactor = (s: number) => {
   'worklet';
   return expo01(s / GODLIKE_SCORE);
@@ -72,6 +73,7 @@ export const useGameLoop = (params: any) => {
 
       // scoring / vies
       score,
+      ringsCleared,
       streak,
       combo,
       lives,
@@ -107,15 +109,25 @@ export const useGameLoop = (params: any) => {
         ? frameInfo.timeSincePreviousFrame / 1000
         : 1 / 60;
 
+       // --------------------
+    // MOVE RINGS : drift des anneaux à partir de MOVE_RINGS_RINGS_THRESHOLD
+    // avec accélération progressive selon ringsCleared
     // --------------------
-    // MOVE RINGS : drift des anneaux à partir de MOVE_RINGS_SCORE_THRESHOLD
-    // --------------------
-    if (score.value >= MOVE_RINGS_SCORE_THRESHOLD) {
-      // Déplacement
-      currentX.value += currentVX.value * dt;
-      currentY.value += currentVY.value * dt;
-      nextX.value += nextVX.value * dt;
-      nextY.value += nextVY.value * dt;
+    if (ringsCleared.value >= MOVE_RINGS_RINGS_THRESHOLD) {
+      // Progression MoveRings :
+      // - à partir du threshold → facteur 1
+      // - sur ~40 rings → monte doucement jusqu'à 2x
+      const MOVE_RINGS_RAMP = 40; // nb de rings pour atteindre la vitesse max
+      const rawProgress =
+        (ringsCleared.value - MOVE_RINGS_RINGS_THRESHOLD) / MOVE_RINGS_RAMP;
+      const progress = Math.min(Math.max(rawProgress, 0), 1); // clamp 0..1
+      const speedFactor = 1 + progress; // 1 → 2
+
+      // Déplacement avec facteur de vitesse
+      currentX.value += currentVX.value * speedFactor * dt;
+      currentY.value += currentVY.value * speedFactor * dt;
+      nextX.value += nextVX.value * speedFactor * dt;
+      nextY.value += nextVY.value * speedFactor * dt;
 
       // Rebond simple sur les bords pour le current ring
       const marginCurrent = currentR.value;
@@ -150,8 +162,8 @@ export const useGameLoop = (params: any) => {
           nextY.value = CANVAS_HEIGHT - marginNext;
         }
       }
-
     }
+
 
     // --------------------
     // AUTO-PLAY: décrémenter timer
@@ -189,12 +201,12 @@ export const useGameLoop = (params: any) => {
     }
 
     // --------------------
-    // DASH : centre → centre, dashSpeed dépend de score + combo
+    // DASH : centre → centre, dashSpeed dépend de la progression + combo
     // --------------------
     if (mode.value === 'dash') {
-      // 1) Vitesse de dash comme avant
+      // 1) Vitesse de dash : base + progression (ringsCleared) + combo
       const comboDash = Math.min(combo.value * 12, 999);
-      const extra = DASH_EXTRA_MAX * diffFactor(score.value);
+      const extra = DASH_EXTRA_MAX * diffFactor(ringsCleared.value);
       const dashSpeed = Math.min(DASH_BASE + extra + comboDash, DASH_CAP);
 
       // 2) Direction : centre du ring courant → centre du ring suivant
@@ -252,6 +264,7 @@ export const useGameLoop = (params: any) => {
 
           // Ball & gate
           score,
+          ringsCleared,
           speed,
           gateAngle,
           gateWidth,

@@ -12,14 +12,16 @@ export const RING_RADIUS = CANVAS_WIDTH * 0.25;
 export const BALL_RADIUS = 10;
 
 // Speed
-export const START_ORBIT_SPEED = 1.2;
-export const SPEED_INC_PER_RING = 0.035;
-export const SPEED_CAP = 15.0;
+export const START_ORBIT_SPEED = 1.2;   // on garde le feeling de départ
+export const SPEED_INC_PER_RING = 0.025; // montée plus douce
+export const SPEED_CAP = 9.0;           // limite max beaucoup plus lisible
+
 
 // Dash (comportement ancien projet SVG)
 export const DASH_BASE = 400;
 export const DASH_EXTRA_MAX = 300;
-export const DASH_CAP = 1200;
+// Nerf léger : bille un peu moins “fusée” en late game, plus lisible.
+export const DASH_CAP = 900;
 export const GODLIKE_SCORE = 100;
 
 // Gate
@@ -52,7 +54,7 @@ export const CENTER_Y_CURRENT = H * 0.6;
 export const CENTER_Y_NEXT = H * 0.3;
 export const RING_GENERATION_MARGIN = 80;
 
-// Move Rings (drift des anneaux)
-export const MOVE_RINGS_SCORE_THRESHOLD = 20; // à partir de 20 pts
+// Move Rings (drift des anneaux) – basé sur la progression réelle (ringsCleared)
+export const MOVE_RINGS_RINGS_THRESHOLD = 20; // à partir de 20 rings passés
 export const MOVE_RINGS_SPEED_MIN = 10;       // px/s
 export const MOVE_RINGS_SPEED_MAX = 30;       // px/s
