@@ -12,16 +12,14 @@ export const RING_RADIUS = CANVAS_WIDTH * 0.25;
 export const BALL_RADIUS = 10;
 
 // Speed
-export const START_ORBIT_SPEED = 1.2;   // on garde le feeling de départ
-export const SPEED_INC_PER_RING = 0.025; // montée plus douce
-export const SPEED_CAP = 9.0;           // limite max beaucoup plus lisible
-
+export const START_ORBIT_SPEED = 1.2;
+export const SPEED_INC_PER_RING = 0.035;
+export const SPEED_CAP = 15.0;
 
 // Dash (comportement ancien projet SVG)
 export const DASH_BASE = 400;
 export const DASH_EXTRA_MAX = 300;
-// Nerf léger : bille un peu moins “fusée” en late game, plus lisible.
-export const DASH_CAP = 900;
+export const DASH_CAP = 1200;
 export const GODLIKE_SCORE = 100;
 
 // Gate
@@ -37,9 +35,17 @@ export const INVULN_TIME = 600;
 export const STREAK_FOR_LIFE = 8;
 export const SHIELD_CHARGES_PER_ACTIVATION = 3;
 
+// Combo / multipliers (seuils de streak)
+export const COMBO_TIER_1 = 5;
+export const COMBO_TIER_2 = 15;
+export const COMBO_TIER_3 = 30;
+export const COMBO_TIER_4 = 50;
+
+export const COMBO_LABEL_FADE_MS = 800;
+
 // Auto-play bonus
-export const AUTO_PLAY_DURATION = 10000; // 10 secondes
-export const AUTOPLAY_SPAWN_CHANCE = 0.08; // 8% par ring
+export const AUTO_PLAY_DURATION = 10000; // 10 s
+export const AUTOPLAY_SPAWN_CHANCE = 0.08; // 8 % par ring
 
 // Orbs geometry / collisions (utilisés pour vie + auto-play)
 export const LIFE_ORB_OFFSET = Math.PI;
@@ -54,7 +60,17 @@ export const CENTER_Y_CURRENT = H * 0.6;
 export const CENTER_Y_NEXT = H * 0.3;
 export const RING_GENERATION_MARGIN = 80;
 
-// Move Rings (drift des anneaux) – basé sur la progression réelle (ringsCleared)
-export const MOVE_RINGS_RINGS_THRESHOLD = 20; // à partir de 20 rings passés
+// Move Rings (drift des anneaux)
+export const MOVE_RINGS_SCORE_THRESHOLD = 20; // à partir de 20 pts
 export const MOVE_RINGS_SPEED_MIN = 10;       // px/s
 export const MOVE_RINGS_SPEED_MAX = 30;       // px/s
+
+// Spin Rings (rotation des gates)
+export const SPIN_RINGS_RINGS_THRESHOLD = 40; // à partir de 40 rings réussis
+export const SPIN_RINGS_RAMP = 60;            // sur ~60 rings
+export const SPIN_SPEED_MIN = 0.25;           // rad/s
+export const SPIN_SPEED_MAX = 0.9;            // rad/s
+
+// Popups de score
+export const SCORE_POPUP_DURATION = 450; // ms
+export const SCORE_POPUP_RISE = 28;      // px

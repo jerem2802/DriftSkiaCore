@@ -44,7 +44,6 @@ interface CompleteRingParams {
 
   // Ball & gate
   score: SharedValue<number>;
-  ringsCleared: SharedValue<number>;
   speed: SharedValue<number>;
   gateAngle: SharedValue<number>;
   gateWidth: SharedValue<number>;
@@ -59,7 +58,13 @@ interface CompleteRingParams {
   // Scoring / streak
   streak: SharedValue<number>;
   combo: SharedValue<number>;
+  ringsCleared: SharedValue<number>;
   lives: SharedValue<number>;
+
+  // Combo / FX
+  comboTier: SharedValue<number>;
+  comboLabelOpacity: SharedValue<number>;
+  bgPulse: SharedValue<number>;
 
   // Vie sur ring
   currentHasLife: SharedValue<boolean>;
@@ -71,6 +76,12 @@ interface CompleteRingParams {
   // Shield bonus
   currentHasShield: SharedValue<boolean>;
   shieldAvailable: SharedValue<boolean>;
+
+  // Popup score (secondary ring)
+  scorePopupText: SharedValue<string>;
+  scorePopupOpacity: SharedValue<number>;
+  scorePopupX: SharedValue<number>;
+  scorePopupY: SharedValue<number>;
 
   // Divers
   isPerfect: boolean;
@@ -100,7 +111,7 @@ export const completeRing = (params: CompleteRingParams) => {
     nextY,
     nextR,
 
-    // Vitesse rings
+    // Vitesses rings
     currentVX,
     currentVY,
     nextVX,
@@ -108,7 +119,6 @@ export const completeRing = (params: CompleteRingParams) => {
 
     // Ball & gate
     score,
-    ringsCleared,
     speed,
     gateAngle,
     gateWidth,
@@ -123,7 +133,13 @@ export const completeRing = (params: CompleteRingParams) => {
     // Scoring / streak
     streak,
     combo,
+    ringsCleared,
     lives,
+
+    // Combo / FX
+    comboTier,
+    comboLabelOpacity,
+    bgPulse,
 
     // Vie sur ring
     currentHasLife,
@@ -135,6 +151,12 @@ export const completeRing = (params: CompleteRingParams) => {
     // Shield bonus
     currentHasShield,
     shieldAvailable,
+
+    // Popup score
+    scorePopupText,
+    scorePopupOpacity,
+    scorePopupX,
+    scorePopupY,
 
     // Divers
     isPerfect,
@@ -151,7 +173,7 @@ export const completeRing = (params: CompleteRingParams) => {
   }
   score.value = score.value + gained;
 
-  // 🔥 Progression réelle : 1 ring de plus passé
+  // 1bis) Nombre de rings complétés (pour Move/Spin + difficulté)
   ringsCleared.value = ringsCleared.value + 1;
 
   // 2) Si le ring courant avait une orbe non prise → orbe ratée
@@ -170,12 +192,42 @@ export const completeRing = (params: CompleteRingParams) => {
   // 3) STREAK
   streak.value = streak.value + 1;
 
-  // 4) PALETTES (jamais 2 rings de la même couleur)
+  // 4) COMBO TIER + LABEL + BG PULSE
+  let newTier = 0;
+  if (combo.value >= 40) {
+    newTier = 3; // Legendary
+  } else if (combo.value >= 25) {
+    newTier = 2; // Sharp
+  } else if (combo.value >= 10) {
+    newTier = 1; // Clean
+  }
+
+  if (newTier !== comboTier.value) {
+    comboTier.value = newTier;
+
+    if (newTier > 0) {
+      comboLabelOpacity.value = 1;
+      comboLabelOpacity.value = withTiming(0, { duration: 800 });
+    }
+  }
+
+  // BG pulse doux à chaque ring réussi
+  bgPulse.value = 0.9;
+  bgPulse.value = withTiming(0, { duration: 450 });
+
+  // 5) POPUP SCORE dans le secondary ring
+  scorePopupText.value = `+${gained}`;
+  scorePopupX.value = nextX.value;
+  scorePopupY.value = nextY.value;
+  scorePopupOpacity.value = 1;
+  scorePopupOpacity.value = withTiming(0, { duration: 400 });
+
+  // 6) PALETTES (jamais 2 rings de la même couleur)
   currentPaletteIndex.value = nextPaletteIndex.value;
   const newIndex = getRandomPaletteIndex(currentPaletteIndex.value);
   nextPaletteIndex.value = newIndex;
 
-  // 5) FADING RING = on fige l'ancien ring pour l'anim
+  // 7) FADING RING = on fige l'ancien ring pour l'anim
   fadingRingX.value = currentX.value;
   fadingRingY.value = currentY.value;
   fadingRingR.value = currentR.value;
@@ -185,17 +237,17 @@ export const completeRing = (params: CompleteRingParams) => {
   fadingRingOpacity.value = withTiming(0, { duration: 400 });
   fadingRingScale.value = withTiming(1.25, { duration: 400 });
 
-  // 6) CALCULER L'ANGLE D'ARRIVÉE (avant de modifier current!)
+  // 8) CALCULER L'ANGLE D'ARRIVÉE (avant de modifier current!)
   angle.value = Math.atan2(ballY.value - nextY.value, ballX.value - nextX.value);
 
-  // 7) TRANSITION : NEXT → CURRENT (positions + vitesses)
+  // 9) TRANSITION : NEXT → CURRENT (positions + vitesses)
   currentX.value = nextX.value;
   currentY.value = nextY.value;
   currentR.value = nextR.value;
   currentVX.value = nextVX.value;
   currentVY.value = nextVY.value;
 
-  // 8) GÉNÉRATION DU NOUVEAU RING "NEXT"
+  // 10) GÉNÉRATION DU NOUVEAU RING "NEXT"
   const next = generateNextRing(currentX.value, currentY.value, currentR.value, RING_RADIUS);
   nextX.value = next.x;
   nextY.value = next.y;
@@ -203,19 +255,19 @@ export const completeRing = (params: CompleteRingParams) => {
   nextVX.value = next.vx;
   nextVY.value = next.vy;
 
-  // 9) SPEED / GATE
+  // 11) SPEED / GATE
   speed.value = Math.min(speed.value + SPEED_INC_PER_RING, SPEED_CAP);
   gateWidth.value = Math.max(gateWidth.value - SHRINK_PER_RING, MIN_GATE_WIDTH);
   gateAngle.value = Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value);
 
-  // 10) PLACER LA BILLE SUR LE NOUVEAU RING (à l'angle d'arrivée)
+  // 12) PLACER LA BILLE SUR LE NOUVEAU RING (à l'angle d'arrivée)
   ballX.value = currentX.value + currentR.value * Math.cos(angle.value);
   ballY.value = currentY.value + currentR.value * Math.sin(angle.value);
 
   mode.value = 'orbit';
   dashStartTime.value = 0;
 
-  // 11) SPAWN D'UNE ORBE DE VIE SUR LE NOUVEAU CURRENT RING
+  // 13) SPAWN D'UNE ORBE DE VIE SUR LE NOUVEAU CURRENT RING
   if (
     streak.value >= STREAK_FOR_LIFE &&
     lives.value < LIVES_MAX &&
@@ -225,12 +277,12 @@ export const completeRing = (params: CompleteRingParams) => {
     currentHasLife.value = true;
   }
 
-  // 12) SPAWN AUTO-PLAY (chance aléatoire)
+  // 14) SPAWN AUTO-PLAY (chance aléatoire)
   if (Math.random() < AUTOPLAY_SPAWN_CHANCE && !currentHasAutoPlay.value) {
     currentHasAutoPlay.value = true;
   }
 
-  // 13) SPAWN SHIELD (bouclier Safe Miss)
+  // 15) SPAWN SHIELD (bouclier Safe Miss)
   if (shouldSpawnShield(shieldAvailable, currentHasShield)) {
     currentHasShield.value = true;
   }
@@ -300,13 +352,17 @@ interface RestartParams {
   alive: SharedValue<boolean>;
   lives: SharedValue<number>;
   score: SharedValue<number>;
-  ringsCleared: SharedValue<number>;
 
   speed: SharedValue<number>;
   gateWidth: SharedValue<number>;
   mode: SharedValue<'orbit' | 'dash'>;
   streak: SharedValue<number>;
   combo: SharedValue<number>;
+  ringsCleared: SharedValue<number>;
+
+  comboTier: SharedValue<number>;
+  comboLabelOpacity: SharedValue<number>;
+  bgPulse: SharedValue<number>;
 
   currentX: SharedValue<number>;
   currentY: SharedValue<number>;
@@ -339,6 +395,10 @@ interface RestartParams {
   shieldAvailable: SharedValue<boolean>;
   shieldArmed: SharedValue<boolean>;
   shieldChargesLeft: SharedValue<number>;
+  scorePopupText: SharedValue<string>;
+  scorePopupOpacity: SharedValue<number>;
+  scorePopupX: SharedValue<number>;
+  scorePopupY: SharedValue<number>;
   getRandomPaletteIndex: (exclude?: number) => number;
 
   CENTER_X: number;
@@ -354,12 +414,15 @@ export const restart = (params: RestartParams) => {
     alive,
     lives,
     score,
-    ringsCleared,
     speed,
     gateWidth,
     mode,
     streak,
     combo,
+    ringsCleared,
+    comboTier,
+    comboLabelOpacity,
+    bgPulse,
     currentX,
     currentY,
     currentR,
@@ -387,6 +450,10 @@ export const restart = (params: RestartParams) => {
     shieldAvailable,
     shieldArmed,
     shieldChargesLeft,
+    scorePopupText,
+    scorePopupOpacity,
+    scorePopupX,
+    scorePopupY,
     getRandomPaletteIndex,
     CENTER_X,
     CENTER_Y,
@@ -398,13 +465,17 @@ export const restart = (params: RestartParams) => {
   alive.value = true;
   lives.value = LIVES_MAX;
   score.value = 0;
-  ringsCleared.value = 0;
   speed.value = START_ORBIT_SPEED;
   gateWidth.value = START_GATE_WIDTH;
   mode.value = 'orbit';
 
   streak.value = 0;
   combo.value = 0;
+  ringsCleared.value = 0;
+
+  comboTier.value = 0;
+  comboLabelOpacity.value = 0;
+  bgPulse.value = 0;
 
   currentHasLife.value = false;
   nextHasLife.value = false;
@@ -423,7 +494,6 @@ export const restart = (params: RestartParams) => {
   currentY.value = CENTER_Y;
   currentR.value = RING_RADIUS;
 
-  // vitesses reset au départ (rings statiques au début)
   currentVX.value = 0;
   currentVY.value = 0;
   nextVX.value = 0;
@@ -439,6 +509,11 @@ export const restart = (params: RestartParams) => {
   ballY.value = currentY.value;
 
   fadingRingOpacity.value = 0;
+
+  scorePopupText.value = '';
+  scorePopupOpacity.value = 0;
+  scorePopupX.value = CENTER_X;
+  scorePopupY.value = CENTER_Y;
 
   currentPaletteIndex.value = getRandomPaletteIndex();
   nextPaletteIndex.value = getRandomPaletteIndex(currentPaletteIndex.value);

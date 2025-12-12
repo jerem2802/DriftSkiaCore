@@ -1,7 +1,7 @@
 // src/game/hooks/useShieldSystem.ts
 // Gère TOUT le système de shield (orbe, halo, inventaire, charges)
 
-import { useDerivedValue, useAnimatedReaction } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { GameState } from './useGameState';
 import { SHIELD_COLLISION_DIST, grantShield } from '../logic/shieldBonus';
 import { SHIELD_CHARGES_PER_ACTIVATION } from '../../constants/gameplay';
@@ -10,10 +10,14 @@ const SHIELD_ORB_OFFSET = -Math.PI / 2;
 
 interface UseShieldSystemParams {
   gameState: GameState;
+  setShieldAvailableUI: (available: boolean) => void;
+  setShieldArmedUI: (armed: boolean) => void;
 }
 
 export const useShieldSystem = ({
   gameState,
+  setShieldAvailableUI,
+  setShieldArmedUI,
 }: UseShieldSystemParams) => {
   // ----- ORBE SHIELD SUR LE RING COURANT -----
   const shieldOrbVisible = useDerivedValue(
@@ -53,9 +57,23 @@ export const useShieldSystem = ({
     () => (gameState.shieldChargesLeft.value >= 3 ? 1 : 0)
   );
 
-  // ⚠️ IMPORTANT :
-  // PAS de réaction qui remet shieldAvailable à false quand charges = 0.
-  // Ça, c'est géré dans loseLife quand on consomme la dernière charge.
+  // ----- SYNC INVENTAIRE / ARMÉ VERS L'UI REACT -----
+  useAnimatedReaction(
+    () => gameState.shieldAvailable.value,
+    (available) => {
+      runOnJS(setShieldAvailableUI)(available);
+    }
+  );
+
+  useAnimatedReaction(
+    () => gameState.shieldArmed.value,
+    (armed) => {
+      runOnJS(setShieldArmedUI)(armed);
+    }
+  );
+
+  // ⚠️ On NE remet pas shieldAvailable à false ici quand charges = 0 :
+  // c'est géré dans loseLife quand on consomme la dernière charge.
 
   // ----- COLLISION BILLE / ORBE SHIELD -----
   useAnimatedReaction(
@@ -90,12 +108,13 @@ export const useShieldSystem = ({
   // ----- ACTIVATION DU SHIELD DEPUIS LE BOTTOM PANEL -----
   const onActivateShield = () => {
     'worklet';
+
     // Pas de shield en stock → rien
     if (!gameState.shieldAvailable.value) return;
     // Déjà armé → rien
     if (gameState.shieldArmed.value) return;
 
-    // On consomme l'inventaire, on arme, on donne 3 chances
+    // On consomme l'inventaire, on arme, on donne N charges
     gameState.shieldAvailable.value = false;
     gameState.shieldArmed.value = true;
     gameState.shieldChargesLeft.value = SHIELD_CHARGES_PER_ACTIVATION;

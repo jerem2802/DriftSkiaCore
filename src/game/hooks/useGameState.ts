@@ -19,14 +19,20 @@ export const useGameState = () => {
   const alive = useSharedValue(true);
   const lives = useSharedValue(LIVES_MAX);
   const score = useSharedValue(0);
-  // 🔥 nb de rings passés dans la run (pilote la difficulté MoveRings / dash)
-  const ringsCleared = useSharedValue(0);
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
   const isPaused = useSharedValue(false);
 
   // Scoring avancé
   const streak = useSharedValue(0);
   const combo = useSharedValue(0);
+  const ringsCleared = useSharedValue(0); // nb de rings complétés (pour la difficulté)
+
+  // Combo tier / label (UI)
+  const comboTier = useSharedValue(0);         // 0,1,2,3…
+  const comboLabelOpacity = useSharedValue(0); // visibilité du label combo
+
+  // Pulse BG (effets visuels globaux)
+  const bgPulse = useSharedValue(0);
 
   // Vie pickup
   const currentHasLife = useSharedValue(false);
@@ -82,16 +88,25 @@ export const useGameState = () => {
   const fadingRingScale = useSharedValue(0);
   const fadingRingOpacity = useSharedValue(0);
 
+  // Popup de score (dans le secondary ring)
+  const scorePopupText = useSharedValue('');
+  const scorePopupOpacity = useSharedValue(0);
+  const scorePopupX = useSharedValue(CENTER_X);
+  const scorePopupY = useSharedValue(CENTER_Y);
+
   return {
     // Game state
     alive,
     lives,
     score,
-    ringsCleared,
     mode,
     isPaused,
     streak,
     combo,
+    ringsCleared,
+    comboTier,
+    comboLabelOpacity,
+    bgPulse,
 
     // Vie pickup
     currentHasLife,
@@ -140,6 +155,12 @@ export const useGameState = () => {
     fadingRingR,
     fadingRingScale,
     fadingRingOpacity,
+
+    // Popup score
+    scorePopupText,
+    scorePopupOpacity,
+    scorePopupX,
+    scorePopupY,
 
     // Constants
     CENTER_X,
