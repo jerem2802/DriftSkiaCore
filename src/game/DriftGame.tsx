@@ -32,7 +32,7 @@ import {
   START_GATE_WIDTH,
   RING_RADIUS,
 } from '../constants/gameplay';
-import { BALL_COLOR, SHIELD_HALO_COLOR } from '../constants/colors';
+import { BALL_COLOR, SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
@@ -90,6 +90,31 @@ const DriftGame: React.FC = () => {
     startOrbitSpeed: START_ORBIT_SPEED,
     startGateWidth: START_GATE_WIDTH,
   });
+
+  /**
+   * IMPORTANT (MVP + robustesse):
+   * - Si, pour une raison quelconque, currentPaletteIndex === nextPaletteIndex,
+   *   on force un fallback déterministe pour le rendu du secondary.
+   * - Ça garantit: jamais 2 rings identiques en même temps.
+   */
+  const safeNextPalette = useDerivedValue(() => {
+    'worklet';
+    const cur = palettes.currentPaletteIndex.value;
+    const next = palettes.nextPaletteIndex.value;
+
+    const safeIdx = next === cur ? (next + 1) % COLOR_PALETTES.length : next;
+    return COLOR_PALETTES[safeIdx];
+  });
+
+  // Gate = EXACTEMENT la couleur du secondary ring (pas une couleur "gate" séparée)
+  const gateColor = useDerivedValue(() => {
+    'worklet';
+    return safeNextPalette.value.main;
+  });
+
+  const nextOuterColor = useDerivedValue(() => safeNextPalette.value.outer);
+  const nextMidColor = useDerivedValue(() => safeNextPalette.value.mid);
+  const nextMainColor = useDerivedValue(() => safeNextPalette.value.main);
 
   // ----- GATE -----
   const gateStart = useDerivedValue(
@@ -224,23 +249,23 @@ const DriftGame: React.FC = () => {
           opacity={shield.shieldOrbVisible}
         />
 
-        {/* NEXT RING */}
+        {/* NEXT RING (palette safe: jamais identique au current) */}
         <NeonRing
           cx={gameState.nextX}
           cy={gameState.nextY}
           r={gameState.nextR}
-          outerColor={useDerivedValue(() => palettes.nextPalette.value.outer)}
-          midColor={useDerivedValue(() => palettes.nextPalette.value.mid)}
-          mainColor={useDerivedValue(() => palettes.nextPalette.value.main)}
+          outerColor={nextOuterColor}
+          midColor={nextMidColor}
+          mainColor={nextMainColor}
         />
 
-        {/* GATE */}
+        {/* GATE (exactement la couleur du secondary ring) */}
         <Path
           path={gatePath}
           strokeWidth={16}
           strokeCap="round"
           style="stroke"
-          color={useDerivedValue(() => palettes.nextPalette.value.gate)}
+          color={gateColor}
           opacity={0.1}
         />
         <Path
@@ -248,7 +273,7 @@ const DriftGame: React.FC = () => {
           strokeWidth={8}
           strokeCap="round"
           style="stroke"
-          color={useDerivedValue(() => palettes.nextPalette.value.gate)}
+          color={gateColor}
         />
 
         {/* BALL + HALO SHIELD */}

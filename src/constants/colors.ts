@@ -9,123 +9,80 @@ export type Palette = {
 };
 
 export const COLOR_PALETTES: Palette[] = [
-  // 0 - Vert / turquoise
-  {
-    outer: '#6ee7b7',
-    mid: '#5eead4',
-    main: '#14b8a6',
-    gate: '#22d3ee',
-  },
-  // 1 - Rose / rouge
-  {
-    outer: '#fda4af',
-    mid: '#fb7185',
-    main: '#f43f5e',
-    gate: '#fbbf24',
-  },
-  // 2 - Bleu clair
-  {
-    outer: '#7dd3fc',
-    mid: '#38bdf8',
-    main: '#0ea5e9',
-    gate: '#06b6d4',
-  },
-  // 3 - Vert
-  {
-    outer: '#86efac',
-    mid: '#4ade80',
-    main: '#22c55e',
-    gate: '#10b981',
-  },
-  // 4 - Violet / magenta
-  {
-    outer: '#d8b4fe',
-    mid: '#c084fc',
-    main: '#a855f7',
-    gate: '#ec4899',
-  },
-  // 5 - Cyan
-  {
-    outer: '#67e8f9',
-    mid: '#22d3ee',
-    main: '#06b6d4',
-    gate: '#0891b2',
-  },
-  // 6 - Jaune / orange
-  {
-    outer: '#fcd34d',
-    mid: '#fbbf24',
-    main: '#f59e0b',
-    gate: '#ea580c',
-  },
-  // 7 - Orange / mandarine
-  {
-    outer: '#fed7aa',
-    mid: '#fdba74',
-    main: '#fb923c',
-    gate: '#f97316',
-  },
-  // 8 - Violet
-  {
-    outer: '#c4b5fd',
-    mid: '#a78bfa',
-    main: '#8b5cf6',
-    gate: '#a855f7',
-  },
-  // 9 - Indigo / bleu nuit
-  {
-    outer: '#a5b4fc',
-    mid: '#818cf8',
-    main: '#6366f1',
-    gate: '#4f46e5',
-  },
+  // 0 - Neon Cyan
+  { outer: '#A6F8FF', mid: '#4DEEFF', main: '#00E5FF', gate: '#00FF5A' },
+
+  // 1 - Neon Magenta
+  { outer: '#FFB3F0', mid: '#FF4DEB', main: '#FF00E5', gate: '#F8FF00' },
+
+  // 2 - Acid Yellow
+  { outer: '#FDFFB3', mid: '#FBFF4D', main: '#F8FF00', gate: '#FF00E5' },
+
+  // 3 - Neon Orange
+  { outer: '#FFD1A6', mid: '#FF9E4D', main: '#FF7A00', gate: '#00E5FF' },
+
+  // 4 - Neon Red
+  { outer: '#FFB3C4', mid: '#FF4D7A', main: '#FF003D', gate: '#F8FF00' },
+
+  // 5 - Neon Green
+  { outer: '#B3FFCF', mid: '#4DFF8A', main: '#00FF5A', gate: '#00E5FF' },
+
+  // 6 - Neon Purple
+  { outer: '#D1B3FF', mid: '#A24DFF', main: '#7C00FF', gate: '#A6FF00' },
+
+  // 7 - Neon Lime
+  { outer: '#E7FFB3', mid: '#C6FF4D', main: '#A6FF00', gate: '#FF00E5' },
+
+  // 8 - Neon Mint
+  { outer: '#B3FFEF', mid: '#4DFFD9', main: '#00FFC8', gate: '#FF7A00' },
+
+  // 9 - Neon Blue (plus “franc” et séparé du violet)
+  { outer: '#B3C9FF', mid: '#4D84FF', main: '#005BFF', gate: '#F8FF00' },
 ];
 
 export const BALL_COLOR = '#ffffff';
 
-// Approximation de la teinte principale (H° sur le cercle chromatique) pour chaque palette
+// Approximation de la teinte principale (H°) pour chaque palette (si jamais tu utilises la version hue-based)
 const PALETTE_HUES: number[] = [
-  160, // 0 vert/turquoise
-  350, // 1 rose/rouge
-  200, // 2 bleu clair
-  135, // 3 vert
-  300, // 4 violet/magenta
-  190, // 5 cyan
-  45,  // 6 jaune/orange
-  30,  // 7 orange
-  265, // 8 violet
-  225, // 9 indigo/bleu nuit
+  190, // 0 cyan
+  310, // 1 magenta
+  60,  // 2 yellow
+  30,  // 3 orange
+  350, // 4 red
+  140, // 5 green
+  260, // 6 purple
+  80,  // 7 lime
+  170, // 8 mint
+  220, // 9 blue
 ];
-export const SHIELD_HALO_COLOR = '#38bdf8'; // bleu néon pour le halo shield
 
+export const SHIELD_HALO_COLOR = '#38bdf8'; // inchangé
 
-// Distance minimale pour considérer 2 palettes "vraiment différentes"
-const MIN_HUE_DIFF = 70;
+// Distance minimale (en degrés) pour considérer 2 palettes "vraiment différentes"
+const MIN_HUE_DIFF = 75;
 
 export const getRandomPaletteIndex = (exclude?: number): number => {
+  'worklet';
+
   const total = COLOR_PALETTES.length;
   const candidates: number[] = [];
 
   for (let i = 0; i < total; i++) {
-    if (typeof exclude === 'number' && i === exclude) {
-      continue;
-    }
+    if (typeof exclude === 'number' && i === exclude) continue;
 
     if (typeof exclude === 'number') {
       const h1 = PALETTE_HUES[exclude];
       const h2 = PALETTE_HUES[i];
 
       let diff = Math.abs(h1 - h2);
-      if (diff > 180) diff = 360 - diff; // distance circulaire
+      if (diff > 180) diff = 360 - diff;
 
-      // Couleurs trop proches -> on skip
       if (diff < MIN_HUE_DIFF) continue;
     }
 
     candidates.push(i);
   }
 
-  // Sécurité : si on a filtré trop fort, on tombe juste sur "différent de exclude"
   if (candidates.length === 0) {
     for (let i = 0; i < total; i++) {
       if (i !== exclude) candidates.push(i);
