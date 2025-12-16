@@ -11,8 +11,10 @@ import { ShieldFxLayer } from './fx/ShieldFxLayer';
 import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
 import { GameOverOverlay } from '../components/GameOverOverlay';
+import { MiniNeonOrb } from './MiniNeonOrb';
 
-import { ShieldOrbIcon } from './skia/ShieldOrbIcon';
+
+
 
 
 import { createArcPath } from '../utils/path';
@@ -227,31 +229,33 @@ const DriftGame: React.FC = () => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* ORBE DE VIE (via hook) */}
-        <Circle
-          cx={lifeOrb.lifeOrbX}
-          cy={lifeOrb.lifeOrbY}
-          r={8}
-          color="#ef4444"
-          opacity={lifeOrb.lifeOrbVisible}
-        />
+{/* ORBE DE VIE (mini-ring néon) */}
+<MiniNeonOrb
+  cx={lifeOrb.lifeOrbX}
+  cy={lifeOrb.lifeOrbY}
+  r={8}
+  color="#ef4444"
+  opacity={lifeOrb.lifeOrbVisible}
+/>
 
-        {/* ORBE AUTO-PLAY */}
-        <Circle
-          cx={autoPlay.autoPlayOrbX}
-          cy={autoPlay.autoPlayOrbY}
-          r={8}
-          color="#8b5cf6"
-          opacity={autoPlay.autoPlayOrbVisible}
-        />
+{/* ORBE AUTO-PLAY (mini-ring néon) */}
+<MiniNeonOrb
+  cx={autoPlay.autoPlayOrbX}
+  cy={autoPlay.autoPlayOrbY}
+  r={13}
+  color="#8b5cf6"
+  opacity={autoPlay.autoPlayOrbVisible}
+/>
 
-       {/* ORBE SHIELD (icône en rotation type "pièce") */}
-<ShieldOrbIcon
+{/* ORBE SHIELD (mini-ring néon) */}
+<MiniNeonOrb
   cx={shield.shieldOrbX}
   cy={shield.shieldOrbY}
+  r={13}
+  color="#22d3ee"
   opacity={shield.shieldOrbVisible}
-  size={20}
 />
+
 
 
         {/* NEXT RING (palette safe: jamais identique au current) */}
