@@ -12,6 +12,8 @@ import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
 import { GameOverOverlay } from '../components/GameOverOverlay';
 import { MiniNeonOrb } from './MiniNeonOrb';
+import { AutoPlayFxLayer } from './fx/AutoPlayFxLayer';
+
 
 
 
@@ -294,6 +296,16 @@ const DriftGame: React.FC = () => {
           opacity={shield.shieldHaloVisible}
         />
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
+        {/* AUTO-PLAY FX (laser trail) */}
+<AutoPlayFxLayer
+  alive={gameState.alive}
+  isPaused={gameState.isPaused}
+  autoPlayActive={gameState.autoPlayActive}
+  ballX={gameState.ballX}
+  ballY={gameState.ballY}
+  capacity={48}
+/>
+
 
         {/* SHIELD FX (shader + atlas, gère son system en interne) */}
         <ShieldFxLayer
