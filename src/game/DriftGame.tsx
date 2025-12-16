@@ -12,6 +12,9 @@ import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
 import { GameOverOverlay } from '../components/GameOverOverlay';
 
+import { ShieldOrbIcon } from './skia/ShieldOrbIcon';
+
+
 import { createArcPath } from '../utils/path';
 import { validateTap } from './logic/collisionDetection';
 import { loseLife } from './logic/gameLifecycle';
@@ -242,14 +245,14 @@ const DriftGame: React.FC = () => {
           opacity={autoPlay.autoPlayOrbVisible}
         />
 
-        {/* ORBE SHIELD */}
-        <Circle
-          cx={shield.shieldOrbX}
-          cy={shield.shieldOrbY}
-          r={8}
-          color="#22d3ee"
-          opacity={shield.shieldOrbVisible}
-        />
+       {/* ORBE SHIELD (icône en rotation type "pièce") */}
+<ShieldOrbIcon
+  cx={shield.shieldOrbX}
+  cy={shield.shieldOrbY}
+  opacity={shield.shieldOrbVisible}
+  size={20}
+/>
+
 
         {/* NEXT RING (palette safe: jamais identique au current) */}
         <NeonRing
