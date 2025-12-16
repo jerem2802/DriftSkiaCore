@@ -6,6 +6,8 @@ import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
 import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 
+import { ShieldFxLayer } from './fx/ShieldFxLayer';
+
 import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
 import { GameOverOverlay } from '../components/GameOverOverlay';
@@ -141,7 +143,7 @@ const DriftGame: React.FC = () => {
 
   // LIVES POSITIONS
   const livesPositions = React.useMemo(() => {
-    const positions = [];
+    const positions: { x: number; y: number }[] = [];
     const startX = CANVAS_WIDTH - 60;
     const y = 70;
     for (let i = 0; i < LIVES_MAX; i++) {
@@ -285,6 +287,16 @@ const DriftGame: React.FC = () => {
           opacity={shield.shieldHaloVisible}
         />
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
+
+        {/* SHIELD FX (shader + atlas, gère son system en interne) */}
+        <ShieldFxLayer
+          alive={gameState.alive}
+          isPaused={gameState.isPaused}
+          shieldArmed={gameState.shieldArmed}
+          ballX={gameState.ballX}
+          ballY={gameState.ballY}
+          capacity={24}
+        />
 
         {/* SCORE + MULT + TIER (Skia) */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
