@@ -40,42 +40,40 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
   const [aliveUI, setAliveUI] = React.useState(true);
   const [lastScoreUI, setLastScoreUI] = React.useState(0);
   const [bestScoreUI, setBestScoreUI] = React.useState(0);
-
-  // ✅ coins gagnés sur la run (affichage Game Over)
   const [lastCoinsUI, setLastCoinsUI] = React.useState(0);
-
   const [hasUsedContinue, setHasUsedContinue] = React.useState(false);
 
-  const updateRunSummaryOnGameOver = React.useCallback(
-    (finalScore: number, finalCoins: number) => {
-      setLastScoreUI(finalScore);
-      setLastCoinsUI(finalCoins);
-      setBestScoreUI((prev) => Math.max(prev, finalScore));
-    },
-    []
-  );
+  const updateScoresOnGameOver = React.useCallback((finalScore: number) => {
+    setLastScoreUI(finalScore);
+    setBestScoreUI((prev) => Math.max(prev, finalScore));
+  }, []);
 
-  // Sync du flag alive + score/coins finaux vers l'UI React
+  const updateCoinsOnGameOver = React.useCallback((finalCoins: number) => {
+    setLastCoinsUI(finalCoins);
+  }, []);
+
+  // Sync du flag alive + score/coins final vers l'UI React
   useAnimatedReaction(
     () => gameState.alive.value,
     (alive, prevAlive) => {
-      if (alive === prevAlive) {
-        return;
-      }
+      if (alive === prevAlive) return;
 
       runOnJS(setAliveUI)(alive);
 
       if (!alive) {
         const finalScore = Math.round(gameState.score.value);
-        // ✅ FIX: coins (pas coinsRun)
         const finalCoins = Math.round(gameState.coins.value);
 
-        runOnJS(updateRunSummaryOnGameOver)(finalScore, finalCoins);
+        runOnJS(updateScoresOnGameOver)(finalScore);
+        runOnJS(updateCoinsOnGameOver)(finalCoins);
       }
     }
   );
 
   const handleRestart = React.useCallback(() => {
+    // ✅ IMPORTANT: on retire l’overlay immédiatement (sinon illusion de “téléport”)
+    setAliveUI(true);
+
     setHasUsedContinue(false);
 
     restart({
@@ -102,14 +100,13 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
   ]);
 
   const handleContinue = React.useCallback(() => {
-    if (hasUsedContinue) {
-      return;
-    }
+    if (hasUsedContinue) return;
 
     // On ne continue que si on est vraiment en Game Over
-    if (gameState.alive.value || gameState.lives.value > 0) {
-      return;
-    }
+    if (gameState.alive.value || gameState.lives.value > 0) return;
+
+    // ✅ pareil: on retire l’overlay immédiatement
+    setAliveUI(true);
 
     setHasUsedContinue(true);
 
@@ -120,16 +117,14 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
 
   const handleShare = React.useCallback(() => {
     const message = `Je viens de faire ${lastScoreUI} points sur Drift Ring ! (Best : ${bestScoreUI})`;
-    Share.share({ message }).catch(() => {
-      // annulation ou erreur → on ne fait rien
-    });
+    Share.share({ message }).catch(() => {});
   }, [lastScoreUI, bestScoreUI]);
 
   return {
     aliveUI,
     lastScoreUI,
     bestScoreUI,
-    lastCoinsUI, // ✅ exposé
+    lastCoinsUI,
     hasUsedContinue,
     handleRestart,
     handleContinue,
