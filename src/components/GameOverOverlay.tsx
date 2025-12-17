@@ -12,6 +12,7 @@ interface GameOverOverlayProps {
   visible: boolean;
   score: number;
   bestScore: number;
+  coinsEarned: number;
   canContinue: boolean;
   onRestart: () => void;
   onShare: () => void;
@@ -22,6 +23,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   visible,
   score,
   bestScore,
+  coinsEarned,
   canContinue,
   onRestart,
   onShare,
@@ -41,6 +43,11 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
         <View style={styles.scoreCard}>
           <Text style={styles.scoreLabel}>Score final</Text>
           <Text style={styles.scoreValue}>{score}</Text>
+        </View>
+
+        <View style={styles.scoreCard}>
+          <Text style={styles.scoreLabel}>Neon Coins gagnés</Text>
+          <Text style={styles.scoreValue}>+{coinsEarned}</Text>
         </View>
 
         <Text style={styles.subtitle}>Continue, tu vas y arriver ! 💪</Text>

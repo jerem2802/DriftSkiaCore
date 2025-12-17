@@ -19,17 +19,22 @@ export const useGameState = () => {
   const alive = useSharedValue(true);
   const lives = useSharedValue(LIVES_MAX);
   const score = useSharedValue(0);
+
+  // Coins (run)
+  const coins = useSharedValue(0);
+  const coinHudPulse = useSharedValue(0);
+
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
   const isPaused = useSharedValue(false);
 
   // Scoring avancé
   const streak = useSharedValue(0);
   const combo = useSharedValue(0);
-  const ringsCleared = useSharedValue(0); // nb de rings complétés (pour la difficulté)
+  const ringsCleared = useSharedValue(0);
 
   // Combo tier / label (UI)
-  const comboTier = useSharedValue(0);         // 0,1,2,3…
-  const comboLabelOpacity = useSharedValue(0); // visibilité du label combo
+  const comboTier = useSharedValue(0);
+  const comboLabelOpacity = useSharedValue(0);
 
   // Pulse BG (effets visuels globaux)
   const bgPulse = useSharedValue(0);
@@ -45,10 +50,13 @@ export const useGameState = () => {
   const autoPlayTimeLeft = useSharedValue(0);
 
   // Shield / Safe Miss
-  const currentHasShield = useSharedValue(false);   // orbe bleue sur le ring courant
-  const shieldAvailable = useSharedValue(false);    // bouclier en inventaire (icône bottom)
-  const shieldArmed = useSharedValue(false);        // bouclier armé (Safe Miss actif)
-  const shieldChargesLeft = useSharedValue(0);      // nb de Safe Miss restantes
+  const currentHasShield = useSharedValue(false);
+  const shieldAvailable = useSharedValue(false);
+  const shieldArmed = useSharedValue(false);
+  const shieldChargesLeft = useSharedValue(0);
+
+  // Coin orb pickup
+  const currentHasCoin = useSharedValue(false);
 
   // Positions - Current ring
   const currentX = useSharedValue(CENTER_X);
@@ -95,12 +103,16 @@ export const useGameState = () => {
   const scorePopupY = useSharedValue(CENTER_Y);
 
   return {
-    // Game state
     alive,
     lives,
     score,
+
+    coins,
+    coinHudPulse,
+
     mode,
     isPaused,
+
     streak,
     combo,
     ringsCleared,
@@ -108,66 +120,57 @@ export const useGameState = () => {
     comboLabelOpacity,
     bgPulse,
 
-    // Vie pickup
     currentHasLife,
     nextHasLife,
 
-    // Auto-play bonus
     currentHasAutoPlay,
     autoPlayInInventory,
     autoPlayActive,
     autoPlayTimeLeft,
 
-    // Current ring
+    currentHasShield,
+    shieldAvailable,
+    shieldArmed,
+    shieldChargesLeft,
+
+    currentHasCoin,
+
     currentX,
     currentY,
     currentR,
     currentVX,
     currentVY,
 
-    // Next ring
     nextX,
     nextY,
     nextR,
     nextVX,
     nextVY,
 
-    // Ball
     angle,
     speed,
     ballX,
     ballY,
 
-    // Gate
     gateAngle,
     gateWidth,
     dashStartTime,
 
-    // Shield / Safe Miss
-    currentHasShield,
-    shieldAvailable,
-    shieldArmed,
-    shieldChargesLeft,
-
-    // Fading ring
     fadingRingX,
     fadingRingY,
     fadingRingR,
     fadingRingScale,
     fadingRingOpacity,
 
-    // Popup score
     scorePopupText,
     scorePopupOpacity,
     scorePopupX,
     scorePopupY,
 
-    // Constants
     CENTER_X,
     CENTER_Y,
     RING_RADIUS,
   };
 };
 
-// IMPORTANT pour le hook useShieldSystem
 export type GameState = ReturnType<typeof useGameState>;

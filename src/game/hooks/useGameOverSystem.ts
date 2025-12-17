@@ -40,15 +40,22 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
   const [aliveUI, setAliveUI] = React.useState(true);
   const [lastScoreUI, setLastScoreUI] = React.useState(0);
   const [bestScoreUI, setBestScoreUI] = React.useState(0);
+
+  // ✅ coins gagnés sur la run (affichage Game Over)
+  const [lastCoinsUI, setLastCoinsUI] = React.useState(0);
+
   const [hasUsedContinue, setHasUsedContinue] = React.useState(false);
 
-  // Callback JS pour mettre à jour les scores à la mort
-  const updateScoresOnGameOver = React.useCallback((finalScore: number) => {
-    setLastScoreUI(finalScore);
-    setBestScoreUI((prev) => Math.max(prev, finalScore));
-  }, []);
+  const updateRunSummaryOnGameOver = React.useCallback(
+    (finalScore: number, finalCoins: number) => {
+      setLastScoreUI(finalScore);
+      setLastCoinsUI(finalCoins);
+      setBestScoreUI((prev) => Math.max(prev, finalScore));
+    },
+    []
+  );
 
-  // Sync du flag alive + score final vers l'UI React
+  // Sync du flag alive + score/coins finaux vers l'UI React
   useAnimatedReaction(
     () => gameState.alive.value,
     (alive, prevAlive) => {
@@ -60,7 +67,10 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
 
       if (!alive) {
         const finalScore = Math.round(gameState.score.value);
-        runOnJS(updateScoresOnGameOver)(finalScore);
+        // ✅ FIX: coins (pas coinsRun)
+        const finalCoins = Math.round(gameState.coins.value);
+
+        runOnJS(updateRunSummaryOnGameOver)(finalScore, finalCoins);
       }
     }
   );
@@ -119,6 +129,7 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
     aliveUI,
     lastScoreUI,
     bestScoreUI,
+    lastCoinsUI, // ✅ exposé
     hasUsedContinue,
     handleRestart,
     handleContinue,
