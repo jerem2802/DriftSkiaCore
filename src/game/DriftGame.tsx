@@ -9,6 +9,10 @@ import { useDerivedValue } from 'react-native-reanimated';
 import { ShieldFxLayer } from './fx/ShieldFxLayer';
 import { AutoPlayFxLayer } from './fx/AutoPlayFxLayer';
 
+// ✅ Coins FX (Buffer/System/Layer pattern)
+import { useCoinFxSystem } from './fx/useCoinFxSystem';
+import { CoinFxLayer } from './fx/CoinFxLayer';
+
 import { NeonRing } from '../components/NeonRing';
 import { BottomPanel } from '../components/BottomPanel';
 import { GameOverOverlay } from '../components/GameOverOverlay';
@@ -77,6 +81,15 @@ const DriftGame: React.FC = () => {
     orbCollisionDist: ORB_COLLISION_DIST,
   });
 
+  // ✅ Coins FX system (fly-to-HUD, futurs bursts/trails/etc.)
+  const coinFx = useCoinFxSystem({
+    alive: gameState.alive,
+    isPaused: gameState.isPaused,
+    targetX: COIN_HUD_X,
+    targetY: COIN_HUD_Y,
+  });
+
+  // ✅ Coin orb (attach + collision) -> déclenche CoinFxSystem (pickup seq/x/y)
   const coinOrb = useCoinOrbSystem({
     alive: gameState.alive,
     isPaused: gameState.isPaused,
@@ -90,8 +103,10 @@ const DriftGame: React.FC = () => {
     coins: gameState.coins,
     coinHudPulse: gameState.coinHudPulse,
     orbCollisionDist: ORB_COLLISION_DIST,
-    targetX: COIN_HUD_X,
-    targetY: COIN_HUD_Y,
+
+    coinFxPickupSeq: coinFx.pickupSeq,
+    coinFxPickupX: coinFx.pickupX,
+    coinFxPickupY: coinFx.pickupY,
   });
 
   // ----- GAME OVER -----
@@ -99,7 +114,8 @@ const DriftGame: React.FC = () => {
     aliveUI,
     lastScoreUI,
     bestScoreUI,
-    lastCoinsUI, // ✅ récupéré
+    lastCoinsUI,
+    totalCoinsUI, // ✅ IMPORTANT : récupéré ici
     hasUsedContinue,
     handleRestart,
     handleContinue,
@@ -206,12 +222,7 @@ const DriftGame: React.FC = () => {
       <StatusBar hidden />
 
       <Canvas style={styles.canvas}>
-        <CoinHUD
-          x={COIN_HUD_X}
-          y={COIN_HUD_Y}
-          coins={gameState.coins}
-          pulse={gameState.coinHudPulse}
-        />
+        <CoinHUD x={COIN_HUD_X} y={COIN_HUD_Y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
 
         {/* FADING RING */}
         <Circle
@@ -244,13 +255,7 @@ const DriftGame: React.FC = () => {
         />
 
         {/* ORBE DE VIE */}
-        <MiniNeonOrb
-          cx={lifeOrb.lifeOrbX}
-          cy={lifeOrb.lifeOrbY}
-          r={8}
-          color="#ef4444"
-          opacity={lifeOrb.lifeOrbVisible}
-        />
+        <MiniNeonOrb cx={lifeOrb.lifeOrbX} cy={lifeOrb.lifeOrbY} r={8} color="#ef4444" opacity={lifeOrb.lifeOrbVisible} />
 
         {/* ORBE AUTO-PLAY */}
         <MiniNeonOrb
@@ -262,73 +267,30 @@ const DriftGame: React.FC = () => {
         />
 
         {/* ORBE SHIELD */}
-        <MiniNeonOrb
-          cx={shield.shieldOrbX}
-          cy={shield.shieldOrbY}
-          r={13}
-          color="#22d3ee"
-          opacity={shield.shieldOrbVisible}
-        />
+        <MiniNeonOrb cx={shield.shieldOrbX} cy={shield.shieldOrbY} r={13} color="#22d3ee" opacity={shield.shieldOrbVisible} />
 
-        {/* ORBE COIN */}
-        <MiniNeonOrb
-          cx={coinOrb.coinOrbX}
-          cy={coinOrb.coinOrbY}
-          r={12}
-          color="#fbbf24"
-          opacity={coinOrb.coinOrbVisible}
-        />
+        {/* ORBE COIN (attaché) */}
+        <MiniNeonOrb cx={coinOrb.coinOrbX} cy={coinOrb.coinOrbY} r={12} color="#fbbf24" opacity={coinOrb.coinOrbVisible} />
+
+        {/* ✅ COIN FX (fly-to-HUD) */}
+        <CoinFxLayer x={coinFx.flyX} y={coinFx.flyY} opacity={coinFx.flyVisible} r={12} color="#fbbf24" />
 
         {/* NEXT RING */}
-        <NeonRing
-          cx={gameState.nextX}
-          cy={gameState.nextY}
-          r={gameState.nextR}
-          outerColor={nextOuterColor}
-          midColor={nextMidColor}
-          mainColor={nextMainColor}
-        />
+        <NeonRing cx={gameState.nextX} cy={gameState.nextY} r={gameState.nextR} outerColor={nextOuterColor} midColor={nextMidColor} mainColor={nextMainColor} />
 
         {/* GATE */}
-        <Path
-          path={gatePath}
-          strokeWidth={16}
-          strokeCap="round"
-          style="stroke"
-          color={gateColor}
-          opacity={0.1}
-        />
+        <Path path={gatePath} strokeWidth={16} strokeCap="round" style="stroke" color={gateColor} opacity={0.1} />
         <Path path={gatePath} strokeWidth={8} strokeCap="round" style="stroke" color={gateColor} />
 
         {/* BALL + HALO SHIELD */}
-        <Circle
-          cx={gameState.ballX}
-          cy={gameState.ballY}
-          r={14}
-          color={SHIELD_HALO_COLOR}
-          opacity={shield.shieldHaloVisible}
-        />
+        <Circle cx={gameState.ballX} cy={gameState.ballY} r={14} color={SHIELD_HALO_COLOR} opacity={shield.shieldHaloVisible} />
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
 
         {/* AUTO-PLAY FX */}
-        <AutoPlayFxLayer
-          alive={gameState.alive}
-          isPaused={gameState.isPaused}
-          autoPlayActive={gameState.autoPlayActive}
-          ballX={gameState.ballX}
-          ballY={gameState.ballY}
-          capacity={48}
-        />
+        <AutoPlayFxLayer alive={gameState.alive} isPaused={gameState.isPaused} autoPlayActive={gameState.autoPlayActive} ballX={gameState.ballX} ballY={gameState.ballY} capacity={48} />
 
         {/* SHIELD FX */}
-        <ShieldFxLayer
-          alive={gameState.alive}
-          isPaused={gameState.isPaused}
-          shieldArmed={gameState.shieldArmed}
-          ballX={gameState.ballX}
-          ballY={gameState.ballY}
-          capacity={24}
-        />
+        <ShieldFxLayer alive={gameState.alive} isPaused={gameState.isPaused} shieldArmed={gameState.shieldArmed} ballX={gameState.ballX} ballY={gameState.ballY} capacity={24} />
 
         {/* SCORE HUD */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
@@ -369,6 +331,7 @@ const DriftGame: React.FC = () => {
         score={lastScoreUI}
         bestScore={bestScoreUI}
         coinsEarned={lastCoinsUI}
+        totalCoins={totalCoinsUI}
         canContinue={!hasUsedContinue}
         onRestart={handleRestart}
         onShare={handleShare}

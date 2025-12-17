@@ -1,5 +1,5 @@
 // src/game/hooks/useGameOverSystem.ts
-// Gère TOUT le game over côté logique + synchro UI
+// Gère TOUT le game over côté logique + synchro UI + commit meta (PlayerProfile)
 
 import React from 'react';
 import { Share } from 'react-native';
@@ -7,6 +7,9 @@ import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { restart } from '../logic/gameLifecycle';
 import type { useGameState } from './useGameState';
+
+import { loadProfile, commitRunToProfile } from '../../meta/playerProfile';
+
 
 type GameState = ReturnType<typeof useGameState>;
 
@@ -41,18 +44,63 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
   const [lastScoreUI, setLastScoreUI] = React.useState(0);
   const [bestScoreUI, setBestScoreUI] = React.useState(0);
   const [lastCoinsUI, setLastCoinsUI] = React.useState(0);
+  const [totalCoinsUI, setTotalCoinsUI] = React.useState(0);
   const [hasUsedContinue, setHasUsedContinue] = React.useState(false);
 
-  const updateScoresOnGameOver = React.useCallback((finalScore: number) => {
-    setLastScoreUI(finalScore);
-    setBestScoreUI((prev) => Math.max(prev, finalScore));
+  // refs anti double-commit + gestion Continue
+  const hasUsedContinueRef = React.useRef(false);
+  const committedRef = React.useRef(false);
+  const pendingRef = React.useRef({ score: 0, coins: 0 });
+
+  // Charger profil au boot (bestScore + totalCoins)
+  React.useEffect(() => {
+    let mounted = true;
+    loadProfile()
+      .then((p) => {
+        if (!mounted) return;
+        setBestScoreUI(p.bestScore);
+        setTotalCoinsUI(p.totalCoins);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const updateCoinsOnGameOver = React.useCallback((finalCoins: number) => {
-    setLastCoinsUI(finalCoins);
+  const commitPendingIfNeeded = React.useCallback(async () => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+
+    try {
+      const p = await commitRunToProfile({
+        score: pendingRef.current.score,
+        coinsEarned: pendingRef.current.coins,
+      });
+      setBestScoreUI(p.bestScore);
+      setTotalCoinsUI(p.totalCoins);
+    } catch {
+      // MVP: silencieux
+    }
   }, []);
 
-  // Sync du flag alive + score/coins final vers l'UI React
+  const onGameOverCaptured = React.useCallback(
+    (finalScore: number, finalCoins: number) => {
+      pendingRef.current = { score: finalScore, coins: finalCoins };
+      committedRef.current = false;
+
+      setLastScoreUI(finalScore);
+      setLastCoinsUI(finalCoins);
+      setBestScoreUI((prev) => Math.max(prev, finalScore));
+
+      // Si Continue déjà consommé => ce GameOver est FINAL => commit immédiat
+      if (hasUsedContinueRef.current) {
+        void commitPendingIfNeeded();
+      }
+    },
+    [commitPendingIfNeeded]
+  );
+
+  // Sync alive => UI, et capture score/coins au GameOver
   useAnimatedReaction(
     () => gameState.alive.value,
     (alive, prevAlive) => {
@@ -63,18 +111,20 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
       if (!alive) {
         const finalScore = Math.round(gameState.score.value);
         const finalCoins = Math.round(gameState.coins.value);
-
-        runOnJS(updateScoresOnGameOver)(finalScore);
-        runOnJS(updateCoinsOnGameOver)(finalCoins);
+        runOnJS(onGameOverCaptured)(finalScore, finalCoins);
       }
     }
   );
 
   const handleRestart = React.useCallback(() => {
+    // Restart = clôture la run (si pas encore commit)
+    void commitPendingIfNeeded();
+
     // ✅ IMPORTANT: on retire l’overlay immédiatement (sinon illusion de “téléport”)
     setAliveUI(true);
 
     setHasUsedContinue(false);
+    hasUsedContinueRef.current = false;
 
     restart({
       ...gameState,
@@ -88,6 +138,7 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
       START_GATE_WIDTH: startGateWidth,
     });
   }, [
+    commitPendingIfNeeded,
     gameState,
     currentPaletteIndex,
     nextPaletteIndex,
@@ -100,7 +151,7 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
   ]);
 
   const handleContinue = React.useCallback(() => {
-    if (hasUsedContinue) return;
+    if (hasUsedContinueRef.current) return;
 
     // On ne continue que si on est vraiment en Game Over
     if (gameState.alive.value || gameState.lives.value > 0) return;
@@ -109,11 +160,12 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
     setAliveUI(true);
 
     setHasUsedContinue(true);
+    hasUsedContinueRef.current = true;
 
     // On rend 1 vie et on relance la boucle
     gameState.lives.value = 1;
     gameState.alive.value = true;
-  }, [hasUsedContinue, gameState]);
+  }, [gameState]);
 
   const handleShare = React.useCallback(() => {
     const message = `Je viens de faire ${lastScoreUI} points sur Drift Ring ! (Best : ${bestScoreUI})`;
@@ -125,6 +177,7 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
     lastScoreUI,
     bestScoreUI,
     lastCoinsUI,
+    totalCoinsUI,
     hasUsedContinue,
     handleRestart,
     handleContinue,

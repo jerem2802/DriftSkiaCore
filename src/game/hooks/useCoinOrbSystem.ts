@@ -1,21 +1,10 @@
 // src/game/hooks/useCoinOrbSystem.ts
-// Coin orb : attach au ring (SUR la trajectoire), collision, fly-to-HUD + pulse compteur
+// Coin orb : attach au ring, collision, + trigger vers Coin FX (fly-to-HUD)
 
-import {
-  useSharedValue,
-  useDerivedValue,
-  useAnimatedReaction,
-  withTiming,
-  withSequence,
-  Easing,
-} from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
-// ✅ Offset dédié pour éviter superposition (Life = PI, AutoPlay = +PI/2)
 const COIN_ORB_OFFSET = -Math.PI / 2;
-
-// ✅ Curseur vitesse (plus petit = plus rapide)
-const COIN_FLY_DURATION_MS = 950;
 
 interface UseCoinOrbSystemParams {
   alive: SharedValue<boolean>;
@@ -36,8 +25,10 @@ interface UseCoinOrbSystemParams {
 
   orbCollisionDist: number; // distance²
 
-  targetX: number;
-  targetY: number;
+  // ✅ FX trigger (CoinFxSystem)
+  coinFxPickupSeq: SharedValue<number>;
+  coinFxPickupX: SharedValue<number>;
+  coinFxPickupY: SharedValue<number>;
 }
 
 export const useCoinOrbSystem = ({
@@ -53,15 +44,10 @@ export const useCoinOrbSystem = ({
   coins,
   coinHudPulse,
   orbCollisionDist,
-  targetX,
-  targetY,
+  coinFxPickupSeq,
+  coinFxPickupX,
+  coinFxPickupY,
 }: UseCoinOrbSystemParams) => {
-  // 0=attached, 1=flying
-  const flying = useSharedValue(0);
-  const flyX = useSharedValue(0);
-  const flyY = useSharedValue(0);
-
-  // Attach SUR le ring
   const attachedX = useDerivedValue(() => {
     const a = gateAngle.value + COIN_ORB_OFFSET;
     return currentX.value + currentR.value * Math.cos(a);
@@ -72,36 +58,13 @@ export const useCoinOrbSystem = ({
     return currentY.value + currentR.value * Math.sin(a);
   });
 
-  const coinOrbVisible = useDerivedValue(() => {
-    if (currentHasCoin.value) {
-      return 1;
-    }
-    if (flying.value === 1) {
-      return 1;
-    }
-    return 0;
-  });
-
-  const coinOrbX = useDerivedValue(() => {
-    if (flying.value === 1) {
-      return flyX.value;
-    }
-    return attachedX.value;
-  });
-
-  const coinOrbY = useDerivedValue(() => {
-    if (flying.value === 1) {
-      return flyY.value;
-    }
-    return attachedY.value;
-  });
+  const coinOrbVisible = useDerivedValue(() => (currentHasCoin.value ? 1 : 0));
 
   useAnimatedReaction(
     () => ({
       alive: alive.value,
       paused: isPaused.value,
       hasCoin: currentHasCoin.value,
-      flying: flying.value,
       bx: ballX.value,
       by: ballY.value,
       ox: attachedX.value,
@@ -111,61 +74,35 @@ export const useCoinOrbSystem = ({
       'worklet';
 
       if (!s.alive) {
-        flying.value = 0;
         currentHasCoin.value = false;
         return;
       }
-
-      if (s.paused) {
-        return;
-      }
-
-      if (!s.hasCoin) {
-        return;
-      }
-
-      if (s.flying === 1) {
-        return;
-      }
+      if (s.paused) return;
+      if (!s.hasCoin) return;
 
       const dx = s.bx - s.ox;
       const dy = s.by - s.oy;
       const distSq = dx * dx + dy * dy;
 
       if (distSq <= orbCollisionDist) {
+        // hide attached coin
         currentHasCoin.value = false;
-        flying.value = 1;
 
-        flyX.value = s.ox;
-        flyY.value = s.oy;
-
-        flyX.value = withTiming(
-          targetX,
-          { duration: COIN_FLY_DURATION_MS, easing: Easing.linear },
-          (finished) => {
-            if (finished) {
-              flying.value = 0;
-            }
-          }
-        );
-
-        flyY.value = withTiming(targetY, {
-          duration: COIN_FLY_DURATION_MS,
-          easing: Easing.linear,
-        });
-
+        // meta in-run
         coins.value = coins.value + 1;
-        coinHudPulse.value = withSequence(
-          withTiming(1, { duration: 80, easing: Easing.linear }),
-          withTiming(0, { duration: 160, easing: Easing.linear })
-        );
+        coinHudPulse.value = 1; // (si tu veux garder withSequence ici, dis-moi, sinon on migre aussi en FX)
+
+        // trigger FX fly-to-HUD
+        coinFxPickupX.value = s.ox;
+        coinFxPickupY.value = s.oy;
+        coinFxPickupSeq.value = coinFxPickupSeq.value + 1;
       }
     }
   );
 
   return {
     coinOrbVisible,
-    coinOrbX,
-    coinOrbY,
+    coinOrbX: attachedX,
+    coinOrbY: attachedY,
   };
 };

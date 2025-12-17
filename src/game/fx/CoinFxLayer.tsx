@@ -1,6 +1,4 @@
-// src/game/fx/CoinTokenLayer.tsx
-// Rendu simple d'un coin-orb (la logique/animation reste dans useCoinOrbSystem)
-
+// src/game/fx/CoinFxLayer.tsx
 import React from 'react';
 import { Circle, Group } from '@shopify/react-native-skia';
 import type { SharedValue } from 'react-native-reanimated';
@@ -8,12 +6,12 @@ import type { SharedValue } from 'react-native-reanimated';
 type Props = {
   x: SharedValue<number>;
   y: SharedValue<number>;
-  opacity: SharedValue<number>;
+  opacity: SharedValue<number>; // 0|1
   r?: number;
   color?: string;
 };
 
-export const CoinTokenLayer: React.FC<Props> = ({
+export const CoinFxLayer: React.FC<Props> = ({
   x,
   y,
   opacity,
@@ -22,9 +20,7 @@ export const CoinTokenLayer: React.FC<Props> = ({
 }) => {
   return (
     <Group opacity={opacity}>
-      {/* core */}
       <Circle cx={x} cy={y} r={r} color={color} />
-      {/* soft glow */}
       <Circle cx={x} cy={y} r={r + 5} color={color} opacity={0.18} />
     </Group>
   );
