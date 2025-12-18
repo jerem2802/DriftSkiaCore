@@ -67,8 +67,6 @@ const DriftGame: React.FC = () => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
-  const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
-
   const shield = useShieldSystem({ gameState });
 
   const autoPlay = useAutoPlaySystem({
@@ -81,7 +79,6 @@ const DriftGame: React.FC = () => {
     orbCollisionDist: ORB_COLLISION_DIST,
   });
 
-  // ✅ Coins FX system (fly-to-HUD, futurs bursts/trails/etc.)
   const coinFx = useCoinFxSystem({
     alive: gameState.alive,
     isPaused: gameState.isPaused,
@@ -89,7 +86,6 @@ const DriftGame: React.FC = () => {
     targetY: COIN_HUD_Y,
   });
 
-  // ✅ Coin orb (attach + collision) -> déclenche CoinFxSystem (pickup seq/x/y)
   const coinOrb = useCoinOrbSystem({
     alive: gameState.alive,
     isPaused: gameState.isPaused,
@@ -109,13 +105,12 @@ const DriftGame: React.FC = () => {
     coinFxPickupY: coinFx.pickupY,
   });
 
-  // ----- GAME OVER -----
   const {
     aliveUI,
     lastScoreUI,
     bestScoreUI,
     lastCoinsUI,
-    totalCoinsUI, // ✅ IMPORTANT : récupéré ici
+    totalCoinsUI,
     hasUsedContinue,
     handleRestart,
     handleContinue,
@@ -131,6 +126,18 @@ const DriftGame: React.FC = () => {
     startOrbitSpeed: START_ORBIT_SPEED,
     startGateWidth: START_GATE_WIDTH,
   });
+
+  // ✅ DÉMARRER LE JEU APRÈS 2 FRAMES (sans fade canvas)
+  React.useEffect(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        gameState.isPaused.value = false;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
 
   const safeNextPalette = useDerivedValue(() => {
     'worklet';

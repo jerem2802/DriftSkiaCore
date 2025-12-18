@@ -1,14 +1,22 @@
-import React, { useEffect, useRef } from 'react';
+// src/components/HeadphonesScreen.tsx
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
   ImageBackground,
-  Animated,
   Image,
-  Easing,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withDelay,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
 
 type HeadphonesScreenProps = {
   onConfirm: () => void;
@@ -18,58 +26,48 @@ const backgroundSource = require('../assets/images/menu_driftring.png');
 const headphonesSource = require('../assets/images/headphones_icon.png');
 
 const HeadphonesScreen: React.FC<HeadphonesScreenProps> = ({ onConfirm }) => {
-  const wave1 = useRef(new Animated.Value(0)).current;
-  const wave2 = useRef(new Animated.Value(0)).current;
+  const wave1Progress = useSharedValue(0);
+  const wave2Progress = useSharedValue(0);
 
   useEffect(() => {
-    const loop1 = Animated.loop(
-      Animated.timing(wave1, {
-        toValue: 1,
-        duration: 1400,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
+    wave1Progress.value = withRepeat(
+      withTiming(1, { duration: 1400, easing: Easing.linear }),
+      -1,
+      false
     );
 
-    const loop2 = Animated.loop(
-      Animated.sequence([
-        Animated.delay(350),
-        Animated.timing(wave2, {
-          toValue: 1,
-          duration: 1400,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-      ]),
+    wave2Progress.value = withRepeat(
+      withSequence(
+        withDelay(350, withTiming(1, { duration: 1400, easing: Easing.linear }))
+      ),
+      -1,
+      false
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    wave1.setValue(0);
-    wave2.setValue(0);
-    loop1.start();
-    loop2.start();
+  const wave1Style = useAnimatedStyle(() => {
+    const scale = 1 + wave1Progress.value * 0.4;
+    const opacity = wave1Progress.value < 0.5 
+      ? wave1Progress.value * 1.6
+      : (1 - wave1Progress.value) * 1.6;
 
-    return () => {
-      loop1.stop();
-      loop2.stop();
+    return {
+      transform: [{ scale }],
+      opacity,
     };
-  }, [wave1, wave2]);
-
-  const wave1Scale = wave1.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.4],
-  });
-  const wave1Opacity = wave1.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.0, 0.8, 0],
   });
 
-  const wave2Scale = wave2.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.6],
-  });
-  const wave2Opacity = wave2.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.0, 0.6, 0],
+  const wave2Style = useAnimatedStyle(() => {
+    const scale = 1 + wave2Progress.value * 0.6;
+    const opacity = wave2Progress.value < 0.5
+      ? wave2Progress.value * 1.2
+      : (1 - wave2Progress.value) * 1.2;
+
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
   });
 
   return (
@@ -79,52 +77,15 @@ const HeadphonesScreen: React.FC<HeadphonesScreenProps> = ({ onConfirm }) => {
       resizeMode="cover"
     >
       <View style={styles.overlay}>
-        {/* Bloc central : casque + ondes + texte */}
         <View style={styles.centerBlock}>
           <View style={styles.headphonesWrapper}>
             {/* Ondes GAUCHE */}
-            <Animated.View
-              style={[
-                styles.wave,
-                styles.waveLeft,
-                {
-                  transform: [{ scale: wave1Scale }],
-                  opacity: wave1Opacity,
-                },
-              ]}
-            />
-            <Animated.View
-              style={[
-                styles.wave,
-                styles.waveLeft,
-                {
-                  transform: [{ scale: wave2Scale }],
-                  opacity: wave2Opacity,
-                },
-              ]}
-            />
+            <Animated.View style={[styles.wave, styles.waveLeft, wave1Style]} />
+            <Animated.View style={[styles.wave, styles.waveLeft, wave2Style]} />
 
             {/* Ondes DROITE */}
-            <Animated.View
-              style={[
-                styles.wave,
-                styles.waveRight,
-                {
-                  transform: [{ scale: wave1Scale }],
-                  opacity: wave1Opacity,
-                },
-              ]}
-            />
-            <Animated.View
-              style={[
-                styles.wave,
-                styles.waveRight,
-                {
-                  transform: [{ scale: wave2Scale }],
-                  opacity: wave2Opacity,
-                },
-              ]}
-            />
+            <Animated.View style={[styles.wave, styles.waveRight, wave1Style]} />
+            <Animated.View style={[styles.wave, styles.waveRight, wave2Style]} />
 
             {/* Casque */}
             <Image
@@ -134,7 +95,6 @@ const HeadphonesScreen: React.FC<HeadphonesScreenProps> = ({ onConfirm }) => {
             />
           </View>
 
-          {/* Texte sous le casque */}
           <View style={styles.textBlock}>
             <Text style={styles.title}>Pour une expérience optimale</Text>
             <Text style={styles.subtitle}>
@@ -143,7 +103,6 @@ const HeadphonesScreen: React.FC<HeadphonesScreenProps> = ({ onConfirm }) => {
           </View>
         </View>
 
-        {/* Bouton OK en bas */}
         <View style={styles.bottomBlock}>
           <Pressable style={styles.button} onPress={onConfirm}>
             <Text style={styles.buttonText}>OK</Text>
@@ -174,16 +133,18 @@ const styles = StyleSheet.create({
   },
 
   headphonesWrapper: {
-    width: 260,   // casque + ondes
+    width: 260,
     height: 260,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
 
   iconImage: {
-    width: 220,   // taille du casque
+    width: 220,
     height: 220,
-    tintColor: '#f9fafb', // casque blanc (changeable en néon)
+    tintColor: '#f9fafb',
+    zIndex: 10,
   },
 
   wave: {
@@ -193,6 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 70,
     borderWidth: 3,
     borderColor: '#22d3ee',
+    zIndex: 1,
   },
   waveLeft: {
     left: -20,

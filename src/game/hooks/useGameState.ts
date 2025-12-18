@@ -1,6 +1,4 @@
 // src/game/hooks/useGameState.ts
-// Centralise tous les SharedValues du game state
-
 import { useSharedValue } from 'react-native-reanimated';
 import {
   CANVAS_WIDTH,
@@ -14,6 +12,17 @@ import {
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
 
+// ✅ Pré-calculer les valeurs initiales
+const INITIAL_BALL_X = CENTER_X + RING_RADIUS;
+const INITIAL_BALL_Y = CENTER_Y;
+const INITIAL_NEXT_X = CENTER_X;
+const INITIAL_NEXT_Y = CENTER_Y - 200;
+const INITIAL_NEXT_R = RING_RADIUS * 0.9;
+const INITIAL_GATE_ANGLE = Math.atan2(
+  INITIAL_NEXT_Y - CENTER_Y,
+  INITIAL_NEXT_X - CENTER_X
+);
+
 export const useGameState = () => {
   // Game state
   const alive = useSharedValue(true);
@@ -25,7 +34,7 @@ export const useGameState = () => {
   const coinHudPulse = useSharedValue(0);
 
   const mode = useSharedValue<'orbit' | 'dash'>('orbit');
-  const isPaused = useSharedValue(false);
+  const isPaused = useSharedValue(true); // ✅ COMMENCE EN PAUSE
 
   // Scoring avancé
   const streak = useSharedValue(0);
@@ -68,9 +77,9 @@ export const useGameState = () => {
   const currentVY = useSharedValue(0);
 
   // Positions - Next ring
-  const nextX = useSharedValue(CENTER_X);
-  const nextY = useSharedValue(CENTER_Y - 200);
-  const nextR = useSharedValue(RING_RADIUS * 0.9);
+  const nextX = useSharedValue(INITIAL_NEXT_X);
+  const nextY = useSharedValue(INITIAL_NEXT_Y);
+  const nextR = useSharedValue(INITIAL_NEXT_R);
 
   // Vitesse - Next ring
   const nextVX = useSharedValue(0);
@@ -79,13 +88,11 @@ export const useGameState = () => {
   // Ball
   const angle = useSharedValue(0);
   const speed = useSharedValue(START_ORBIT_SPEED);
-  const ballX = useSharedValue(currentX.value + currentR.value);
-  const ballY = useSharedValue(currentY.value);
+  const ballX = useSharedValue(INITIAL_BALL_X);
+  const ballY = useSharedValue(INITIAL_BALL_Y);
 
   // Gate
-  const gateAngle = useSharedValue(
-    Math.atan2(nextY.value - currentY.value, nextX.value - currentX.value)
-  );
+  const gateAngle = useSharedValue(INITIAL_GATE_ANGLE);
   const gateWidth = useSharedValue(START_GATE_WIDTH);
   const dashStartTime = useSharedValue(0);
 
@@ -96,7 +103,7 @@ export const useGameState = () => {
   const fadingRingScale = useSharedValue(0);
   const fadingRingOpacity = useSharedValue(0);
 
-  // Popup de score (dans le secondary ring)
+  // Popup de score
   const scorePopupText = useSharedValue('');
   const scorePopupOpacity = useSharedValue(0);
   const scorePopupX = useSharedValue(CENTER_X);
