@@ -63,7 +63,11 @@ const popupFontStyle = {
 };
 const popupFont = matchFont(popupFontStyle);
 
-const DriftGame: React.FC = () => {
+type Props = {
+  onShop: () => void;
+};
+
+const DriftGame: React.FC<Props> = ({ onShop }) => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
@@ -229,7 +233,12 @@ const DriftGame: React.FC = () => {
       <StatusBar hidden />
 
       <Canvas style={styles.canvas}>
-        <CoinHUD x={COIN_HUD_X} y={COIN_HUD_Y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
+        <CoinHUD
+          x={COIN_HUD_X}
+          y={COIN_HUD_Y}
+          coins={gameState.coins}
+          pulse={gameState.coinHudPulse}
+        />
 
         {/* FADING RING */}
         <Circle
@@ -262,7 +271,13 @@ const DriftGame: React.FC = () => {
         />
 
         {/* ORBE DE VIE */}
-        <MiniNeonOrb cx={lifeOrb.lifeOrbX} cy={lifeOrb.lifeOrbY} r={8} color="#ef4444" opacity={lifeOrb.lifeOrbVisible} />
+        <MiniNeonOrb
+          cx={lifeOrb.lifeOrbX}
+          cy={lifeOrb.lifeOrbY}
+          r={8}
+          color="#ef4444"
+          opacity={lifeOrb.lifeOrbVisible}
+        />
 
         {/* ORBE AUTO-PLAY */}
         <MiniNeonOrb
@@ -274,16 +289,41 @@ const DriftGame: React.FC = () => {
         />
 
         {/* ORBE SHIELD */}
-        <MiniNeonOrb cx={shield.shieldOrbX} cy={shield.shieldOrbY} r={13} color="#22d3ee" opacity={shield.shieldOrbVisible} />
+        <MiniNeonOrb
+          cx={shield.shieldOrbX}
+          cy={shield.shieldOrbY}
+          r={13}
+          color="#22d3ee"
+          opacity={shield.shieldOrbVisible}
+        />
 
         {/* ORBE COIN (attaché) */}
-        <MiniNeonOrb cx={coinOrb.coinOrbX} cy={coinOrb.coinOrbY} r={12} color="#fbbf24" opacity={coinOrb.coinOrbVisible} />
+        <MiniNeonOrb
+          cx={coinOrb.coinOrbX}
+          cy={coinOrb.coinOrbY}
+          r={12}
+          color="#fbbf24"
+          opacity={coinOrb.coinOrbVisible}
+        />
 
         {/* ✅ COIN FX (fly-to-HUD) */}
-        <CoinFxLayer x={coinFx.flyX} y={coinFx.flyY} opacity={coinFx.flyVisible} r={12} color="#fbbf24" />
+        <CoinFxLayer
+          x={coinFx.flyX}
+          y={coinFx.flyY}
+          opacity={coinFx.flyVisible}
+          r={12}
+          color="#fbbf24"
+        />
 
         {/* NEXT RING */}
-        <NeonRing cx={gameState.nextX} cy={gameState.nextY} r={gameState.nextR} outerColor={nextOuterColor} midColor={nextMidColor} mainColor={nextMainColor} />
+        <NeonRing
+          cx={gameState.nextX}
+          cy={gameState.nextY}
+          r={gameState.nextR}
+          outerColor={nextOuterColor}
+          midColor={nextMidColor}
+          mainColor={nextMainColor}
+        />
 
         {/* GATE */}
         <Path path={gatePath} strokeWidth={16} strokeCap="round" style="stroke" color={gateColor} opacity={0.1} />
@@ -294,10 +334,24 @@ const DriftGame: React.FC = () => {
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
 
         {/* AUTO-PLAY FX */}
-        <AutoPlayFxLayer alive={gameState.alive} isPaused={gameState.isPaused} autoPlayActive={gameState.autoPlayActive} ballX={gameState.ballX} ballY={gameState.ballY} capacity={48} />
+        <AutoPlayFxLayer
+          alive={gameState.alive}
+          isPaused={gameState.isPaused}
+          autoPlayActive={gameState.autoPlayActive}
+          ballX={gameState.ballX}
+          ballY={gameState.ballY}
+          capacity={48}
+        />
 
         {/* SHIELD FX */}
-        <ShieldFxLayer alive={gameState.alive} isPaused={gameState.isPaused} shieldArmed={gameState.shieldArmed} ballX={gameState.ballX} ballY={gameState.ballY} capacity={24} />
+        <ShieldFxLayer
+          alive={gameState.alive}
+          isPaused={gameState.isPaused}
+          shieldArmed={gameState.shieldArmed}
+          ballX={gameState.ballX}
+          ballY={gameState.ballY}
+          capacity={24}
+        />
 
         {/* SCORE HUD */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
@@ -343,6 +397,7 @@ const DriftGame: React.FC = () => {
         onRestart={handleRestart}
         onShare={handleShare}
         onWatchAd={handleContinue}
+        onShop={onShop}
       />
     </Pressable>
   );

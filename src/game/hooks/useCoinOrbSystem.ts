@@ -4,7 +4,7 @@
 import { useDerivedValue, useAnimatedReaction } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
-const COIN_ORB_OFFSET = -Math.PI / 2;
+const COIN_ORB_OFFSET = -Math.PI / 2 + Math.PI / 6;
 
 interface UseCoinOrbSystemParams {
   alive: SharedValue<boolean>;

@@ -1,16 +1,11 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ImageBackground,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ImageBackground } from 'react-native';
 
 type MainMenuScreenProps = {
   onPlay: () => void;
   onTuto: () => void;
   onOptions: () => void;
+  onShop: () => void; // ✅ NEW
 };
 
 const backgroundSource = require('../assets/images/menu_driftring.png');
@@ -19,25 +14,31 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
   onPlay,
   onTuto,
   onOptions,
+  onShop,
 }) => {
   return (
-    <ImageBackground
-      source={backgroundSource}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <ImageBackground source={backgroundSource} style={styles.background} resizeMode="cover">
       <View style={styles.overlay}>
-        {/* HEADER : TUTO / TITLE / OPTIONS */}
+        {/* HEADER : TUTO + SHOP / OPTIONS */}
         <View style={styles.headerRow}>
-          <Pressable style={styles.headerButton} onPress={onTuto}>
-            <Text style={styles.headerButtonText}>TUTO</Text>
-          </Pressable>
+          <View style={styles.headerLeft}>
+            <Pressable style={styles.headerButton} onPress={onTuto}>
+              <Text style={styles.headerButtonText}>TUTO</Text>
+            </Pressable>
 
-          <Text style={styles.title}>DRIFT-RING</Text>
+            <Pressable style={styles.headerButton} onPress={onShop}>
+              <Text style={styles.headerButtonText}>SHOP</Text>
+            </Pressable>
+          </View>
 
           <Pressable style={styles.headerButton} onPress={onOptions}>
             <Text style={styles.headerButtonText}>⚙</Text>
           </Pressable>
+        </View>
+
+        {/* TITRE (plus bas, on stylisera plus tard) */}
+        <View pointerEvents="none" style={styles.titleWrap}>
+          <Text style={styles.title}>DRIFT-RING</Text>
         </View>
 
         {/* CENTRE : PLAY */}
@@ -79,6 +80,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   headerButton: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -92,6 +98,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     color: '#e5e7eb',
+  },
+
+  /* TITLE */
+  titleWrap: {
+    alignItems: 'center',
+    marginTop: 90, // ✅ descend le titre vers le milieu (ajustable)
   },
   title: {
     fontSize: 26,

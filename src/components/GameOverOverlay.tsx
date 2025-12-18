@@ -1,5 +1,3 @@
-// src/components/GameOverOverlay.tsx
-
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 
@@ -13,6 +11,9 @@ interface GameOverOverlayProps {
   onRestart: () => void;
   onShare: () => void;
   onWatchAd: () => void;
+
+  // ✅ NEW
+  onShop: () => void;
 }
 
 export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
@@ -25,6 +26,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   onRestart,
   onShare,
   onWatchAd,
+  onShop,
 }) => {
   if (!visible) return null;
 
@@ -39,7 +41,6 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             resizeMode="cover"
           />
 
-          {/* overlay sombre pour lisibilité */}
           <View pointerEvents="none" style={styles.headerShade} />
           <View pointerEvents="none" style={styles.headerGlowLine} />
 
@@ -110,6 +111,11 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             <Text style={styles.secondaryText}>PARTAGER</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ✅ SHOP */}
+        <TouchableOpacity style={styles.shopButton} onPress={onShop} activeOpacity={0.9}>
+          <Text style={styles.shopText}>SHOP</Text>
+        </TouchableOpacity>
 
         <Text style={styles.footerHint}>Tip: vise la gate au dernier quart, c’est plus stable.</Text>
       </View>
@@ -363,6 +369,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+
+  shopButton: {
+    marginHorizontal: 14,
+    marginBottom: 10,
+    borderRadius: 999,
+    paddingVertical: 11,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.35)',
+  },
+  shopText: {
+    color: '#fbbf24',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
 
   footerHint: {

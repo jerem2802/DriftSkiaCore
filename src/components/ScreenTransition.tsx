@@ -14,6 +14,9 @@ interface ScreenTransitionProps {
   children: React.ReactNode;
   fadeInDuration?: number;
   fadeOutDuration?: number;
+
+  // ✅ NEW (par défaut false) : ne démonte jamais le contenu
+  keepMounted?: boolean;
 }
 
 export const ScreenTransition: React.FC<ScreenTransitionProps> = ({
@@ -21,20 +24,19 @@ export const ScreenTransition: React.FC<ScreenTransitionProps> = ({
   children,
   fadeInDuration = 2000,
   fadeOutDuration = 2000,
+  keepMounted = false,
 }) => {
   const opacity = useSharedValue(visible ? 1 : 0);
-  const [shouldRender, setShouldRender] = React.useState(visible);
+  const [shouldRender, setShouldRender] = React.useState(keepMounted ? true : visible);
 
   useEffect(() => {
     if (visible) {
-      // Fade-in : monter puis animer
       setShouldRender(true);
       opacity.value = withTiming(1, {
         duration: fadeInDuration,
         easing: Easing.out(Easing.ease),
       });
     } else {
-      // Fade-out : animer puis démonter
       opacity.value = withTiming(
         0,
         {
@@ -42,13 +44,13 @@ export const ScreenTransition: React.FC<ScreenTransitionProps> = ({
           easing: Easing.in(Easing.ease),
         },
         (finished) => {
-          if (finished) {
-            runOnJS(setShouldRender)(false);
-          }
+          if (!finished) return;
+          if (keepMounted) return; // ✅ ne démonte pas
+          runOnJS(setShouldRender)(false);
         }
       );
     }
-  }, [visible, fadeInDuration, fadeOutDuration, opacity]);
+  }, [visible, fadeInDuration, fadeOutDuration, opacity, keepMounted]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
