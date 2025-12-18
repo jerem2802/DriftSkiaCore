@@ -31,6 +31,8 @@ import { useAutoPlaySystem } from './hooks/useAutoPlaySystem';
 import { useGameOverSystem } from './hooks/useGameOverSystem';
 import { useLifeOrbSystem } from './hooks/useLifeOrbSystem';
 
+import { SHOP_BALLS } from '../components/shop/shopCatalog';
+
 import { ScoreHUD } from './skia/ScoreHUD';
 import { LifeDot } from './skia/LifeDot';
 
@@ -62,24 +64,19 @@ const popupFontStyle = {
 };
 const popupFont = matchFont(popupFontStyle);
 
-// MVP: mapping visuel bille
+// ✅ MVP: couleur bille = accent défini dans shopCatalog
+const BALL_COLOR_BY_ID: Record<string, string> = Object.fromEntries(
+  SHOP_BALLS.map((b) => [b.id, b.accent])
+);
+
 const resolveBallColor = (id: string) => {
-  switch (id) {
-    case 'core':
-      return BALL_COLOR;
-    case 'neon_cyan':
-      return '#22d3ee';
-    case 'neon_pink':
-      return '#ff6bd5';
-    case 'neon_lime':
-      return '#a3e635';
-    case 'neon_gold':
-      return '#fbbf24';
-    case 'neon_purple':
-      return '#8b5cf6';
-    default:
-      return BALL_COLOR;
-  }
+  // compat ancien id
+  if (id === 'core') return BALL_COLOR;
+
+  // bille gratuite shop
+  if (id === 'ball_classic') return BALL_COLOR;
+
+  return BALL_COLOR_BY_ID[id] ?? BALL_COLOR;
 };
 
 type DriftGameProps = {

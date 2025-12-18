@@ -18,8 +18,8 @@ const DEFAULT_PROFILE: PlayerProfile = {
   totalCoins: 0,
   bestScore: 0,
 
-  ownedBalls: ['core'],
-  selectedBallId: 'core',
+  ownedBalls: ['ball_classic'],
+  selectedBallId: 'ball_classic',
 
   updatedAt: Date.now(),
 };
@@ -30,12 +30,20 @@ export const loadProfile = async (): Promise<PlayerProfile> => {
 
   try {
     const p = JSON.parse(raw) as Partial<PlayerProfile>;
+
+    const ownedRaw = Array.isArray(p.ownedBalls) ? p.ownedBalls : DEFAULT_PROFILE.ownedBalls;
+    const ownedBalls = ownedRaw.map((x) => (x === 'core' ? 'ball_classic' : x));
+
+    const selectedBallIdRaw =
+      typeof p.selectedBallId === 'string' ? p.selectedBallId : DEFAULT_PROFILE.selectedBallId;
+    const selectedBallId = selectedBallIdRaw === 'core' ? 'ball_classic' : selectedBallIdRaw;
+
     return {
       ...DEFAULT_PROFILE,
       ...p,
       v: 1,
-      ownedBalls: Array.isArray(p.ownedBalls) ? p.ownedBalls : DEFAULT_PROFILE.ownedBalls,
-      selectedBallId: typeof p.selectedBallId === 'string' ? p.selectedBallId : DEFAULT_PROFILE.selectedBallId,
+      ownedBalls,
+      selectedBallId,
     };
   } catch {
     return DEFAULT_PROFILE;
