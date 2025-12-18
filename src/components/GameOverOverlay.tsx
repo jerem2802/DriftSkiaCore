@@ -11,9 +11,7 @@ interface GameOverOverlayProps {
   onRestart: () => void;
   onShare: () => void;
   onWatchAd: () => void;
-
-  // ✅ NEW
-  onShop: () => void;
+  onShop: () => void; // ✅
 }
 
 export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
@@ -98,24 +96,20 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
           </Text>
         </TouchableOpacity>
 
+        {/* ACTIONS */}
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.secondaryButton} onPress={onRestart} activeOpacity={0.9}>
             <Text style={styles.secondaryText}>RESTART</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.secondaryButtonAlt}
-            onPress={onShare}
-            activeOpacity={0.9}
-          >
+          <TouchableOpacity style={styles.secondaryButtonAlt} onPress={onShare} activeOpacity={0.9}>
             <Text style={styles.secondaryText}>PARTAGER</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* ✅ SHOP */}
-        <TouchableOpacity style={styles.shopButton} onPress={onShop} activeOpacity={0.9}>
-          <Text style={styles.shopText}>SHOP</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButtonShop} onPress={onShop} activeOpacity={0.9}>
+            <Text style={styles.secondaryText}>SHOP</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.footerHint}>Tip: vise la gate au dernier quart, c’est plus stable.</Text>
       </View>
@@ -344,6 +338,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginTop: 10,
     marginBottom: 10,
+    gap: 10,
   },
   secondaryButton: {
     flex: 1,
@@ -353,7 +348,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(2,6,23,0.70)',
     borderWidth: 1,
     borderColor: 'rgba(34,211,238,0.30)',
-    marginRight: 10,
   },
   secondaryButtonAlt: {
     flex: 1,
@@ -364,28 +358,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.30)',
   },
+  secondaryButtonShop: {
+    flex: 1,
+    borderRadius: 999,
+    paddingVertical: 11,
+    alignItems: 'center',
+    backgroundColor: 'rgba(2,6,23,0.70)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.30)',
+  },
   secondaryText: {
     color: '#e5e7eb',
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
-  },
-
-  shopButton: {
-    marginHorizontal: 14,
-    marginBottom: 10,
-    borderRadius: 999,
-    paddingVertical: 11,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.35)',
-  },
-  shopText: {
-    color: '#fbbf24',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1.2,
   },
 
   footerHint: {

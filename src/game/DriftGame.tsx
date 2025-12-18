@@ -2,14 +2,13 @@
 // ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
 
 import React from 'react';
-import { Pressable, StatusBar, StyleSheet, Platform } from 'react-native';
+import { Pressable, StyleSheet, Platform } from 'react-native';
 import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 
 import { ShieldFxLayer } from './fx/ShieldFxLayer';
 import { AutoPlayFxLayer } from './fx/AutoPlayFxLayer';
 
-// ✅ Coins FX (Buffer/System/Layer pattern)
 import { useCoinFxSystem } from './fx/useCoinFxSystem';
 import { CoinFxLayer } from './fx/CoinFxLayer';
 
@@ -63,11 +62,33 @@ const popupFontStyle = {
 };
 const popupFont = matchFont(popupFontStyle);
 
-type Props = {
-  onShop: () => void;
+// MVP: mapping visuel bille
+const resolveBallColor = (id: string) => {
+  switch (id) {
+    case 'core':
+      return BALL_COLOR;
+    case 'neon_cyan':
+      return '#22d3ee';
+    case 'neon_pink':
+      return '#ff6bd5';
+    case 'neon_lime':
+      return '#a3e635';
+    case 'neon_gold':
+      return '#fbbf24';
+    case 'neon_purple':
+      return '#8b5cf6';
+    default:
+      return BALL_COLOR;
+  }
 };
 
-const DriftGame: React.FC<Props> = ({ onShop }) => {
+type DriftGameProps = {
+  onShop: () => void;
+  selectedBallId?: string;
+  allowStart?: boolean; // ✅
+};
+
+const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true }) => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
@@ -131,15 +152,20 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
     startGateWidth: START_GATE_WIDTH,
   });
 
-  // ✅ DÉMARRER LE JEU APRÈS 2 FRAMES (sans fade canvas)
+  // ✅ démarre le jeu seulement quand allowStart === true (évite gameplay derrière Headphones/Shop)
   React.useEffect(() => {
+    if (!allowStart) {
+      gameState.isPaused.value = true;
+      return;
+    }
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         gameState.isPaused.value = false;
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [allowStart]);
 
   const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
 
@@ -160,12 +186,8 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
   const nextMidColor = useDerivedValue(() => safeNextPalette.value.mid);
   const nextMainColor = useDerivedValue(() => safeNextPalette.value.main);
 
-  const gateStart = useDerivedValue(
-    () => gameState.gateAngle.value - gameState.gateWidth.value / 2
-  );
-  const gateEnd = useDerivedValue(
-    () => gameState.gateAngle.value + gameState.gateWidth.value / 2
-  );
+  const gateStart = useDerivedValue(() => gameState.gateAngle.value - gameState.gateWidth.value / 2);
+  const gateEnd = useDerivedValue(() => gameState.gateAngle.value + gameState.gateWidth.value / 2);
 
   const gatePath = useDerivedValue(() =>
     createArcPath(
@@ -177,17 +199,13 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
     )
   );
 
-  const fadingRingScaledR = useDerivedValue(
-    () => gameState.fadingRingR.value * gameState.fadingRingScale.value
-  );
+  const fadingRingScaledR = useDerivedValue(() => gameState.fadingRingR.value * gameState.fadingRingScale.value);
 
   const livesPositions = React.useMemo(() => {
     const positions: { x: number; y: number }[] = [];
     const startX = CANVAS_WIDTH - 60;
     const y = 70;
-    for (let i = 0; i < LIVES_MAX; i++) {
-      positions.push({ x: startX - i * 22, y });
-    }
+    for (let i = 0; i < LIVES_MAX; i++) positions.push({ x: startX - i * 22, y });
     return positions;
   }, []);
 
@@ -209,7 +227,7 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
     if (tapResult === 'hit') {
       gameState.mode.value = 'dash';
       gameState.dashStartTime.value = Date.now();
-    } else if (tapResult === 'miss') {
+    } else {
       loseLife({
         lives: gameState.lives,
         alive: gameState.alive,
@@ -227,18 +245,12 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
   };
 
   const shieldDotsY = 98;
+  const ballColor = resolveBallColor(selectedBallId);
 
   return (
     <Pressable style={styles.container} onPress={onTap}>
-      <StatusBar hidden />
-
       <Canvas style={styles.canvas}>
-        <CoinHUD
-          x={COIN_HUD_X}
-          y={COIN_HUD_Y}
-          coins={gameState.coins}
-          pulse={gameState.coinHudPulse}
-        />
+        <CoinHUD x={COIN_HUD_X} y={COIN_HUD_Y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
 
         {/* FADING RING */}
         <Circle
@@ -270,50 +282,14 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* ORBE DE VIE */}
-        <MiniNeonOrb
-          cx={lifeOrb.lifeOrbX}
-          cy={lifeOrb.lifeOrbY}
-          r={8}
-          color="#ef4444"
-          opacity={lifeOrb.lifeOrbVisible}
-        />
+        {/* ORBS */}
+        <MiniNeonOrb cx={lifeOrb.lifeOrbX} cy={lifeOrb.lifeOrbY} r={8} color="#ef4444" opacity={lifeOrb.lifeOrbVisible} />
+        <MiniNeonOrb cx={autoPlay.autoPlayOrbX} cy={autoPlay.autoPlayOrbY} r={13} color="#8b5cf6" opacity={autoPlay.autoPlayOrbVisible} />
+        <MiniNeonOrb cx={shield.shieldOrbX} cy={shield.shieldOrbY} r={13} color="#22d3ee" opacity={shield.shieldOrbVisible} />
+        <MiniNeonOrb cx={coinOrb.coinOrbX} cy={coinOrb.coinOrbY} r={12} color="#fbbf24" opacity={coinOrb.coinOrbVisible} />
 
-        {/* ORBE AUTO-PLAY */}
-        <MiniNeonOrb
-          cx={autoPlay.autoPlayOrbX}
-          cy={autoPlay.autoPlayOrbY}
-          r={13}
-          color="#8b5cf6"
-          opacity={autoPlay.autoPlayOrbVisible}
-        />
-
-        {/* ORBE SHIELD */}
-        <MiniNeonOrb
-          cx={shield.shieldOrbX}
-          cy={shield.shieldOrbY}
-          r={13}
-          color="#22d3ee"
-          opacity={shield.shieldOrbVisible}
-        />
-
-        {/* ORBE COIN (attaché) */}
-        <MiniNeonOrb
-          cx={coinOrb.coinOrbX}
-          cy={coinOrb.coinOrbY}
-          r={12}
-          color="#fbbf24"
-          opacity={coinOrb.coinOrbVisible}
-        />
-
-        {/* ✅ COIN FX (fly-to-HUD) */}
-        <CoinFxLayer
-          x={coinFx.flyX}
-          y={coinFx.flyY}
-          opacity={coinFx.flyVisible}
-          r={12}
-          color="#fbbf24"
-        />
+        {/* COIN FX */}
+        <CoinFxLayer x={coinFx.flyX} y={coinFx.flyY} opacity={coinFx.flyVisible} r={12} color="#fbbf24" />
 
         {/* NEXT RING */}
         <NeonRing
@@ -331,9 +307,9 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
 
         {/* BALL + HALO SHIELD */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={14} color={SHIELD_HALO_COLOR} opacity={shield.shieldHaloVisible} />
-        <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={BALL_COLOR} />
+        <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={ballColor} />
 
-        {/* AUTO-PLAY FX */}
+        {/* FX */}
         <AutoPlayFxLayer
           alive={gameState.alive}
           isPaused={gameState.isPaused}
@@ -343,7 +319,6 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
           capacity={48}
         />
 
-        {/* SHIELD FX */}
         <ShieldFxLayer
           alive={gameState.alive}
           isPaused={gameState.isPaused}
@@ -353,10 +328,9 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
           capacity={24}
         />
 
-        {/* SCORE HUD */}
+        {/* HUD */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
 
-        {/* POPUP SCORE */}
         <Text
           x={gameState.scorePopupX}
           y={useDerivedValue(() => gameState.scorePopupY.value + 10)}
@@ -366,12 +340,10 @@ const DriftGame: React.FC<Props> = ({ onShop }) => {
           opacity={gameState.scorePopupOpacity}
         />
 
-        {/* LIVES */}
         {livesPositions.map((pos, i) => (
           <LifeDot key={i} x={pos.x} y={pos.y} index={i} lives={gameState.lives} />
         ))}
 
-        {/* SHIELD CHARGES */}
         <Circle cx={CANVAS_WIDTH - 60} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge1Visible} />
         <Circle cx={CANVAS_WIDTH - 82} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge2Visible} />
         <Circle cx={CANVAS_WIDTH - 104} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge3Visible} />

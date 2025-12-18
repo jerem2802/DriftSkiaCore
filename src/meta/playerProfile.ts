@@ -5,8 +5,7 @@ export type PlayerProfile = {
   totalCoins: number;
   bestScore: number;
 
-  // ✅ Shop
-  ownedItems: Record<string, true>;
+  ownedBalls: string[];
   selectedBallId: string;
 
   updatedAt: number;
@@ -19,8 +18,8 @@ const DEFAULT_PROFILE: PlayerProfile = {
   totalCoins: 0,
   bestScore: 0,
 
-  ownedItems: { 'ball_classic': true }, // ✅ au moins 1 bille gratuite
-  selectedBallId: 'ball_classic',
+  ownedBalls: ['core'],
+  selectedBallId: 'core',
 
   updatedAt: Date.now(),
 };
@@ -28,14 +27,15 @@ const DEFAULT_PROFILE: PlayerProfile = {
 export const loadProfile = async (): Promise<PlayerProfile> => {
   const raw = await AsyncStorage.getItem(KEY);
   if (!raw) return DEFAULT_PROFILE;
+
   try {
     const p = JSON.parse(raw) as Partial<PlayerProfile>;
     return {
       ...DEFAULT_PROFILE,
       ...p,
       v: 1,
-      ownedItems: { ...DEFAULT_PROFILE.ownedItems, ...(p.ownedItems ?? {}) },
-      selectedBallId: p.selectedBallId ?? DEFAULT_PROFILE.selectedBallId,
+      ownedBalls: Array.isArray(p.ownedBalls) ? p.ownedBalls : DEFAULT_PROFILE.ownedBalls,
+      selectedBallId: typeof p.selectedBallId === 'string' ? p.selectedBallId : DEFAULT_PROFILE.selectedBallId,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -46,10 +46,7 @@ export const saveProfile = async (profile: PlayerProfile): Promise<void> => {
   await AsyncStorage.setItem(KEY, JSON.stringify(profile));
 };
 
-export const commitRunToProfile = async (params: {
-  coinsEarned: number;
-  score: number;
-}): Promise<PlayerProfile> => {
+export const commitRunToProfile = async (params: { coinsEarned: number; score: number }): Promise<PlayerProfile> => {
   const p = await loadProfile();
   const next: PlayerProfile = {
     ...p,
@@ -61,29 +58,26 @@ export const commitRunToProfile = async (params: {
   return next;
 };
 
-// ✅ Helpers Shop (MVP)
-export const purchaseItem = async (itemId: string, price: number): Promise<PlayerProfile> => {
+export const setSelectedBall = async (ballId: string): Promise<PlayerProfile> => {
   const p = await loadProfile();
-  if (p.ownedItems[itemId]) return p;
-  if (p.totalCoins < price) return p;
-
   const next: PlayerProfile = {
     ...p,
-    totalCoins: p.totalCoins - price,
-    ownedItems: { ...p.ownedItems, [itemId]: true },
+    selectedBallId: ballId,
     updatedAt: Date.now(),
   };
   await saveProfile(next);
   return next;
 };
 
-export const selectBall = async (ballId: string): Promise<PlayerProfile> => {
+export const purchaseBall = async (ballId: string, price: number): Promise<PlayerProfile> => {
   const p = await loadProfile();
-  if (!p.ownedItems[ballId]) return p;
+  if (p.ownedBalls.includes(ballId)) return p;
+  if (p.totalCoins < price) return p;
 
   const next: PlayerProfile = {
     ...p,
-    selectedBallId: ballId,
+    totalCoins: p.totalCoins - price,
+    ownedBalls: [...p.ownedBalls, ballId],
     updatedAt: Date.now(),
   };
   await saveProfile(next);

@@ -9,8 +9,8 @@ import {
 
 import {
   loadProfile,
-  purchaseItem,
-  selectBall,
+  purchaseBall,
+  setSelectedBall,
   type PlayerProfile,
 } from '../../meta/playerProfile';
 
@@ -18,14 +18,19 @@ import { SHOP_BALLS, type ShopBall } from './shopCatalog';
 import { ShopHeader } from './ShopHeader';
 import { ShopBallCard } from './ShopBallCard';
 
-export const ShopScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+type Props = {
+  onBack: () => void;
+  onSelectedBallId?: (id: string) => void; // ✅ remonte au App pour update visuel
+};
+
+// ✅ DEV : permet d’équiper n’importe quelle bille (sans achat) pour tester vite
+const DEV_UNLOCK_ALL = __DEV__;
+
+export const ShopScreen: React.FC<Props> = ({ onBack, onSelectedBallId }) => {
   const [profile, setProfile] = React.useState<PlayerProfile | null>(null);
   const [busy, setBusy] = React.useState(false);
 
   const { width } = useWindowDimensions();
-
-  // ✅ IMPORTANT: phone = 2 colonnes, tablette = 3
-  // (sur un tel, 3 colonnes = mots tronqués + UI "cheap")
   const cols = width >= 720 ? 3 : 2;
 
   const refresh = React.useCallback(() => {
@@ -41,7 +46,7 @@ export const ShopScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       if (busy) return;
       setBusy(true);
       try {
-        const next = await purchaseItem(id, price);
+        const next = await purchaseBall(id, price);
         setProfile(next);
       } finally {
         setBusy(false);
@@ -55,20 +60,25 @@ export const ShopScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       if (busy) return;
       setBusy(true);
       try {
-        const next = await selectBall(id);
+        const next = await setSelectedBall(id);
         setProfile(next);
+        onSelectedBallId?.(id);
       } finally {
         setBusy(false);
       }
     },
-    [busy]
+    [busy, onSelectedBallId]
   );
 
   const renderItem = React.useCallback(
     ({ item }: { item: ShopBall }) => {
-      const owned = !!profile?.ownedItems[item.id];
+      const ownedRaw = !!profile?.ownedBalls?.includes(item.id);
+      const owned = DEV_UNLOCK_ALL ? true : ownedRaw;
+
       const selected = profile?.selectedBallId === item.id;
-      const canBuy = !!profile && profile.totalCoins >= item.price;
+
+      const canBuyRaw = !!profile && profile.totalCoins >= item.price;
+      const canBuy = DEV_UNLOCK_ALL ? true : canBuyRaw;
 
       return (
         <ShopBallCard
@@ -78,7 +88,7 @@ export const ShopScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           canBuy={canBuy}
           busy={busy}
           onBuy={onBuy}
-          onSelect={onEquip}
+          onSelect={onEquip} // ✅ même si non owned en DEV, tu peux équiper
         />
       );
     },
@@ -97,7 +107,7 @@ export const ShopScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <ShopHeader totalCoins={profile?.totalCoins ?? null} onBack={onBack} />
 
         <FlatList
-          key={cols} // ✅ force relayout si cols change
+          key={cols}
           data={SHOP_BALLS}
           keyExtractor={(it) => it.id}
           renderItem={renderItem}
