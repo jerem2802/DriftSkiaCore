@@ -1,7 +1,7 @@
+// src/components/shop/ShopBallCard.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { OrbPreview } from './OrbPreview';
-import { WaterBallPreview } from './WaterBallPreview';
+import { BallPreviewSkia } from './BallPreviewSkia';
 import { tierFrame, type ShopBall } from './shopCatalog';
 
 type Props = {
@@ -18,7 +18,6 @@ export const ShopBallCard: React.FC<Props> = React.memo(
   ({ item, owned, selected, canBuy, busy, onBuy, onSelect }) => {
     const locked = !owned && !canBuy;
     const disabled = busy || locked || (owned && selected);
-
     const ctaLabel = !owned ? (locked ? 'LOCKED' : 'BUY') : (selected ? 'EQUIPPED' : 'EQUIP');
 
     const onPressCTA = () => {
@@ -28,41 +27,26 @@ export const ShopBallCard: React.FC<Props> = React.memo(
 
     return (
       <View style={[styles.card, { borderColor: tierFrame(item.tier) }]}>
-        {/* glow interne */}
         <View pointerEvents="none" style={[styles.innerGlow, { borderColor: item.accent }]} />
-
-        {/* Header */}
         <View style={styles.headerRow}>
           <View style={[styles.priceChip, item.price === 0 && styles.priceChipFree]}>
             <Text style={styles.priceValue}>{item.price}</Text>
             <Text style={styles.priceUnit}>C</Text>
           </View>
-
           <View style={[styles.tierChip, { borderColor: tierFrame(item.tier) }]}>
             <Text style={styles.tierText}>{item.tier}</Text>
           </View>
         </View>
-
-        {/* Orb */}
         <View style={styles.orbWrap}>
           <View pointerEvents="none" style={[styles.orbHalo, { backgroundColor: item.accent }]} />
-          {item.id === 'ball_water' ? (
-            <WaterBallPreview size={62} />
-          ) : (
-            <OrbPreview accent={item.accent} size={62} />
-          )}
+          <BallPreviewSkia ballId={item.id} size={62} />
         </View>
-
-        {/* Text */}
         <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
           {item.name}
         </Text>
-
         <Text style={styles.desc} numberOfLines={2} ellipsizeMode="tail">
           {item.desc}
         </Text>
-
-        {/* CTA */}
         <Pressable
           onPress={onPressCTA}
           disabled={disabled}
@@ -86,15 +70,11 @@ export const ShopBallCard: React.FC<Props> = React.memo(
             {ctaLabel}
           </Text>
         </Pressable>
-
-        {/* Badge selected discret */}
         {selected && (
           <View style={[styles.selectedBadge, { borderColor: item.accent }]}>
             <Text style={[styles.selectedText, { color: item.accent }]}>SELECTED</Text>
           </View>
         )}
-
-        {/* voile locked */}
         {locked && <View pointerEvents="none" style={styles.lockedVeil} />}
       </View>
     );
@@ -112,20 +92,17 @@ const styles = StyleSheet.create({
     minHeight: 250,
     elevation: 4,
   },
-
   innerGlow: {
     ...StyleSheet.absoluteFillObject,
     borderWidth: 1,
     borderRadius: 20,
     opacity: 0.14,
   },
-
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
   priceChip: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -141,7 +118,6 @@ const styles = StyleSheet.create({
   },
   priceValue: { color: '#fbbf24', fontSize: 12, fontWeight: '900' },
   priceUnit: { color: '#fde68a', fontSize: 10, fontWeight: '900', marginLeft: 4 },
-
   tierChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -150,7 +126,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.28)',
   },
   tierText: { color: '#e5e7eb', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-
   orbWrap: {
     marginTop: 14,
     alignItems: 'center',
@@ -164,7 +139,6 @@ const styles = StyleSheet.create({
     opacity: 0.18,
     transform: [{ scale: 1.15 }],
   },
-
   name: {
     marginTop: 14,
     color: '#ffffff',
@@ -179,7 +153,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     minHeight: 32,
   },
-
   cta: {
     marginTop: 12,
     borderRadius: 14,
@@ -191,25 +164,19 @@ const styles = StyleSheet.create({
   },
   ctaPressed: { opacity: 0.86 },
   ctaDisabled: { opacity: 0.55 },
-
   ctaLocked: {
     borderColor: 'rgba(148,163,184,0.35)',
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-
   ctaEquipped: {
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
-
   ctaText: {
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1.4,
   },
-  ctaTextOnDark: {
-    // garde la lisibilité sur le bouton sombre
-  },
-
+  ctaTextOnDark: {},
   selectedBadge: {
     position: 'absolute',
     right: 12,
@@ -221,7 +188,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   selectedText: { fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
-
   lockedVeil: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.22)',

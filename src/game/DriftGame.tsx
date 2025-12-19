@@ -44,6 +44,7 @@ import {
 } from '../constants/gameplay';
 import { SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
 import { BallRenderer } from './balls/BallRenderer';
+import { PlasmaEffects } from './effects/PlasmaEffects';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
@@ -312,6 +313,20 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           ballY={gameState.ballY}
           capacity={24}
         />
+
+        {/* PLASMA EFFECTS */}
+        {selectedBallId === 'ball_extreme' && (
+          <PlasmaEffects
+            ballX={gameState.ballX}
+            ballY={gameState.ballY}
+            orbs={[
+              { x: lifeOrb.lifeOrbX, y: lifeOrb.lifeOrbY, visible: lifeOrb.lifeOrbVisible },
+              { x: shield.shieldOrbX, y: shield.shieldOrbY, visible: shield.shieldOrbVisible },
+              { x: autoPlay.autoPlayOrbX, y: autoPlay.autoPlayOrbY, visible: autoPlay.autoPlayOrbVisible },
+              { x: coinOrb.coinOrbX, y: coinOrb.coinOrbY, visible: coinOrb.coinOrbVisible },
+            ]}
+          />
+        )}
 
         {/* HUD */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
