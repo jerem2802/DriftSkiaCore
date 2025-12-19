@@ -31,8 +31,6 @@ import { useAutoPlaySystem } from './hooks/useAutoPlaySystem';
 import { useGameOverSystem } from './hooks/useGameOverSystem';
 import { useLifeOrbSystem } from './hooks/useLifeOrbSystem';
 
-import { SHOP_BALLS } from '../components/shop/shopCatalog';
-
 import { ScoreHUD } from './skia/ScoreHUD';
 import { LifeDot } from './skia/LifeDot';
 
@@ -44,7 +42,8 @@ import {
   START_GATE_WIDTH,
   RING_RADIUS,
 } from '../constants/gameplay';
-import { BALL_COLOR, SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
+import { SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
+import { BallRenderer } from './balls/BallRenderer';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
@@ -64,25 +63,10 @@ const popupFontStyle = {
 };
 const popupFont = matchFont(popupFontStyle);
 
-// ✅ MVP: couleur bille = accent défini dans shopCatalog
-const BALL_COLOR_BY_ID: Record<string, string> = Object.fromEntries(
-  SHOP_BALLS.map((b) => [b.id, b.accent])
-);
-
-const resolveBallColor = (id: string) => {
-  // compat ancien id
-  if (id === 'core') return BALL_COLOR;
-
-  // bille gratuite shop
-  if (id === 'ball_classic') return BALL_COLOR;
-
-  return BALL_COLOR_BY_ID[id] ?? BALL_COLOR;
-};
-
 type DriftGameProps = {
   onShop: () => void;
   selectedBallId?: string;
-  allowStart?: boolean; // ✅
+  allowStart?: boolean;
 };
 
 const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true }) => {
@@ -149,7 +133,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     startGateWidth: START_GATE_WIDTH,
   });
 
-  // ✅ démarre le jeu seulement quand allowStart === true (évite gameplay derrière Headphones/Shop)
   React.useEffect(() => {
     if (!allowStart) {
       gameState.isPaused.value = true;
@@ -242,7 +225,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
   };
 
   const shieldDotsY = 98;
-  const ballColor = resolveBallColor(selectedBallId);
 
   return (
     <Pressable style={styles.container} onPress={onTap}>
@@ -304,7 +286,13 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
 
         {/* BALL + HALO SHIELD */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={14} color={SHIELD_HALO_COLOR} opacity={shield.shieldHaloVisible} />
-        <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={ballColor} />
+        <BallRenderer 
+          selectedBallId={selectedBallId} 
+          ballX={gameState.ballX} 
+          ballY={gameState.ballY} 
+          alive={gameState.alive} 
+          isPaused={gameState.isPaused} 
+        />
 
         {/* FX */}
         <AutoPlayFxLayer

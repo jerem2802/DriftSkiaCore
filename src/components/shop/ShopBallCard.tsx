@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { OrbPreview } from './OrbPreview';
+import { WaterBallPreview } from './WaterBallPreview';
 import { tierFrame, type ShopBall } from './shopCatalog';
 
 type Props = {
@@ -45,7 +46,11 @@ export const ShopBallCard: React.FC<Props> = React.memo(
         {/* Orb */}
         <View style={styles.orbWrap}>
           <View pointerEvents="none" style={[styles.orbHalo, { backgroundColor: item.accent }]} />
-          <OrbPreview accent={item.accent} size={62} />
+          {item.id === 'ball_water' ? (
+            <WaterBallPreview size={62} />
+          ) : (
+            <OrbPreview accent={item.accent} size={62} />
+          )}
         </View>
 
         {/* Text */}

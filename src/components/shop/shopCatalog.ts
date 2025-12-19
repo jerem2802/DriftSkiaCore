@@ -33,6 +33,14 @@ export const SHOP_BALLS: ShopBall[] = [
     accent: '#22d3ee',
   },
   {
+  id: 'ball_water',
+  name: 'Aqua Flow',
+  price: 250,
+  desc: 'Water trail fluide. AutoPlay +0.4s',
+  tier: 'COMMON',
+  accent: '#3b82f6',
+},
+  {
     id: 'ball_amber',
     name: 'Amber Drift',
     price: 120,
