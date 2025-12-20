@@ -135,19 +135,47 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // ❄️ CYAN
-  ball_cyan: {
-    blendMode: 'plus',
-    primary: createLayer({
-      type: 'frost',
-      color: 'rgba(150, 240, 255, 0.95)',
-      gravity: 90,
-      width: 11,
-      height: 15,
-      rotationSpeed: 3.5,
-    }),
-  },
-
+// 🔥 FEU - Cendres ÉNORMES et VISIBLES
+ball_cyan: {
+  blendMode: 'plus',
+  primary: createLayer({
+    type: 'flames',
+    color: 'rgba(255, 80, 20, 0.95)',
+    gravity: -90,
+    width: 10,
+    height: 16,
+    spawnRate: 35,
+    lifeMin: 0.3,
+    lifeMax: 0.6,
+    scaleOverLife: true,
+    rotationSpeed: 4.0,
+    friction: 0.88,
+    dragX: 0.80,
+    dragY: 0.75,
+    randomSpread: 45,
+    fadeMode: 'smooth',
+    velocityInherit: 0.3,
+  }),
+  secondary: createLayer({
+    type: 'particles',
+    color: 'rgba(255, 220, 150, 1.0)',
+    gravity: -5,
+    width: 8,
+    height: 8,
+    spawnRate: 90,
+    lifeMin: 1.5,
+    lifeMax: 2.5,
+    scaleOverLife: false,
+    rotationSpeed: 12.0,
+    friction: 0.97,
+    dragX: 0.40,
+    dragY: 0.45,
+    randomSpread: 180,
+    fadeMode: 'linear',
+    velocityInherit: 0.0,
+    opacity: 1.0,
+  }),
+},
   // 🌿 MENTHE
   ball_mint: {
     blendMode: 'plus',
@@ -476,37 +504,37 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // 🔥 EXTREME - Grosses flammes + braises
-  ball_extreme: {
-    blendMode: 'plus',
-    primary: createLayer({
-      type: 'flames',
-      color: 'rgba(255, 110, 40, 0.98)',
-      gravity: -120,
-      width: 14,
-      height: 20,
-      spawnRate: 65,
-      lifeMin: 0.6,
-      lifeMax: 1.0,
-      scaleOverLife: true,
-      rotationSpeed: 3.5,
-      dragY: 0.86,
-      randomSpread: 35,
-    }),
-    secondary: createLayer({
-      type: 'flames',
-      color: 'rgba(255, 80, 20, 0.85)',
-      gravity: -100,
-      width: 7,
-      height: 10,
-      spawnRate: 45,
-      lifeMin: 0.4,
-      lifeMax: 0.7,
-      scaleOverLife: true,
-      rotationSpeed: 2.5,
-      opacity: 0.85,
-    }),
-  },
+// 🔥 EXTREME - RÉDUIT
+ball_extreme: {
+  blendMode: 'plus',
+  primary: createLayer({
+    type: 'flames',
+    color: 'rgba(255, 110, 40, 0.98)',
+    gravity: -120,
+    width: 10,        // ← ÉTAIT 14
+    height: 14,       // ← ÉTAIT 20
+    spawnRate: 35,    // ← ÉTAIT 65 (divisé par 2 !)
+    lifeMin: 0.4,     // ← ÉTAIT 0.6
+    lifeMax: 0.7,     // ← ÉTAIT 1.0
+    scaleOverLife: true,
+    rotationSpeed: 3.5,
+    dragY: 0.86,
+    randomSpread: 35,
+  }),
+  secondary: createLayer({
+    type: 'flames',
+    color: 'rgba(255, 80, 20, 0.85)',
+    gravity: -100,
+    width: 5,         // ← ÉTAIT 7
+    height: 7,        // ← ÉTAIT 10
+    spawnRate: 25,    // ← ÉTAIT 45 (divisé par 2 !)
+    lifeMin: 0.3,     // ← ÉTAIT 0.4
+    lifeMax: 0.5,     // ← ÉTAIT 0.7
+    scaleOverLife: true,
+    rotationSpeed: 2.5,
+    opacity: 0.85,
+  }),
+},
 };
 
 export const getBallTrailConfig = (ballId: string): TrailConfig => {

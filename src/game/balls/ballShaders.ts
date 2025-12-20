@@ -104,23 +104,56 @@ vec4 main(vec2 fragCoord) {
   return vec4(color, 1.0);
 }`,
 
-  ball_cyan: `
+ball_cyan: `
 uniform float u_time;
 uniform vec2 u_center;
 uniform float u_radius;
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5);
+}
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
 vec4 main(vec2 fragCoord) {
   vec2 v = fragCoord - u_center;
   float dist = length(v);
   if(dist > u_radius) return vec4(0.0);
   float angle = atan(v.y, v.x);
-  float radial = dist / u_radius;
-  float reflection = abs(sin(angle * 4.0 + u_time * 2.0)) * (1.0 - radial);
-  vec3 crystalBase = vec3(0.4, 0.9, 0.95);
-  vec3 crystalHighlight = vec3(0.9, 1.0, 1.0);
-  vec3 color = mix(crystalBase, crystalHighlight, reflection * 0.7);
-  float centerGlow = smoothstep(0.5, 0.0, radial) * 0.4;
-  color += centerGlow;
-  return vec4(color, 0.9 + radial * 0.1);
+  vec2 uv = v / u_radius;
+  float fire1 = noise(uv * 8.0 + vec2(0.0, -u_time * 3.0));
+  float fire2 = noise(uv * 12.0 + vec2(u_time * 2.0, -u_time * 4.0));
+  float fire3 = noise(uv * 5.0 + vec2(-u_time * 1.5, -u_time * 2.5));
+  float flames = fire1 * 0.5 + fire2 * 0.3 + fire3 * 0.2;
+  flames += sin(angle * 6.0 - u_time * 5.0) * 0.15;
+  float radial = 1.0 - dist / u_radius;
+  vec3 darkRed = vec3(0.6, 0.1, 0.0);
+  vec3 red = vec3(1.0, 0.2, 0.0);
+  vec3 orange = vec3(1.0, 0.5, 0.0);
+  vec3 yellow = vec3(1.0, 0.9, 0.3);
+  vec3 white = vec3(1.0, 1.0, 0.9);
+  vec3 color;
+  if(flames < 0.2) {
+    color = mix(darkRed, red, flames / 0.2);
+  } else if(flames < 0.5) {
+    color = mix(red, orange, (flames - 0.2) / 0.3);
+  } else if(flames < 0.75) {
+    color = mix(orange, yellow, (flames - 0.5) / 0.25);
+  } else {
+    color = mix(yellow, white, (flames - 0.75) / 0.25);
+  }
+  color *= (0.6 + radial * 0.4);
+  float pulse = sin(u_time * 6.0) * 0.15 + 0.85;
+  color *= pulse;
+  float flicker = sin(u_time * 20.0 + flames * 10.0) * 0.05 + 0.95;
+  color *= flicker;
+  return vec4(color, 1.0);
 }`,
 
   ball_mint: `
