@@ -1,5 +1,5 @@
 // src/game/balls/ballTrailConfigs.ts
-export type TrailType = 
+export type TrailType =
   | 'none'
   | 'droplets'
   | 'sparks'
@@ -11,8 +11,7 @@ export type TrailType =
   | 'stars'
   | 'particles'
   | 'smoke'
-  | 'blood'
-  | 'liquid';  // ✅ AJOUT
+  | 'blood';
 
 export type FadeMode = 'linear' | 'smooth' | 'sudden' | 'gradual';
 
@@ -37,15 +36,15 @@ export type ParticleLayerConfig = {
   scaleOverLife: boolean;
   fadeMode: FadeMode;
   zigzag: number;
-  velocitySpread?: number;
+  velocitySpread?: number; // Added this property
 };
 
 export type TrailConfig = {
   blendMode: any;
   primary: ParticleLayerConfig;
-  secondary?: ParticleLayerConfig;
-  tertiary?: ParticleLayerConfig;
-  quaternary?: ParticleLayerConfig;
+  secondary?: ParticleLayerConfig
+  tertiary?: ParticleLayerConfig
+  quaternary?: ParticleLayerConfig
 };
 
 const createLayer = (overrides: Partial<ParticleLayerConfig>): ParticleLayerConfig => ({
@@ -81,43 +80,71 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
       height: 12,
     }),
   },
+// 💧 EAU - Avec profondeur et texture liquide
+ball_water: {
+  blendMode: 'plus',
 
-  // 💧 EAU - Ruban liquide connecté
-  ball_water: {
-    blendMode: 'plus',
-    
-    // RUBAN LIQUIDE PRINCIPAL
-    primary: createLayer({
-      type: 'liquid',  // ✅ Nouveau type
-      color: 'rgba(120, 210, 255, 0.5)',
-      gravity: 350,
-      width: 10,        // Largeur du trait
-      height: 12,
-      spawnRate: 18,
-      lifeMin: 0.35,
-      lifeMax: 0.55,
-      fadeMode: 'smooth',
-      velocityInherit: 0.95,
-      randomSpread: 8,
-    }),
-    
-    // Reflets blancs (droplets classiques)
-    secondary: createLayer({
-      type: 'droplets',
-      color: 'rgba(255, 255, 255, 0.7)',
-      gravity: 320,
-      width: 3,
-      height: 4,
-      spawnRate: 40,
-      lifeMin: 0.12,
-      lifeMax: 0.22,
-      fadeMode: 'sudden',
-      velocityInherit: 0.9,
-      randomSpread: 20,
-    }),
-  },
+  // 1) CŒUR DES GOUTTES : centre sombre/transparent
+  primary: createLayer({
+    type: 'droplets',
+    color: 'rgba(100, 200, 240, 0.25)',  // ✅ Centre translucide (comme vraie eau)
+    gravity: 280,
+    width: 10,
+    height: 13,
+    spawnRate: 22,
+    lifeMin: 0.22,
+    lifeMax: 0.38,
+    fadeMode: 'sudden',
+    velocityInherit: 0.65,
+  }),
 
-  // 🍯 MIEL
+  // 2) CONTOUR LUMINEUX : bord brillant des gouttes
+  secondary: createLayer({
+    type: 'droplets',
+    color: 'rgba(180, 245, 255, 0.65)',  // ✅ Contour BRIGHT (réfraction)
+    gravity: 280,                         // ✅ Même gravité = suit le cœur
+    width: 11,                            // ✅ 1px plus large = effet bordure
+    height: 14,
+    spawnRate: 22,                        // ✅ Même spawn = overlay parfait
+    lifeMin: 0.22,
+    lifeMax: 0.38,
+    fadeMode: 'sudden',
+    velocityInherit: 0.65,                // ✅ Parfaitement synchro
+    opacity: 0.4,                         // ✅ Semi-transparent
+  }),
+
+  // 3) REFLETS BLANCS : highlights sur les gouttes
+  tertiary: createLayer({
+    type: 'droplets',
+    color: 'rgba(255, 255, 255, 0.75)',  // ✅ Reflets intenses
+    gravity: 250,
+    width: 3,
+    height: 4,
+    spawnRate: 70,
+    lifeMin: 0.14,
+    lifeMax: 0.26,
+    fadeMode: 'sudden',
+    velocityInherit: 0.9,
+  }),
+
+  // 4) SPRAY FIN : microgouttes dispersées
+  quaternary: createLayer({
+    type: 'droplets',
+    color: 'rgba(140, 220, 255, 0.3)',
+    gravity: 260,
+    width: 4,
+    height: 5,
+    spawnRate: 40,
+    lifeMin: 0.18,
+    lifeMax: 0.30,
+    fadeMode: 'gradual',
+    velocityInherit: 0.75,
+    velocitySpread: 0.25,
+  }),
+},
+
+
+  // 🍯 MIEL - Grosses bulles + petites
   ball_amber: {
     blendMode: 'plus',
     primary: createLayer({
@@ -145,48 +172,47 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // 🔥 FEU
-  ball_cyan: {
-    blendMode: 'plus',
-    primary: createLayer({
-      type: 'flames',
-      color: 'rgba(255, 80, 20, 0.95)',
-      gravity: -90,
-      width: 10,
-      height: 16,
-      spawnRate: 35,
-      lifeMin: 0.3,
-      lifeMax: 0.6,
-      scaleOverLife: true,
-      rotationSpeed: 4.0,
-      friction: 0.88,
-      dragX: 0.80,
-      dragY: 0.75,
-      randomSpread: 45,
-      fadeMode: 'smooth',
-      velocityInherit: 0.3,
-    }),
-    secondary: createLayer({
-      type: 'particles',
-      color: 'rgba(255, 220, 150, 1.0)',
-      gravity: -5,
-      width: 8,
-      height: 8,
-      spawnRate: 90,
-      lifeMin: 1.5,
-      lifeMax: 2.5,
-      scaleOverLife: false,
-      rotationSpeed: 12.0,
-      friction: 0.97,
-      dragX: 0.40,
-      dragY: 0.45,
-      randomSpread: 180,
-      fadeMode: 'linear',
-      velocityInherit: 0.0,
-      opacity: 1.0,
-    }),
-  },
-
+// 🔥 FEU - Cendres ÉNORMES et VISIBLES
+ball_cyan: {
+  blendMode: 'plus',
+  primary: createLayer({
+    type: 'flames',
+    color: 'rgba(255, 80, 20, 0.95)',
+    gravity: -90,
+    width: 10,
+    height: 16,
+    spawnRate: 35,
+    lifeMin: 0.3,
+    lifeMax: 0.6,
+    scaleOverLife: true,
+    rotationSpeed: 4.0,
+    friction: 0.88,
+    dragX: 0.80,
+    dragY: 0.75,
+    randomSpread: 45,
+    fadeMode: 'smooth',
+    velocityInherit: 0.3,
+  }),
+  secondary: createLayer({
+    type: 'particles',
+    color: 'rgba(255, 220, 150, 1.0)',
+    gravity: -5,
+    width: 8,
+    height: 8,
+    spawnRate: 90,
+    lifeMin: 1.5,
+    lifeMax: 2.5,
+    scaleOverLife: false,
+    rotationSpeed: 12.0,
+    friction: 0.97,
+    dragX: 0.40,
+    dragY: 0.45,
+    randomSpread: 180,
+    fadeMode: 'linear',
+    velocityInherit: 0.0,
+    opacity: 1.0,
+  }),
+},
   // 🌿 MENTHE
   ball_mint: {
     blendMode: 'plus',
@@ -201,7 +227,7 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // 🌸 ROSE
+  // 🌸 ROSE - Gros pétales + petits
   ball_rose: {
     blendMode: 'plus',
     primary: createLayer({
@@ -232,7 +258,7 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // ⚙️ ACIER
+  // ⚙️ ACIER - Grosses étincelles + petites
   ball_steel: {
     blendMode: 'plus',
     primary: createLayer({
@@ -285,7 +311,7 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // ⚡ VIOLET
+  // ⚡ VIOLET - Éclairs épais + fins
   ball_violet: {
     blendMode: 'plus',
     primary: createLayer({
@@ -328,7 +354,7 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // 🌺 ORCHIDÉE
+  // 🌺 ORCHIDÉE - Gros pétales magiques
   ball_orchid: {
     blendMode: 'plus',
     primary: createLayer({
@@ -359,7 +385,7 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // 🩸 SANG
+  // 🩸 SANG - Grosses gouttes + éclaboussures
   ball_blood: {
     blendMode: 'plus',
     primary: createLayer({
@@ -409,7 +435,7 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // 🌌 DEEP PURPLE
+  // 🌌 DEEP PURPLE - Étoiles
   ball_deeppurple: {
     blendMode: 'plus',
     primary: createLayer({
@@ -515,37 +541,37 @@ export const BALL_TRAIL_CONFIGS: Record<string, TrailConfig> = {
     }),
   },
 
-  // 🔥 EXTREME
-  ball_extreme: {
-    blendMode: 'plus',
-    primary: createLayer({
-      type: 'flames',
-      color: 'rgba(255, 110, 40, 0.98)',
-      gravity: -120,
-      width: 10,
-      height: 14,
-      spawnRate: 35,
-      lifeMin: 0.4,
-      lifeMax: 0.7,
-      scaleOverLife: true,
-      rotationSpeed: 3.5,
-      dragY: 0.86,
-      randomSpread: 35,
-    }),
-    secondary: createLayer({
-      type: 'flames',
-      color: 'rgba(255, 80, 20, 0.85)',
-      gravity: -100,
-      width: 5,
-      height: 7,
-      spawnRate: 25,
-      lifeMin: 0.3,
-      lifeMax: 0.5,
-      scaleOverLife: true,
-      rotationSpeed: 2.5,
-      opacity: 0.85,
-    }),
-  },
+// 🔥 EXTREME - RÉDUIT
+ball_extreme: {
+  blendMode: 'plus',
+  primary: createLayer({
+    type: 'flames',
+    color: 'rgba(255, 110, 40, 0.98)',
+    gravity: -120,
+    width: 10,        // ← ÉTAIT 14
+    height: 14,       // ← ÉTAIT 20
+    spawnRate: 35,    // ← ÉTAIT 65 (divisé par 2 !)
+    lifeMin: 0.4,     // ← ÉTAIT 0.6
+    lifeMax: 0.7,     // ← ÉTAIT 1.0
+    scaleOverLife: true,
+    rotationSpeed: 3.5,
+    dragY: 0.86,
+    randomSpread: 35,
+  }),
+  secondary: createLayer({
+    type: 'flames',
+    color: 'rgba(255, 80, 20, 0.85)',
+    gravity: -100,
+    width: 5,         // ← ÉTAIT 7
+    height: 7,        // ← ÉTAIT 10
+    spawnRate: 25,    // ← ÉTAIT 45 (divisé par 2 !)
+    lifeMin: 0.3,     // ← ÉTAIT 0.4
+    lifeMax: 0.5,     // ← ÉTAIT 0.7
+    scaleOverLife: true,
+    rotationSpeed: 2.5,
+    opacity: 0.85,
+  }),
+},
 };
 
 export const getBallTrailConfig = (ballId: string): TrailConfig => {
