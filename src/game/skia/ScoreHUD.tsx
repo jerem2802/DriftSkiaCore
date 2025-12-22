@@ -39,7 +39,7 @@ export const ScoreHUD: React.FC<Props> = ({
   score,
   streak,
   canvasWidth,
-  yScore = 80,
+  yScore = 44, // ✅ remonte le score (était 80)
 }) => {
   const scoreText = useDerivedValue(() => Math.round(score.value).toString());
 

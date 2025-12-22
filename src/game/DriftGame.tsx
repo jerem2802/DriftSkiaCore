@@ -51,9 +51,12 @@ const CENTER_Y = CANVAS_HEIGHT * 0.5;
 
 const ORB_COLLISION_DIST = 625;
 
+// ✅ HUD top alignment (remonte coins / vies / shield dots)
+const HUD_TOP_Y = 44;
+
 // HUD coins top-left
 const COIN_HUD_X = 40;
-const COIN_HUD_Y = 70;
+const COIN_HUD_Y = HUD_TOP_Y;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
 
@@ -185,7 +188,7 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
   const livesPositions = React.useMemo(() => {
     const positions: { x: number; y: number }[] = [];
     const startX = CANVAS_WIDTH - 60;
-    const y = 70;
+    const y = HUD_TOP_Y; // ✅ remonte les vies
     for (let i = 0; i < LIVES_MAX; i++) positions.push({ x: startX - i * 22, y });
     return positions;
   }, []);
@@ -225,7 +228,8 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     }
   };
 
-  const shieldDotsY = 98;
+  // ✅ remonte les dots de shield
+  const shieldDotsY = HUD_TOP_Y + 28;
 
   return (
     <Pressable style={styles.container} onPress={onTap}>

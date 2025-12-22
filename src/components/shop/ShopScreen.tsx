@@ -24,7 +24,7 @@ type Props = {
 };
 
 // ✅ DEV : permet d’équiper n’importe quelle bille (sans achat) pour tester vite
-const DEV_UNLOCK_ALL = __DEV__;
+const DEV_UNLOCK_ALL = true;
 
 export const ShopScreen: React.FC<Props> = ({ onBack, onSelectedBallId }) => {
   const [profile, setProfile] = React.useState<PlayerProfile | null>(null);
