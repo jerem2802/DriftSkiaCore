@@ -41,22 +41,14 @@ import {
   START_ORBIT_SPEED,
   START_GATE_WIDTH,
   RING_RADIUS,
+  ORB_COLLISION_DIST,
 } from '../constants/gameplay';
 import { SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
+import { getCoinHudPosition, HUD_TOP_Y } from '../constants/layout';
 import { BallRenderer } from './balls/BallRenderer';
-import { PlasmaEffects } from './effects/PlasmaEffects';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
-
-const ORB_COLLISION_DIST = 625;
-
-// ✅ HUD top alignment (remonte coins / vies / shield dots)
-const HUD_TOP_Y = 44;
-
-// HUD coins top-left
-const COIN_HUD_X = 40;
-const COIN_HUD_Y = HUD_TOP_Y;
 
 const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
 
@@ -92,8 +84,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
   const coinFx = useCoinFxSystem({
     alive: gameState.alive,
     isPaused: gameState.isPaused,
-    targetX: COIN_HUD_X,
-    targetY: COIN_HUD_Y,
   });
 
   const coinOrb = useCoinOrbSystem({
@@ -188,10 +178,12 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
   const livesPositions = React.useMemo(() => {
     const positions: { x: number; y: number }[] = [];
     const startX = CANVAS_WIDTH - 60;
-    const y = HUD_TOP_Y; // ✅ remonte les vies
+    const y = HUD_TOP_Y;
     for (let i = 0; i < LIVES_MAX; i++) positions.push({ x: startX - i * 22, y });
     return positions;
   }, []);
+
+  const coinHudPos = React.useMemo(() => getCoinHudPosition(), []);
 
   useGameLoop({
     ...gameState,
@@ -228,13 +220,12 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     }
   };
 
-  // ✅ remonte les dots de shield
   const shieldDotsY = HUD_TOP_Y + 28;
 
   return (
     <Pressable style={styles.container} onPress={onTap}>
       <Canvas style={styles.canvas}>
-        <CoinHUD x={COIN_HUD_X} y={COIN_HUD_Y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
+        <CoinHUD x={coinHudPos.x} y={coinHudPos.y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
 
         {/* FADING RING */}
         <Circle
@@ -317,20 +308,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           ballY={gameState.ballY}
           capacity={24}
         />
-
-        {/* PLASMA EFFECTS */}
-        {selectedBallId === 'ball_extreme' && (
-          <PlasmaEffects
-            ballX={gameState.ballX}
-            ballY={gameState.ballY}
-            orbs={[
-              { x: lifeOrb.lifeOrbX, y: lifeOrb.lifeOrbY, visible: lifeOrb.lifeOrbVisible },
-              { x: shield.shieldOrbX, y: shield.shieldOrbY, visible: shield.shieldOrbVisible },
-              { x: autoPlay.autoPlayOrbX, y: autoPlay.autoPlayOrbY, visible: autoPlay.autoPlayOrbVisible },
-              { x: coinOrb.coinOrbX, y: coinOrb.coinOrbY, visible: coinOrb.coinOrbVisible },
-            ]}
-          />
-        )}
 
         {/* HUD */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />

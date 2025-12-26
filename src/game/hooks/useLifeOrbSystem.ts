@@ -1,5 +1,5 @@
 // src/game/hooks/useLifeOrbSystem.ts
-// Gère l’orbe de vie : position + collision
+// Gère l'orbe de vie : position + collision
 // + Fly-to-Lives HUD (linéaire)
 
 import {
@@ -10,17 +10,14 @@ import {
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { LIVES_MAX, CANVAS_WIDTH } from '../../constants/gameplay';
+import { LIVES_MAX } from '../../constants/gameplay';
+import { getLifeHudPosition } from '../../constants/layout';
 import type { GameState } from './useGameState';
 
 const LIFE_ORB_OFFSET = Math.PI;
 
 // Curseur vitesse fly
 const LIFE_FLY_DURATION_MS = 950;
-
-// Target HUD vies (doit matcher DriftGame livesPositions : startX = CANVAS_WIDTH - 60, y = 70)
-const LIFE_HUD_X = CANVAS_WIDTH - 60;
-const LIFE_HUD_Y = 70;
 
 interface UseLifeOrbSystemParams {
   gameState: GameState;
@@ -108,8 +105,10 @@ export const useLifeOrbSystem = ({ gameState, orbCollisionDist }: UseLifeOrbSyst
       flyX.value = orbX;
       flyY.value = orbY;
 
+      const target = getLifeHudPosition();
+
       flyX.value = withTiming(
-        LIFE_HUD_X,
+        target.x,
         { duration: LIFE_FLY_DURATION_MS, easing: Easing.linear },
         (finished) => {
           if (!finished) return;
@@ -117,7 +116,7 @@ export const useLifeOrbSystem = ({ gameState, orbCollisionDist }: UseLifeOrbSyst
         }
       );
 
-      flyY.value = withTiming(LIFE_HUD_Y, { duration: LIFE_FLY_DURATION_MS, easing: Easing.linear });
+      flyY.value = withTiming(target.y, { duration: LIFE_FLY_DURATION_MS, easing: Easing.linear });
     }
   );
 
