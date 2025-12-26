@@ -5,6 +5,7 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
+import { BOTTOM_PANEL } from '../constants/layout';
 
 interface BottomPanelProps {
   // Auto-play
@@ -37,9 +38,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   const [shieldAvailableUI, setShieldAvailableUI] = React.useState(
     shieldAvailable.value
   );
-  const [shieldArmedUI, setShieldArmedUI] = React.useState(
-    shieldArmed.value
-  );
+  const [shieldArmedUI, setShieldArmedUI] = React.useState(shieldArmed.value);
 
   // Sync timer UI (on met à jour le JS seulement si la seconde affichée change
   // ou si l'état actif/inactif change)
@@ -137,7 +136,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 100,
+    bottom: BOTTOM_PANEL.BOTTOM,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -145,9 +144,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bonusButton: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: BOTTOM_PANEL.BTN_SIZE,
+    height: BOTTOM_PANEL.BTN_SIZE,
+    borderRadius: BOTTOM_PANEL.BTN_RADIUS,
     borderWidth: 4,
     justifyContent: 'center',
     alignItems: 'center',
@@ -162,13 +161,13 @@ const styles = StyleSheet.create({
     borderColor: '#8b5cf6',
   },
   autoPlayIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: '#8b5cf6',
   },
   shieldButton: {
-    marginLeft: 24,
+    marginLeft: BOTTOM_PANEL.BTN_GAP,
     borderColor: '#22d3ee',
     backgroundColor: '#0b1120',
   },
@@ -176,11 +175,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#022c3a',
   },
   timerText: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#a78bfa',
   },
   shieldIconText: {
-    fontSize: 40,
+    fontSize: 36,
   },
 });

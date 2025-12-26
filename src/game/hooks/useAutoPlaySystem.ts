@@ -8,20 +8,11 @@ import {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { AUTO_PLAY_DURATION, CANVAS_WIDTH, CANVAS_HEIGHT } from '../../constants/gameplay';
+import { AUTO_PLAY_DURATION } from '../../constants/gameplay';
+import { getBottomPanelTargetY, getAutoPlayTargetX } from '../../constants/layout';
 import type { GameState } from './useGameState';
 
 const AUTOPLAY_ORB_OFFSET = Math.PI / 2;
-
-// BottomPanel geometry (doit matcher src/components/BottomPanel.tsx)
-const PANEL_BOTTOM = 100;
-const BTN_SIZE = 76;
-const BTN_RADIUS = BTN_SIZE / 2;
-const BTN_GAP = 24;
-const ROW_BOTH_WIDTH = BTN_SIZE + BTN_GAP + BTN_SIZE;
-
-// Centre Y du bouton (autoPlay/shield) dans le canvas
-const PANEL_TARGET_Y = CANVAS_HEIGHT - PANEL_BOTTOM - BTN_RADIUS;
 
 // ✅ Curseur vitesse (plus petit = plus rapide)
 const AUTOPLAY_FLY_DURATION_MS = 800;
@@ -30,19 +21,6 @@ interface UseAutoPlaySystemParams {
   gameState: GameState;
   orbCollisionDist: number; // distance²
 }
-
-const resolveAutoPlayTargetX = (shieldVisible: boolean) => {
-  'worklet';
-
-  // Si le shield est visible, layout = 2 boutons centrés (autoPlay à gauche)
-  if (shieldVisible) {
-    const left = (CANVAS_WIDTH - ROW_BOTH_WIDTH) / 2;
-    return left + BTN_RADIUS;
-  }
-
-  // Sinon autoPlay seul => centré
-  return CANVAS_WIDTH / 2;
-};
 
 export const useAutoPlaySystem = ({ gameState, orbCollisionDist }: UseAutoPlaySystemParams) => {
   // ----- ORBE AUTO-PLAY (attach au ring) -----
@@ -140,7 +118,8 @@ export const useAutoPlaySystem = ({ gameState, orbCollisionDist }: UseAutoPlaySy
         flyX.value = s.ox;
         flyY.value = s.oy;
 
-        const targetX = resolveAutoPlayTargetX(s.shieldVisible);
+        const targetX = getAutoPlayTargetX(s.shieldVisible);
+        const targetY = getBottomPanelTargetY();
 
         flyX.value = withTiming(
           targetX,
@@ -153,7 +132,7 @@ export const useAutoPlaySystem = ({ gameState, orbCollisionDist }: UseAutoPlaySy
           }
         );
 
-        flyY.value = withTiming(PANEL_TARGET_Y, {
+        flyY.value = withTiming(targetY, {
           duration: AUTOPLAY_FLY_DURATION_MS,
           easing: Easing.linear,
         });

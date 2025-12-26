@@ -2,8 +2,8 @@
 // ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
 
 import React from 'react';
-import { Pressable, StyleSheet, Platform } from 'react-native';
-import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
+import { Pressable, StyleSheet } from 'react-native';
+import { Canvas, Circle, Path, Text } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 
 import { ShieldFxLayer } from './fx/ShieldFxLayer';
@@ -31,8 +31,6 @@ import { useAutoPlaySystem } from './hooks/useAutoPlaySystem';
 import { useGameOverSystem } from './hooks/useGameOverSystem';
 import { useLifeOrbSystem } from './hooks/useLifeOrbSystem';
 
-import { SHOP_BALLS } from '../components/shop/shopCatalog';
-
 import { ScoreHUD } from './skia/ScoreHUD';
 import { LifeDot } from './skia/LifeDot';
 
@@ -43,46 +41,20 @@ import {
   START_ORBIT_SPEED,
   START_GATE_WIDTH,
   RING_RADIUS,
+  ORB_COLLISION_DIST,
 } from '../constants/gameplay';
-import { BALL_COLOR, SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
+import { SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
+import { getCoinHudPosition, HUD_TOP_Y } from '../constants/layout';
+import { BallRenderer } from './balls/BallRenderer';
+import { FONTS } from '../utils/fonts';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
 
-const ORB_COLLISION_DIST = 625;
-
-// HUD coins top-left
-const COIN_HUD_X = 40;
-const COIN_HUD_Y = 70;
-
-const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
-
-const popupFontStyle = {
-  fontFamily,
-  fontSize: 26,
-  fontWeight: 'bold' as const,
-};
-const popupFont = matchFont(popupFontStyle);
-
-// ✅ MVP: couleur bille = accent défini dans shopCatalog
-const BALL_COLOR_BY_ID: Record<string, string> = Object.fromEntries(
-  SHOP_BALLS.map((b) => [b.id, b.accent])
-);
-
-const resolveBallColor = (id: string) => {
-  // compat ancien id
-  if (id === 'core') return BALL_COLOR;
-
-  // bille gratuite shop
-  if (id === 'ball_classic') return BALL_COLOR;
-
-  return BALL_COLOR_BY_ID[id] ?? BALL_COLOR;
-};
-
 type DriftGameProps = {
   onShop: () => void;
   selectedBallId?: string;
-  allowStart?: boolean; // ✅
+  allowStart?: boolean;
 };
 
 const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true }) => {
@@ -104,8 +76,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
   const coinFx = useCoinFxSystem({
     alive: gameState.alive,
     isPaused: gameState.isPaused,
-    targetX: COIN_HUD_X,
-    targetY: COIN_HUD_Y,
   });
 
   const coinOrb = useCoinOrbSystem({
@@ -149,7 +119,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     startGateWidth: START_GATE_WIDTH,
   });
 
-  // ✅ démarre le jeu seulement quand allowStart === true (évite gameplay derrière Headphones/Shop)
   React.useEffect(() => {
     if (!allowStart) {
       gameState.isPaused.value = true;
@@ -161,8 +130,7 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
         gameState.isPaused.value = false;
       });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowStart]);
+  }, [allowStart, gameState.isPaused]);
 
   const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
 
@@ -201,10 +169,12 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
   const livesPositions = React.useMemo(() => {
     const positions: { x: number; y: number }[] = [];
     const startX = CANVAS_WIDTH - 60;
-    const y = 70;
+    const y = HUD_TOP_Y;
     for (let i = 0; i < LIVES_MAX; i++) positions.push({ x: startX - i * 22, y });
     return positions;
   }, []);
+
+  const coinHudPos = React.useMemo(() => getCoinHudPosition(), []);
 
   useGameLoop({
     ...gameState,
@@ -241,15 +211,13 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     }
   };
 
-  const shieldDotsY = 98;
-  const ballColor = resolveBallColor(selectedBallId);
+  const shieldDotsY = HUD_TOP_Y + 28;
 
   return (
     <Pressable style={styles.container} onPress={onTap}>
       <Canvas style={styles.canvas}>
-        <CoinHUD x={COIN_HUD_X} y={COIN_HUD_Y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
+        <CoinHUD x={coinHudPos.x} y={coinHudPos.y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
 
-        {/* FADING RING */}
         <Circle
           cx={gameState.fadingRingX}
           cy={gameState.fadingRingY}
@@ -269,7 +237,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           opacity={gameState.fadingRingOpacity}
         />
 
-        {/* CURRENT RING */}
         <NeonRing
           cx={gameState.currentX}
           cy={gameState.currentY}
@@ -279,16 +246,13 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* ORBS */}
         <MiniNeonOrb cx={lifeOrb.lifeOrbX} cy={lifeOrb.lifeOrbY} r={8} color="#ef4444" opacity={lifeOrb.lifeOrbVisible} />
         <MiniNeonOrb cx={autoPlay.autoPlayOrbX} cy={autoPlay.autoPlayOrbY} r={13} color="#8b5cf6" opacity={autoPlay.autoPlayOrbVisible} />
         <MiniNeonOrb cx={shield.shieldOrbX} cy={shield.shieldOrbY} r={13} color="#22d3ee" opacity={shield.shieldOrbVisible} />
         <MiniNeonOrb cx={coinOrb.coinOrbX} cy={coinOrb.coinOrbY} r={12} color="#fbbf24" opacity={coinOrb.coinOrbVisible} />
 
-        {/* COIN FX */}
         <CoinFxLayer x={coinFx.flyX} y={coinFx.flyY} opacity={coinFx.flyVisible} r={12} color="#fbbf24" />
 
-        {/* NEXT RING */}
         <NeonRing
           cx={gameState.nextX}
           cy={gameState.nextY}
@@ -298,15 +262,18 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           mainColor={nextMainColor}
         />
 
-        {/* GATE */}
         <Path path={gatePath} strokeWidth={16} strokeCap="round" style="stroke" color={gateColor} opacity={0.1} />
         <Path path={gatePath} strokeWidth={8} strokeCap="round" style="stroke" color={gateColor} />
 
-        {/* BALL + HALO SHIELD */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={14} color={SHIELD_HALO_COLOR} opacity={shield.shieldHaloVisible} />
-        <Circle cx={gameState.ballX} cy={gameState.ballY} r={10} color={ballColor} />
+        <BallRenderer
+          selectedBallId={selectedBallId}
+          ballX={gameState.ballX}
+          ballY={gameState.ballY}
+          alive={gameState.alive}
+          isPaused={gameState.isPaused}
+        />
 
-        {/* FX */}
         <AutoPlayFxLayer
           alive={gameState.alive}
           isPaused={gameState.isPaused}
@@ -325,7 +292,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           capacity={24}
         />
 
-        {/* HUD */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
 
         <Text
@@ -333,7 +299,7 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           y={useDerivedValue(() => gameState.scorePopupY.value + 10)}
           text={scorePopupTextDV}
           color="white"
-          font={popupFont}
+          font={FONTS.popup}
           opacity={gameState.scorePopupOpacity}
         />
 

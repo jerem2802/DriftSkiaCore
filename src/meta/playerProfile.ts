@@ -1,5 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export type BallUpgrade = {
+  autoPlayBonus?: number;      // secondes
+  shieldRegenBonus?: number;   // %
+  coinAttractionRange?: number; // pixels
+  gateWidthBonus?: number;     // radians
+};
+
 export type PlayerProfile = {
   v: number;
   totalCoins: number;
@@ -7,6 +14,8 @@ export type PlayerProfile = {
 
   ownedBalls: string[];
   selectedBallId: string;
+  
+  ballUpgrades: Record<string, BallUpgrade>;
 
   updatedAt: number;
 };
@@ -20,6 +29,12 @@ const DEFAULT_PROFILE: PlayerProfile = {
 
   ownedBalls: ['ball_classic'],
   selectedBallId: 'ball_classic',
+  
+  ballUpgrades: {
+    ball_water: {
+      autoPlayBonus: 0.4,
+    },
+  },
 
   updatedAt: Date.now(),
 };
@@ -44,6 +59,7 @@ export const loadProfile = async (): Promise<PlayerProfile> => {
       v: 1,
       ownedBalls,
       selectedBallId,
+      ballUpgrades: p.ballUpgrades ?? DEFAULT_PROFILE.ballUpgrades,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -90,4 +106,9 @@ export const purchaseBall = async (ballId: string, price: number): Promise<Playe
   };
   await saveProfile(next);
   return next;
+};
+
+export const getActiveBallUpgrade = (profile: PlayerProfile): BallUpgrade | null => {
+  const id = profile.selectedBallId;
+  return profile.ballUpgrades[id] ?? null;
 };

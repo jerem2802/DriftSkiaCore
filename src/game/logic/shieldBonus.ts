@@ -9,9 +9,6 @@ const SHIELD_SPAWN_CHANCE = 0.5; // 50%
 // Cap de charges
 const MAX_CHARGES = 3;
 
-// Distance de collision bille/orbe bouclier (au carré, comme pour les autres orbes)
-export const SHIELD_COLLISION_DIST = 625;
-
 // Décider si on tente un spawn de bouclier sur ce ring
 export const shouldSpawnShield = (
   shieldChargesLeft: SharedValue<number>,

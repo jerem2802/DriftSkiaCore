@@ -11,17 +11,11 @@ import {
   cancelAnimation,
 } from 'react-native-reanimated';
 import type { GameState } from './useGameState';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../constants/gameplay';
+import { getBottomPanelTargetY, getShieldTargetX } from '../../constants/layout';
 
 const SHIELD_ORB_OFFSET = -Math.PI / 2;
 const MAX_CHARGES = 3;
 const PICKUP_DIST = 625;
-
-// --- BottomPanel layout (doit matcher src/components/BottomPanel.tsx)
-const BTN_SIZE = 76;
-const BTN_RADIUS = BTN_SIZE / 2;
-const BTN_GAP = 24;
-const PANEL_BOTTOM_OFFSET = 100;
 
 // --- "curseur" vitesse fly
 const SHIELD_FLY_DURATION_MS = 950;
@@ -29,26 +23,6 @@ const SHIELD_FLY_DURATION_MS = 950;
 interface UseShieldSystemParams {
   gameState: GameState;
 }
-
-const resolveShieldTargetX = (hasAutoPlayVisible: boolean) => {
-  'worklet';
-  // Si AutoPlay visible -> 2 boutons centrés, Shield = bouton de droite
-  if (hasAutoPlayVisible) {
-    const rowW = BTN_SIZE + BTN_GAP + BTN_SIZE;
-    const left = (CANVAS_WIDTH - rowW) / 2;
-    return left + BTN_SIZE + BTN_GAP + BTN_RADIUS;
-  }
-
-  // Sinon Shield seul -> centré
-  const left = (CANVAS_WIDTH - BTN_SIZE) / 2;
-  return left + BTN_RADIUS;
-};
-
-const resolveShieldTargetY = () => {
-  'worklet';
-  // container bottom:100, bouton 76px => centre = H - 100 - 38
-  return CANVAS_HEIGHT - PANEL_BOTTOM_OFFSET - BTN_RADIUS;
-};
 
 export const useShieldSystem = ({ gameState }: UseShieldSystemParams) => {
   // 0 = attached (sur ring), 1 = flying (vers BottomPanel)
@@ -175,8 +149,8 @@ export const useShieldSystem = ({ gameState }: UseShieldSystemParams) => {
       flyX.value = orbX;
       flyY.value = orbY;
 
-      const tx = resolveShieldTargetX(s.hasAutoPlayVisible);
-      const ty = resolveShieldTargetY();
+      const tx = getShieldTargetX(s.hasAutoPlayVisible);
+      const ty = getBottomPanelTargetY();
 
       flyX.value = withTiming(
         tx,

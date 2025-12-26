@@ -7,28 +7,23 @@ import {
   withTiming,
 } from 'react-native-reanimated';
 import { createCoinFxPool } from './coinFxBuffer';
+import { getCoinHudPosition } from '../../constants/layout';
 
 type Params = {
   alive: SharedValue<boolean>;
   isPaused: SharedValue<boolean>;
-
-  targetX: number;
-  targetY: number;
-
   flyDurationMs?: number;
 };
 
 export const useCoinFxSystem = ({
   alive,
   isPaused,
-  targetX,
-  targetY,
   flyDurationMs = 950,
 }: Params) => {
   // pool prêt pour futures anims (burst/trails/magnet/etc.)
   const pool = useSharedValue(createCoinFxPool());
 
-  // orb “flying-to-HUD”
+  // orb "flying-to-HUD"
   const flyVisible = useSharedValue(0); // 0|1
   const flyX = useSharedValue(0);
   const flyY = useSharedValue(0);
@@ -59,15 +54,17 @@ export const useCoinFxSystem = ({
     flyX.value = pickupX.value;
     flyY.value = pickupY.value;
 
+    const target = getCoinHudPosition();
+
     flyX.value = withTiming(
-      targetX,
+      target.x,
       { duration: flyDurationMs, easing: Easing.linear },
       (finished) => {
         if (finished) flyVisible.value = 0;
       }
     );
 
-    flyY.value = withTiming(targetY, {
+    flyY.value = withTiming(target.y, {
       duration: flyDurationMs,
       easing: Easing.linear,
     });
