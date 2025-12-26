@@ -26,7 +26,7 @@ export const BallRenderer: React.FC<Props> = ({
       ballY={ballY}
       ballId={selectedBallId}
       radius={10}
-      capacity={32}
+      capacity={64}
     />
   );
 };

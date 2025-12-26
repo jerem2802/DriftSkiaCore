@@ -2,8 +2,8 @@
 // ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
 
 import React from 'react';
-import { Pressable, StyleSheet, Platform } from 'react-native';
-import { Canvas, Circle, Path, Text, matchFont } from '@shopify/react-native-skia';
+import { Pressable, StyleSheet } from 'react-native';
+import { Canvas, Circle, Path, Text } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 
 import { ShieldFxLayer } from './fx/ShieldFxLayer';
@@ -46,18 +46,10 @@ import {
 import { SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
 import { getCoinHudPosition, HUD_TOP_Y } from '../constants/layout';
 import { BallRenderer } from './balls/BallRenderer';
+import { FONTS } from '../utils/fonts';
 
 const CENTER_X = CANVAS_WIDTH * 0.5;
 const CENTER_Y = CANVAS_HEIGHT * 0.5;
-
-const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
-
-const popupFontStyle = {
-  fontFamily,
-  fontSize: 26,
-  fontWeight: 'bold' as const,
-};
-const popupFont = matchFont(popupFontStyle);
 
 type DriftGameProps = {
   onShop: () => void;
@@ -138,8 +130,7 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
         gameState.isPaused.value = false;
       });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowStart]);
+  }, [allowStart, gameState.isPaused]);
 
   const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
 
@@ -227,7 +218,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
       <Canvas style={styles.canvas}>
         <CoinHUD x={coinHudPos.x} y={coinHudPos.y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
 
-        {/* FADING RING */}
         <Circle
           cx={gameState.fadingRingX}
           cy={gameState.fadingRingY}
@@ -247,7 +237,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           opacity={gameState.fadingRingOpacity}
         />
 
-        {/* CURRENT RING */}
         <NeonRing
           cx={gameState.currentX}
           cy={gameState.currentY}
@@ -257,16 +246,13 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
         />
 
-        {/* ORBS */}
         <MiniNeonOrb cx={lifeOrb.lifeOrbX} cy={lifeOrb.lifeOrbY} r={8} color="#ef4444" opacity={lifeOrb.lifeOrbVisible} />
         <MiniNeonOrb cx={autoPlay.autoPlayOrbX} cy={autoPlay.autoPlayOrbY} r={13} color="#8b5cf6" opacity={autoPlay.autoPlayOrbVisible} />
         <MiniNeonOrb cx={shield.shieldOrbX} cy={shield.shieldOrbY} r={13} color="#22d3ee" opacity={shield.shieldOrbVisible} />
         <MiniNeonOrb cx={coinOrb.coinOrbX} cy={coinOrb.coinOrbY} r={12} color="#fbbf24" opacity={coinOrb.coinOrbVisible} />
 
-        {/* COIN FX */}
         <CoinFxLayer x={coinFx.flyX} y={coinFx.flyY} opacity={coinFx.flyVisible} r={12} color="#fbbf24" />
 
-        {/* NEXT RING */}
         <NeonRing
           cx={gameState.nextX}
           cy={gameState.nextY}
@@ -276,21 +262,18 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           mainColor={nextMainColor}
         />
 
-        {/* GATE */}
         <Path path={gatePath} strokeWidth={16} strokeCap="round" style="stroke" color={gateColor} opacity={0.1} />
         <Path path={gatePath} strokeWidth={8} strokeCap="round" style="stroke" color={gateColor} />
 
-        {/* BALL + HALO SHIELD */}
         <Circle cx={gameState.ballX} cy={gameState.ballY} r={14} color={SHIELD_HALO_COLOR} opacity={shield.shieldHaloVisible} />
-        <BallRenderer 
-          selectedBallId={selectedBallId} 
-          ballX={gameState.ballX} 
-          ballY={gameState.ballY} 
-          alive={gameState.alive} 
-          isPaused={gameState.isPaused} 
+        <BallRenderer
+          selectedBallId={selectedBallId}
+          ballX={gameState.ballX}
+          ballY={gameState.ballY}
+          alive={gameState.alive}
+          isPaused={gameState.isPaused}
         />
 
-        {/* FX */}
         <AutoPlayFxLayer
           alive={gameState.alive}
           isPaused={gameState.isPaused}
@@ -309,7 +292,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           capacity={24}
         />
 
-        {/* HUD */}
         <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
 
         <Text
@@ -317,7 +299,7 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
           y={useDerivedValue(() => gameState.scorePopupY.value + 10)}
           text={scorePopupTextDV}
           color="white"
-          font={popupFont}
+          font={FONTS.popup}
           opacity={gameState.scorePopupOpacity}
         />
 

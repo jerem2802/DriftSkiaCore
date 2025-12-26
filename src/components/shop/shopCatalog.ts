@@ -23,7 +23,6 @@ export const tierFrame = (t: Tier) => {
 };
 
 export const SHOP_BALLS: ShopBall[] = [
-  // COMMON (8)
   {
     id: 'ball_classic',
     name: 'Classic Neon',
@@ -33,13 +32,13 @@ export const SHOP_BALLS: ShopBall[] = [
     accent: '#22d3ee',
   },
   {
-  id: 'ball_water',
-  name: 'Aqua Flow',
-  price: 250,
-  desc: 'Water trail fluide. AutoPlay +0.4s',
-  tier: 'COMMON',
-  accent: '#3b82f6',
-},
+    id: 'ball_water',
+    name: 'Aqua Flow',
+    price: 250,
+    desc: 'Water trail fluide. AutoPlay +0.4s',
+    tier: 'COMMON',
+    accent: '#3b82f6',
+  },
   {
     id: 'ball_amber',
     name: 'Amber Drift',
@@ -49,12 +48,12 @@ export const SHOP_BALLS: ShopBall[] = [
     accent: '#fbbf24',
   },
   {
-    id: 'ball_cyan',
-    name: 'Cyan Guard',
+    id: 'ball_fire',
+    name: 'Fire Blaze',
     price: 150,
-    desc: 'Confort shield (MVP).',
+    desc: 'Flammes destructrices.',
     tier: 'COMMON',
-    accent: '#67e8f9',
+    accent: '#ff6b35',
   },
   {
     id: 'ball_mint',
@@ -97,7 +96,6 @@ export const SHOP_BALLS: ShopBall[] = [
     accent: '#60a5fa',
   },
 
-  // RARE (8)
   {
     id: 'ball_violet',
     name: 'Violet Pulse',
@@ -163,7 +161,6 @@ export const SHOP_BALLS: ShopBall[] = [
     accent: '#7c3aed',
   },
 
-  // EPIC (6)
   {
     id: 'ball_magnet',
     name: 'Magnet Prime',
@@ -213,7 +210,6 @@ export const SHOP_BALLS: ShopBall[] = [
     accent: '#e879f9',
   },
 
-  // LEGENDARY (2)
   {
     id: 'ball_legend_aurora',
     name: 'Aurora Crown',

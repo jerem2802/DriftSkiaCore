@@ -104,7 +104,7 @@ vec4 main(vec2 fragCoord) {
   return vec4(color, 1.0);
 }`,
 
-ball_cyan: `
+ball_fire: `
 uniform float u_time;
 uniform vec2 u_center;
 uniform float u_radius;
