@@ -1,46 +1,29 @@
 // src/components/ProfileScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Dimensions } from 'react-native';
-import { loadProfile, setSelectedBall, type PlayerProfile } from '../meta/playerProfile';
+import { setSelectedBall, type PlayerProfile } from '../meta/playerProfile';
 import { SHOP_BALLS } from './shop/shopCatalog';
 import { CHEST_BALLS } from '../config/bonusConfig';
 import { BallPreviewSkia } from './shop/BallPreviewSkia';
 
 type ProfileScreenProps = {
-  onClose: () => void;
-  onBallChanged?: () => void; // ✅ AJOUT
+  profile: PlayerProfile;
+  onProfileUpdate: () => void;
+  onBack: () => void; // ✅ CHANGÉ onClose → onBack
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged }) => {
-  const [profile, setProfile] = useState<PlayerProfile | null>(null);
-
-  useEffect(() => {
-    loadProfile().then(p => setProfile(p));
-  }, []);
-
-  if (!profile) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ color: '#FFF' }}>Loading...</Text>
-      </View>
-    );
-  }
-
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onProfileUpdate, onBack }) => {
   const handleEquipBall = async (ballId: string) => {
-    const updated = await setSelectedBall(ballId);
-    setProfile(updated);
-    onBallChanged?.(); // ✅ NOTIFIE App.tsx
+    await setSelectedBall(ballId);
+    onProfileUpdate();
   };
 
   const isOwned = (ballId: string) => profile.ownedBalls.includes(ballId);
   const isEquipped = (ballId: string) => profile.selectedBallId === ballId;
 
-  // Toutes les balles du shop
   const shopBalls = SHOP_BALLS;
-
-  // Toutes les balles des coffres (common + rare + legendary)
   const chestBalls = [
     ...CHEST_BALLS.common,
     ...CHEST_BALLS.rare,
@@ -52,16 +35,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged })
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>PROFILE</Text>
-        <Pressable style={styles.closeButton} onPress={onClose}>
+        <Pressable style={styles.closeButton} onPress={onBack}>
           <Text style={styles.closeButtonText}>✕</Text>
         </Pressable>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* STATS SECTION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 STATS</Text>
           <View style={styles.statsGrid}>
@@ -76,11 +57,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged })
           </View>
         </View>
 
-        {/* BALLS COLLECTION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎱 MY BALLS ({ownedCount}/{totalBalls})</Text>
 
-          {/* SHOP BALLS */}
           <Text style={styles.subsectionTitle}>SHOP BALLS</Text>
           <View style={styles.ballGrid}>
             {shopBalls.map((ball: any) => {
@@ -118,7 +97,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged })
             })}
           </View>
 
-          {/* CHEST BALLS */}
           <Text style={styles.subsectionTitle}>CHEST BALLS</Text>
           <View style={styles.ballGrid}>
             {chestBalls.map((ball) => {
@@ -161,11 +139,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged })
           </View>
         </View>
 
-        {/* UPGRADES SECTION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚡ UPGRADES</Text>
 
-          {/* Shield Bank */}
           <View style={styles.upgradeItem}>
             <Text style={styles.upgradeIcon}>🛡️</Text>
             <View style={styles.upgradeInfo}>
@@ -185,7 +161,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged })
             </View>
           </View>
 
-          {/* Auto-Play Bank */}
           <View style={styles.upgradeItem}>
             <Text style={styles.upgradeIcon}>⚡</Text>
             <View style={styles.upgradeInfo}>
@@ -205,7 +180,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged })
             </View>
           </View>
 
-          {/* Score Multiplier */}
           <View style={styles.upgradeItem}>
             <Text style={styles.upgradeIcon}>⭐</Text>
             <View style={styles.upgradeInfo}>
@@ -234,13 +208,9 @@ export default ProfileScreen;
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1, // ✅ CHANGÉ position absolute → flex
     backgroundColor: 'rgba(10, 10, 20, 0.98)',
-    zIndex: 9999,
+    // ✅ RETIRÉ zIndex: 9999
   },
   header: {
     flexDirection: 'row',

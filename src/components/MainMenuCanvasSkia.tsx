@@ -10,13 +10,16 @@ import { ChestOpeningAnimation } from './chests/ChestOpeningAnimation';
 import { RewardPanelSkia } from './chests/RewardPanelSkia';
 import { OptionsMenu } from './OptionsMenu';
 import { useChestLogic } from '../game/hooks/useChestLogic';
+import type { PlayerProfile } from '../meta/playerProfile';
 
 type Props = {
   visible: boolean;
+  profile: PlayerProfile;
+  onProfileUpdate: () => void;
   onPlay: () => void;
   onTuto: () => void;
   onShop: () => void;
-  onBallChanged?: () => void; // ✅ AJOUT
+  onProfile: () => void; // ✅ AJOUT
 };
 
 const formatTime = (seconds: number): string => {
@@ -28,8 +31,16 @@ const formatTime = (seconds: number): string => {
   return `${padZero(hours)}:${padZero(minutes)}:${padZero(secs)}`;
 };
 
-export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, onShop, onBallChanged }) => {
-  const logic = useChestLogic(visible);
+export const MainMenuCanvasSkia: React.FC<Props> = ({
+  visible,
+  profile,
+  onProfileUpdate,
+  onPlay,
+  onTuto,
+  onShop,
+  onProfile, // ✅ AJOUT
+}) => {
+  const logic = useChestLogic(visible, profile, onProfileUpdate);
   const [showOptions, setShowOptions] = useState(false);
   const backgroundImage = useImage(require('../assets/images/menu_driftring.png'));
 
@@ -47,14 +58,6 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
   const containerStyle = useAnimatedStyle(() => ({
     opacity: logic.state.screenOpacity.value,
   }));
-
-  if (!logic.loadedUI) {
-    return (
-      <View style={styles.container}>
-        <RNText style={styles.loading}>Loading...</RNText>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container} pointerEvents={visible ? 'auto' : 'none'}>
@@ -81,6 +84,10 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
           </Pressable>
           <Pressable style={styles.headerButton} onPress={onShop}>
             <RNText style={styles.headerButtonText}>SHOP</RNText>
+          </Pressable>
+          {/* ✅ APPELLE onProfile (géré par App.tsx) */}
+          <Pressable style={styles.headerButton} onPress={onProfile}>
+            <RNText style={styles.headerButtonText}>PROFILE</RNText>
           </Pressable>
           <Pressable style={styles.settingsButton} onPress={() => setShowOptions(true)}>
             <RNText style={styles.settingsButtonText}>⚙</RNText>
@@ -233,7 +240,8 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
       <RewardPanelSkia isVisible={logic.showSilverPanel} rewards={logic.silverRewards} onClose={logic.handleSilverRewardClose} />
       <RewardPanelSkia isVisible={logic.showNeonPanel} rewards={logic.neonRewards} onClose={logic.handleNeonRewardClose} />
 
-      {showOptions && <OptionsMenu onClose={() => setShowOptions(false)} onBallChanged={onBallChanged} />}
+      {/* ✅ PLUS DE ProfileScreen ICI */}
+      {showOptions && <OptionsMenu onClose={() => setShowOptions(false)} />}
     </View>
   );
 };
@@ -241,7 +249,6 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'absolute' },
-  loading: { color: '#FFF', fontSize: 20, textAlign: 'center', marginTop: 200 },
   uiLayer: { position: 'absolute', width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
 
   header: {

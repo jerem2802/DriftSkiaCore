@@ -7,15 +7,17 @@ import {
   watchAd,
   getRemainingTime,
   claimChestRewards,
+  type PlayerProfile,
 } from '../../meta/playerProfile';
 import { generateChestRewards, type Reward } from '../../config/bonusConfig';
 import { useMainMenuState } from './useMainMenuState';
 
-export const useChestLogic = (visible: boolean) => {
+export const useChestLogic = (
+  visible: boolean,
+  initialProfile: PlayerProfile,
+  onProfileUpdate: () => void
+) => {
   const state = useMainMenuState();
-
-  const [loadedUI, setLoadedUI] = useState(false);
-  const loadedRef = useRef(false);
 
   const [bronzeStatus, setBronzeStatus] = useState<'locked' | 'countdown' | 'ready'>('locked');
   const [silverStatus, setSilverStatus] = useState<'locked' | 'countdown' | 'ready'>('locked');
@@ -50,6 +52,53 @@ export const useChestLogic = (visible: boolean) => {
     modalOpenRef.current = showBronzePanel || showSilverPanel || showNeonPanel;
   }, [showBronzePanel, showSilverPanel, showNeonPanel]);
 
+  // ✅ INIT IMMÉDIAT avec profil initial
+  useEffect(() => {
+    const bronzeChest = initialProfile.chests.bronze;
+    const silverChest = initialProfile.chests.silver;
+    const neonChest = initialProfile.chests.neon;
+
+    const bStatus = bronzeChest.status as 'locked' | 'countdown' | 'ready';
+    const sStatus = silverChest.status as 'locked' | 'countdown' | 'ready';
+    const nStatus = neonChest.status as 'locked' | 'countdown' | 'ready';
+
+    const bRemain = getRemainingTime(bronzeChest);
+    const sRemain = getRemainingTime(silverChest);
+    const nRemain = getRemainingTime(neonChest);
+
+    const neonCost = neonChest.openPrice ?? 0;
+
+    setBronzeStatus(bStatus);
+    setSilverStatus(sStatus);
+    setNeonStatus(nStatus);
+
+    setBronzeTime(bRemain);
+    setSilverTime(sRemain);
+    setNeonTime(nRemain);
+
+    setBestScore(initialProfile.bestScore || 0);
+    setTotalCoinsUI(initialProfile.totalCoins || 0);
+
+    setBronzeUnlock(state.bronzeUnlockValue.value);
+    setSilverUnlock(state.silverUnlockValue.value);
+    setNeonPrice(neonCost);
+
+    state.profileLoaded.value = true;
+    state.bronzeStatus.value = bStatus;
+    state.silverStatus.value = sStatus;
+    state.neonStatus.value = nStatus;
+    state.bronzeTimeRemaining.value = bRemain;
+    state.silverTimeRemaining.value = sRemain;
+    state.neonTimeRemaining.value = nRemain;
+    state.bestScore.value = initialProfile.bestScore || 0;
+    state.totalCoins.value = initialProfile.totalCoins || 0;
+    state.neonOpenPrice.value = neonCost;
+    state.bronzeAdsWatched.value = bronzeChest.adsWatched || 0;
+    state.silverAdsWatched.value = silverChest.adsWatched || 0;
+    state.neonAdsWatched.value = neonChest.adsWatched || 0;
+  }, [initialProfile, state]);
+
+  // ✅ TICK pour sync temps
   useEffect(() => {
     let alive = true;
     let inFlight = false;
@@ -63,11 +112,6 @@ export const useChestLogic = (visible: boolean) => {
       try {
         const profile = await loadProfile();
         if (!alive) return;
-
-        if (!loadedRef.current) {
-          loadedRef.current = true;
-          setLoadedUI(true);
-        }
 
         const bronzeChest = profile.chests.bronze;
         const silverChest = profile.chests.silver;
@@ -98,7 +142,6 @@ export const useChestLogic = (visible: boolean) => {
         setSilverUnlock(state.silverUnlockValue.value);
         setNeonPrice(neonCost);
 
-        state.profileLoaded.value = true;
         state.bronzeStatus.value = bStatus;
         state.silverStatus.value = sStatus;
         state.neonStatus.value = nStatus;
@@ -132,6 +175,7 @@ export const useChestLogic = (visible: boolean) => {
 
     const unlockedChest = unlockChest(profile.chests.bronze);
     await saveProfile({ ...profile, chests: { ...profile.chests, bronze: unlockedChest } });
+    onProfileUpdate();
 
     state.bronzeStatus.value = unlockedChest.status;
     state.bronzeTimeRemaining.value = getRemainingTime(unlockedChest);
@@ -145,10 +189,12 @@ export const useChestLogic = (visible: boolean) => {
     if (remaining === 0) {
       const readyChest = { ...updatedChest, status: 'ready' as const };
       await saveProfile({ ...profile, chests: { ...profile.chests, bronze: readyChest } });
+      onProfileUpdate();
       state.bronzeStatus.value = 'ready';
       state.bronzeTimeRemaining.value = 0;
     } else {
       await saveProfile({ ...profile, chests: { ...profile.chests, bronze: updatedChest } });
+      onProfileUpdate();
       state.bronzeTimeRemaining.value = remaining;
       state.bronzeAdsWatched.value = updatedChest.adsWatched || 0;
     }
@@ -170,6 +216,7 @@ export const useChestLogic = (visible: boolean) => {
   const handleBronzeRewardClose = async () => {
     setShowBronzePanel(false);
     await claimChestRewards('bronze', bronzeRewards);
+    onProfileUpdate();
     setBronzeRewards([]);
     const profile = await loadProfile();
     state.bronzeStatus.value = profile.chests.bronze.status;
@@ -183,6 +230,7 @@ export const useChestLogic = (visible: boolean) => {
 
     const unlockedChest = unlockChest(profile.chests.silver);
     await saveProfile({ ...profile, chests: { ...profile.chests, silver: unlockedChest } });
+    onProfileUpdate();
 
     state.silverStatus.value = unlockedChest.status;
     state.silverTimeRemaining.value = getRemainingTime(unlockedChest);
@@ -196,10 +244,12 @@ export const useChestLogic = (visible: boolean) => {
     if (remaining === 0) {
       const readyChest = { ...updatedChest, status: 'ready' as const };
       await saveProfile({ ...profile, chests: { ...profile.chests, silver: readyChest } });
+      onProfileUpdate();
       state.silverStatus.value = 'ready';
       state.silverTimeRemaining.value = 0;
     } else {
       await saveProfile({ ...profile, chests: { ...profile.chests, silver: updatedChest } });
+      onProfileUpdate();
       state.silverTimeRemaining.value = remaining;
       state.silverAdsWatched.value = updatedChest.adsWatched || 0;
     }
@@ -221,6 +271,7 @@ export const useChestLogic = (visible: boolean) => {
   const handleSilverRewardClose = async () => {
     setShowSilverPanel(false);
     await claimChestRewards('silver', silverRewards);
+    onProfileUpdate();
     setSilverRewards([]);
     const profile = await loadProfile();
     state.silverStatus.value = profile.chests.silver.status;
@@ -232,17 +283,7 @@ export const useChestLogic = (visible: boolean) => {
     const neonChest = profile.chests.neon;
     const cost = neonChest.openPrice ?? 0;
 
-    console.log('NEON UNLOCK:', {
-      totalCoins: profile.totalCoins,
-      cost,
-      neonStatus,
-      openPrice: neonChest.openPrice,
-    });
-
-    if ((profile.totalCoins || 0) < cost) {
-      console.log('❌ Pas assez de coins');
-      return;
-    }
+    if ((profile.totalCoins || 0) < cost) return;
 
     const unlockedChest = unlockChest(neonChest);
     const newCoins = Math.max(0, (profile.totalCoins || 0) - cost);
@@ -252,6 +293,7 @@ export const useChestLogic = (visible: boolean) => {
       chests: { ...profile.chests, neon: unlockedChest },
       totalCoins: newCoins,
     });
+    onProfileUpdate();
 
     state.neonStatus.value = unlockedChest.status;
     state.neonTimeRemaining.value = getRemainingTime(unlockedChest);
@@ -266,10 +308,12 @@ export const useChestLogic = (visible: boolean) => {
     if (remaining === 0) {
       const readyChest = { ...updatedChest, status: 'ready' as const };
       await saveProfile({ ...profile, chests: { ...profile.chests, neon: readyChest } });
+      onProfileUpdate();
       state.neonStatus.value = 'ready';
       state.neonTimeRemaining.value = 0;
     } else {
       await saveProfile({ ...profile, chests: { ...profile.chests, neon: updatedChest } });
+      onProfileUpdate();
       state.neonTimeRemaining.value = remaining;
       state.neonAdsWatched.value = updatedChest.adsWatched || 0;
     }
@@ -291,6 +335,7 @@ export const useChestLogic = (visible: boolean) => {
   const handleNeonRewardClose = async () => {
     setShowNeonPanel(false);
     await claimChestRewards('neon', neonRewards);
+    onProfileUpdate();
     setNeonRewards([]);
     const profile = await loadProfile();
     state.neonStatus.value = profile.chests.neon.status;
@@ -299,7 +344,6 @@ export const useChestLogic = (visible: boolean) => {
 
   return {
     state,
-    loadedUI,
     bronzeStatus,
     silverStatus,
     neonStatus,

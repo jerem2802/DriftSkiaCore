@@ -1,3 +1,4 @@
+// src/components/shop/ShopScreen.tsx
 import React from 'react';
 import {
   View,
@@ -8,7 +9,6 @@ import {
 } from 'react-native';
 
 import {
-  loadProfile,
   purchaseBall,
   setSelectedBall,
   type PlayerProfile,
@@ -19,40 +19,31 @@ import { ShopHeader } from './ShopHeader';
 import { ShopBallCard } from './ShopBallCard';
 
 type Props = {
+  profile: PlayerProfile;
+  onProfileUpdate: () => void;
   onBack: () => void;
-  onSelectedBallId?: (id: string) => void; // ✅ remonte au App pour update visuel
 };
 
-// ✅ DEV : permet d’équiper n’importe quelle bille (sans achat) pour tester vite
 const DEV_UNLOCK_ALL = false;
 
-export const ShopScreen: React.FC<Props> = ({ onBack, onSelectedBallId }) => {
-  const [profile, setProfile] = React.useState<PlayerProfile | null>(null);
+export const ShopScreen: React.FC<Props> = ({ profile, onProfileUpdate, onBack }) => {
   const [busy, setBusy] = React.useState(false);
 
   const { width } = useWindowDimensions();
   const cols = width >= 720 ? 3 : 2;
-
-  const refresh = React.useCallback(() => {
-    loadProfile().then(setProfile).catch(() => {});
-  }, []);
-
-  React.useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   const onBuy = React.useCallback(
     async (id: string, price: number) => {
       if (busy) return;
       setBusy(true);
       try {
-        const next = await purchaseBall(id, price);
-        setProfile(next);
+        await purchaseBall(id, price);
+        onProfileUpdate();
       } finally {
         setBusy(false);
       }
     },
-    [busy]
+    [busy, onProfileUpdate]
   );
 
   const onEquip = React.useCallback(
@@ -60,14 +51,13 @@ export const ShopScreen: React.FC<Props> = ({ onBack, onSelectedBallId }) => {
       if (busy) return;
       setBusy(true);
       try {
-        const next = await setSelectedBall(id);
-        setProfile(next);
-        onSelectedBallId?.(id);
+        await setSelectedBall(id);
+        onProfileUpdate();
       } finally {
         setBusy(false);
       }
     },
-    [busy, onSelectedBallId]
+    [busy, onProfileUpdate]
   );
 
   const renderItem = React.useCallback(
@@ -88,7 +78,7 @@ export const ShopScreen: React.FC<Props> = ({ onBack, onSelectedBallId }) => {
           canBuy={canBuy}
           busy={busy}
           onBuy={onBuy}
-          onSelect={onEquip} // ✅ même si non owned en DEV, tu peux équiper
+          onSelect={onEquip}
         />
       );
     },

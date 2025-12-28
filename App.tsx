@@ -6,45 +6,54 @@ configureReanimatedLogger({
 });
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 
 import DriftGame from './src/game/DriftGame';
 import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
 import HeadphonesScreen from './src/components/HeadphonesScreen';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { ShopScreen } from './src/components/shop/ShopScreen';
+import ProfileScreen from './src/components/ProfileScreen'; // ✅ AJOUT
 
-import { loadProfile, resetProfileForDev } from './src/meta/playerProfile';
+import { loadProfile, resetProfileForDev, type PlayerProfile } from './src/meta/playerProfile';
 
-type Screen = 'menu' | 'headphones' | 'game' | 'shop';
+type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'profile'; // ✅ AJOUT 'profile'
 
 const FADE_OUT_DURATION = 800;
-
 const DEV_RESET_PROFILE_ON_LAUNCH = false;
 
 export default function App() {
+  const [appReady, setAppReady] = useState(false);
+  const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [screen, setScreen] = useState<Screen>('menu');
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
 
   useEffect(() => {
-    const loadPlayerProfile = async () => {
-      if (DEV_RESET_PROFILE_ON_LAUNCH) {
-        await resetProfileForDev();
-        console.log('🔥 DEV MODE: Profil reset !');
+    const init = async () => {
+      try {
+        if (DEV_RESET_PROFILE_ON_LAUNCH) {
+          await resetProfileForDev();
+          console.log('🔥 DEV MODE: Profil reset !');
+        }
+
+        const p = await loadProfile();
+        setProfile(p);
+        setSelectedBallId(p.selectedBallId || 'core');
+        setAppReady(true);
+      } catch (error) {
+        console.error('Init error:', error);
+        setAppReady(true);
       }
-      
-      const profile = await loadProfile();
-      setSelectedBallId(profile.selectedBallId || 'core');
     };
 
-    loadPlayerProfile().catch(() => {});
+    init();
   }, []);
 
-  // ✅ FONCTION REFRESH BILLE
-  const refreshSelectedBall = useCallback(async () => {
-    const profile = await loadProfile();
-    setSelectedBallId(profile.selectedBallId || 'core');
+  const refreshProfile = useCallback(async () => {
+    const p = await loadProfile();
+    setProfile(p);
+    setSelectedBallId(p.selectedBallId || 'core');
   }, []);
 
   const handleTransition = useCallback((targetScreen: Screen) => {
@@ -64,6 +73,23 @@ export default function App() {
   const backFromShop = useCallback(() => {
     handleTransition(shopReturnTo);
   }, [handleTransition, shopReturnTo]);
+
+  // ✅ HANDLERS PROFILE
+  const openProfile = useCallback(() => {
+    handleTransition('profile');
+  }, [handleTransition]);
+
+  const backFromProfile = useCallback(() => {
+    handleTransition('menu');
+  }, [handleTransition]);
+
+  if (!appReady || !profile) {
+    return (
+      <View style={styles.splash}>
+        <Text style={styles.splashText}>DRIFT-RING</Text>
+      </View>
+    );
+  }
 
   const shouldRenderGame =
     screen === 'game' ||
@@ -96,17 +122,32 @@ export default function App() {
           <View style={{ flex: 1, backgroundColor: '#000' }}>
             <MainMenuCanvasSkia
               visible={true}
+              profile={profile}
+              onProfileUpdate={refreshProfile}
               onPlay={() => handleTransition('headphones')}
               onTuto={() => console.log('TUTO')}
               onShop={openShopFromMenu}
-              onBallChanged={refreshSelectedBall}
+              onProfile={openProfile} // ✅ AJOUT
             />
           </View>
         </View>
       )}
 
+      {/* ✅ PROFILE AVEC SCREENTRANSITION */}
+      <ScreenTransition visible={screen === 'profile'} fadeOutDuration={FADE_OUT_DURATION}>
+        <ProfileScreen
+          profile={profile}
+          onProfileUpdate={refreshProfile}
+          onBack={backFromProfile}
+        />
+      </ScreenTransition>
+
       <ScreenTransition visible={screen === 'shop'} fadeOutDuration={FADE_OUT_DURATION}>
-        <ShopScreen onBack={backFromShop} onSelectedBallId={setSelectedBallId} />
+        <ShopScreen
+          profile={profile}
+          onProfileUpdate={refreshProfile}
+          onBack={backFromShop}
+        />
       </ScreenTransition>
 
       {screen === 'headphones' && (
@@ -122,5 +163,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
+  },
+  splash: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  splashText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#f9fafb',
+    letterSpacing: 4,
+    opacity: 0.3,
   },
 });

@@ -2,21 +2,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants/gameplay';
-import ProfileScreen from './ProfileScreen';
 
 type Props = {
   onClose: () => void;
-  onBallChanged?: () => void; // ✅ AJOUT
 };
 
-type MenuScreen = 'main' | 'profile' | 'settings' | 'about';
+type MenuScreen = 'main' | 'settings' | 'about'; // ✅ RETIRE 'profile'
 
-export const OptionsMenu: React.FC<Props> = ({ onClose, onBallChanged }) => {
+export const OptionsMenu: React.FC<Props> = ({ onClose }) => {
   const [currentScreen, setCurrentScreen] = useState<MenuScreen>('main');
 
-  if (currentScreen === 'profile') {
-    return <ProfileScreen onClose={() => setCurrentScreen('main')} onBallChanged={onBallChanged} />;
-  }
+  // ✅ SUPPRIME TOUT LE BLOC PROFILE
+  // if (currentScreen === 'profile') { ... }
 
   if (currentScreen === 'settings') {
     return (
@@ -141,12 +138,8 @@ export const OptionsMenu: React.FC<Props> = ({ onClose, onBallChanged }) => {
       </View>
 
       <View style={styles.mainMenu}>
-        <Pressable style={styles.menuButton} onPress={() => setCurrentScreen('profile')}>
-          <Text style={styles.menuButtonIcon}>👤</Text>
-          <Text style={styles.menuButtonText}>PROFILE</Text>
-          <Text style={styles.menuButtonArrow}>→</Text>
-        </Pressable>
-
+        {/* ✅ SUPPRIME LE BOUTON PROFILE */}
+        
         <Pressable style={styles.menuButton} onPress={() => setCurrentScreen('settings')}>
           <Text style={styles.menuButtonIcon}>⚙️</Text>
           <Text style={styles.menuButtonText}>SETTINGS</Text>
