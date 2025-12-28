@@ -14,11 +14,14 @@ import HeadphonesScreen from './src/components/HeadphonesScreen';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { ShopScreen } from './src/components/shop/ShopScreen';
 
-import { loadProfile } from './src/meta/playerProfile';
+import { loadProfile, resetProfileForDev } from './src/meta/playerProfile';
 
 type Screen = 'menu' | 'headphones' | 'game' | 'shop';
 
 const FADE_OUT_DURATION = 800;
+
+// ✅ FLAG DE DEV - Change ici pour activer/désactiver le reset
+const DEV_RESET_PROFILE_ON_LAUNCH = false; // true = reset à chaque lancement
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -28,9 +31,17 @@ export default function App() {
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
 
   useEffect(() => {
-    loadProfile()
-      .then((p) => setSelectedBallId(p.selectedBallId || 'core'))
-      .catch(() => {});
+    const loadPlayerProfile = async () => {
+      if (DEV_RESET_PROFILE_ON_LAUNCH) {
+        await resetProfileForDev();
+        console.log('🔥 DEV MODE: Profil reset !');
+      }
+      
+      const profile = await loadProfile();
+      setSelectedBallId(profile.selectedBallId || 'core');
+    };
+
+    loadPlayerProfile().catch(() => {});
   }, []);
 
   const handleTransition = useCallback((targetScreen: Screen) => {
@@ -81,13 +92,12 @@ export default function App() {
       {screen === 'menu' && (
         <View style={StyleSheet.absoluteFillObject}>
           <View style={{ flex: 1, backgroundColor: '#000' }}>
-           <MainMenuCanvasSkia
-  visible={true}
-  onPlay={() => handleTransition('headphones')}
-  onTuto={() => console.log('TUTO')}
-  onShop={openShopFromMenu}
-  // VIRE onOptions !
-/>
+            <MainMenuCanvasSkia
+              visible={true}
+              onPlay={() => handleTransition('headphones')}
+              onTuto={() => console.log('TUTO')}
+              onShop={openShopFromMenu}
+            />
           </View>
         </View>
       )}

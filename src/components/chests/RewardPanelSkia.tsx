@@ -14,6 +14,7 @@ import {
 
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../constants/gameplay';
 import type { Reward } from '../../config/bonusConfig';
+import { BallPreviewSkia } from '../shop/BallPreviewSkia';
 
 type Props = {
   isVisible: boolean;
@@ -31,7 +32,6 @@ const FONT_ROW_DESC = matchFont({ fontFamily, fontSize: 11, fontWeight: '700' })
 
 const FONT_BADGE = matchFont({ fontFamily, fontSize: 10, fontWeight: '900' });
 const FONT_BTN = matchFont({ fontFamily, fontSize: 14, fontWeight: '900' });
-const FONT_EMOJI = matchFont({ fontFamily, fontSize: 20, fontWeight: '900' });
 
 const clampText = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 
@@ -52,13 +52,12 @@ const rarityLabel = (r: Reward['rarity']) => r.toUpperCase();
 
 type IconProps = {
   type: Reward['type'];
-  icon: string;
   cx: number;
   cy: number;
   size: number;
 };
 
-const RewardIcon: React.FC<IconProps> = ({ type, icon, cx, cy, size }) => {
+const RewardIcon: React.FC<IconProps> = ({ type, cx, cy, size }) => {
   const r = size * 0.5;
 
   // Triangle autoplay
@@ -73,15 +72,7 @@ const RewardIcon: React.FC<IconProps> = ({ type, icon, cx, cy, size }) => {
     return Skia.Path.MakeFromSVGString(svg);
   }, [cx, cy, r]);
 
-  // ✅ BILLE = EMOJI
-  if (type === 'ball') {
-    return (
-      <Group>
-        <Circle cx={cx} cy={cy} r={r + 2} color="rgba(255,255,255,0.15)" />
-        <SkiaText x={cx - r * 0.7} y={cy + r * 0.4} text={icon} font={FONT_EMOJI} color="#FFFFFF" />
-      </Group>
-    );
-  }
+  // ✅ ON NE REND PLUS LES BILLES ICI (elles seront en React View)
 
   if (type === 'coins') {
     return (
@@ -134,21 +125,12 @@ const RewardIcon: React.FC<IconProps> = ({ type, icon, cx, cy, size }) => {
     return (
       <Group>
         <Circle cx={cx} cy={cy} r={r} color="rgba(139,92,246,0.22)" />
-        <SkiaText x={cx - r * 0.4} y={cy + r * 0.3} text="⭐" font={FONT_EMOJI} color="#FFFFFF" />
+        <Circle cx={cx} cy={cy} r={r * 0.4} color="rgba(255,255,255,0.9)" />
       </Group>
     );
   }
 
-  // ✅ FALLBACK EMOJI
-  return (
-    <SkiaText
-      x={cx - r * 0.7}
-      y={cy + r * 0.4}
-      text={icon}
-      font={FONT_EMOJI}
-      color="#FFFFFF"
-    />
-  );
+  return null;
 };
 
 export const RewardPanelSkia: React.FC<Props> = ({ isVisible, rewards, onClose }) => {
@@ -194,6 +176,7 @@ export const RewardPanelSkia: React.FC<Props> = ({ isVisible, rewards, onClose }
         onPress={onClose}
       />
 
+      {/* ✅ CANVAS SKIA - Background + Panel + Textes + Icons (sauf billes) */}
       <Canvas style={styles.canvas} pointerEvents="none">
         {/* Backdrop */}
         <RoundedRect x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} r={0} color="rgba(0,0,0,0.72)" />
@@ -228,14 +211,15 @@ export const RewardPanelSkia: React.FC<Props> = ({ isVisible, rewards, onClose }
               <RoundedRect x={rowX + 10} y={baseY + 8} width={iconBox} height={iconBox} r={12} color="rgba(0,0,0,0.38)" />
               <RoundedRect x={rowX + 10} y={baseY + 8} width={iconBox} height={iconBox} r={12} color="rgba(255,107,213,0.08)" />
               
-              {/* ✅ UTILISE L'EMOJI DU REWARD */}
-              <RewardIcon 
-                type={r.type} 
-                icon={r.icon}
-                cx={iconCx} 
-                cy={iconCy} 
-                size={iconBox * 0.72} 
-              />
+              {/* ✅ ICONS (sauf billes) */}
+              {r.type !== 'ball' && (
+                <RewardIcon 
+                  type={r.type} 
+                  cx={iconCx} 
+                  cy={iconCy} 
+                  size={iconBox * 0.72} 
+                />
+              )}
 
               {/* text */}
               <SkiaText x={rowX + 10 + iconBox + 12} y={baseY + 22} text={title} font={FONT_ROW_TITLE} color="#E5F4FF" />
@@ -261,6 +245,31 @@ export const RewardPanelSkia: React.FC<Props> = ({ isVisible, rewards, onClose }
           color="#FFE6FF"
         />
       </Canvas>
+
+      {/* ✅ PREVIEWS BILLES EN REACT (en dehors du Canvas Skia) */}
+      {rewardsToShow.map((r, idx) => {
+        if (r.type !== 'ball') return null;
+        
+        const baseY = rowStartY + idx * rowH;
+        const iconX = rowX + 10;
+        const iconY = baseY + 8;
+
+        return (
+          <View 
+            key={`ball-preview-${r.id}-${idx}`}
+            style={{
+              position: 'absolute',
+              left: iconX,
+              top: iconY,
+              width: iconBox,
+              height: iconBox,
+              pointerEvents: 'none',
+            }}
+          >
+            <BallPreviewSkia ballId={r.id} size={iconBox} />
+          </View>
+        );
+      })}
     </View>
   );
 };

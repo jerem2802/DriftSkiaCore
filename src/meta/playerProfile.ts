@@ -64,8 +64,8 @@ const KEY = 'drift_profile_v1';
 
 const DEFAULT_PROFILE: PlayerProfile = {
   v: 1,
-  totalCoins: 0,
-  bestScore: 0,
+  totalCoins: 50000,  // ✅ BEAUCOUP DE COINS POUR DEV
+  bestScore: 1000,    // ✅ SCORE ÉLEVÉ POUR DÉBLOQUER TOUT
 
   ownedBalls: ['ball_classic'],
   selectedBallId: 'ball_classic',
@@ -86,12 +86,12 @@ const DEFAULT_PROFILE: PlayerProfile = {
     bronze: {
       id: 'bronze',
       status: 'locked',
-      unlockCondition: { type: 'score', value: 80 },
+      unlockCondition: { type: 'score', value: 10 },  // ✅ 10 au lieu de 80
     },
     silver: {
       id: 'silver',
       status: 'locked',
-      unlockCondition: { type: 'score', value: 200 },
+      unlockCondition: { type: 'score', value: 20 },  // ✅ 20 au lieu de 200
     },
     neon: {
       id: 'neon',
@@ -351,4 +351,17 @@ export const claimChestRewards = async (
 
   await saveProfile(next);
   return next;
+};
+
+// ============================================
+// DEV TOOLS - À SUPPRIMER EN PROD
+// ============================================
+
+/**
+ * ✅ RESET COMPLET DU PROFIL (pour dev uniquement)
+ * Supprime le profil sauvegardé et force le reload du DEFAULT_PROFILE
+ */
+export const resetProfileForDev = async (): Promise<void> => {
+  await AsyncStorage.removeItem(KEY);
+  console.log('✅ Profil reset ! Le DEFAULT_PROFILE sera rechargé au prochain loadProfile()');
 };

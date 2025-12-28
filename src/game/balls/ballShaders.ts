@@ -1,7 +1,14 @@
 // src/game/balls/ballShaders.ts
+import { REWARD_BALL_SHADERS } from './ballShadersRewards';
+
 export const BALL_SHADERS: Record<string, string> = {
   // ============================================
-  // COMMON (9 billes)
+  // BILLES EXCLUSIVES COFFRES (26 billes)
+  // ============================================
+  ...REWARD_BALL_SHADERS,
+
+  // ============================================
+  // COMMON SHOP BALLS (9 billes)
   // ============================================
   ball_classic: `
 uniform vec2 u_center;
@@ -307,7 +314,7 @@ vec4 main(vec2 fragCoord) {
 }`,
 
   // ============================================
-  // RARE (8 billes)
+  // RARE SHOP BALLS (8 billes)
   // ============================================
   ball_violet: `
 uniform float u_time;
@@ -523,7 +530,7 @@ vec4 main(vec2 fragCoord) {
 }`,
 
   // ============================================
-  // EPIC (6 billes)
+  // EPIC SHOP BALLS (6 billes)
   // ============================================
   ball_magnet: `
 uniform float u_time;
@@ -675,7 +682,7 @@ vec4 main(vec2 fragCoord) {
 }`,
 
   // ============================================
-  // LEGENDARY (2 billes)
+  // LEGENDARY SHOP BALLS (2 billes)
   // ============================================
   ball_legend_aurora: `
 uniform float u_time;
