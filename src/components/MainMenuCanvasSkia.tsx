@@ -16,6 +16,7 @@ type Props = {
   onPlay: () => void;
   onTuto: () => void;
   onShop: () => void;
+  onBallChanged?: () => void; // ✅ AJOUT
 };
 
 const formatTime = (seconds: number): string => {
@@ -27,7 +28,7 @@ const formatTime = (seconds: number): string => {
   return `${padZero(hours)}:${padZero(minutes)}:${padZero(secs)}`;
 };
 
-export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, onShop }) => {
+export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, onShop, onBallChanged }) => {
   const logic = useChestLogic(visible);
   const [showOptions, setShowOptions] = useState(false);
   const backgroundImage = useImage(require('../assets/images/menu_driftring.png'));
@@ -57,7 +58,6 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
 
   return (
     <View style={styles.container} pointerEvents={visible ? 'auto' : 'none'}>
-      {/* BACKGROUND SKIA */}
       <Canvas style={styles.canvas}>
         <RoundedRect x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} r={0} color="#000" />
         {backgroundImage && (
@@ -74,7 +74,6 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
         <RoundedRect x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} r={0} color="rgba(2, 6, 23, 0.5)" />
       </Canvas>
 
-      {/* REACT UI */}
       <Animated.View style={[styles.uiLayer, containerStyle]}>
         <View style={styles.header}>
           <Pressable style={styles.headerButton} onPress={onTuto}>
@@ -214,7 +213,6 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
         <RNText style={styles.footer}>Pour une expérience optimale, utilise un casque.</RNText>
       </Animated.View>
 
-      {/* CHEST VISUALS */}
       <View style={styles.chestAnimations} pointerEvents="none">
         <View style={[styles.chestBox, { left: CANVAS_WIDTH * 0.165 - 75, top: CANVAS_HEIGHT * 0.26 }]}>
           <ChestBoxSkia type="bronze" onPress={() => {}} shouldAnimate={logic.state.bronzeAnimating.value} width={150} height={170} />
@@ -235,7 +233,7 @@ export const MainMenuCanvasSkia: React.FC<Props> = ({ visible, onPlay, onTuto, o
       <RewardPanelSkia isVisible={logic.showSilverPanel} rewards={logic.silverRewards} onClose={logic.handleSilverRewardClose} />
       <RewardPanelSkia isVisible={logic.showNeonPanel} rewards={logic.neonRewards} onClose={logic.handleNeonRewardClose} />
 
-      {showOptions && <OptionsMenu onClose={() => setShowOptions(false)} />}
+      {showOptions && <OptionsMenu onClose={() => setShowOptions(false)} onBallChanged={onBallChanged} />}
     </View>
   );
 };

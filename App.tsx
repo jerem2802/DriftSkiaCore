@@ -20,14 +20,11 @@ type Screen = 'menu' | 'headphones' | 'game' | 'shop';
 
 const FADE_OUT_DURATION = 800;
 
-// ✅ FLAG DE DEV - Change ici pour activer/désactiver le reset
-const DEV_RESET_PROFILE_ON_LAUNCH = false; // true = reset à chaque lancement
+const DEV_RESET_PROFILE_ON_LAUNCH = false;
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
-
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
-
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
 
   useEffect(() => {
@@ -42,6 +39,12 @@ export default function App() {
     };
 
     loadPlayerProfile().catch(() => {});
+  }, []);
+
+  // ✅ FONCTION REFRESH BILLE
+  const refreshSelectedBall = useCallback(async () => {
+    const profile = await loadProfile();
+    setSelectedBallId(profile.selectedBallId || 'core');
   }, []);
 
   const handleTransition = useCallback((targetScreen: Screen) => {
@@ -68,7 +71,6 @@ export default function App() {
     (screen === 'shop' && shopReturnTo === 'game');
 
   const gamePointerEvents = screen === 'game' ? 'auto' : 'none';
-
   const showGameVisual = screen === 'game' || (screen === 'shop' && shopReturnTo === 'game');
 
   return (
@@ -97,6 +99,7 @@ export default function App() {
               onPlay={() => handleTransition('headphones')}
               onTuto={() => console.log('TUTO')}
               onShop={openShopFromMenu}
+              onBallChanged={refreshSelectedBall}
             />
           </View>
         </View>

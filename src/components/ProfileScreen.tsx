@@ -8,11 +8,12 @@ import { BallPreviewSkia } from './shop/BallPreviewSkia';
 
 type ProfileScreenProps = {
   onClose: () => void;
+  onBallChanged?: () => void; // ✅ AJOUT
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose }) => {
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose, onBallChanged }) => {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
 
   useEffect(() => {
@@ -30,6 +31,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onClose }) => {
   const handleEquipBall = async (ballId: string) => {
     const updated = await setSelectedBall(ballId);
     setProfile(updated);
+    onBallChanged?.(); // ✅ NOTIFIE App.tsx
   };
 
   const isOwned = (ballId: string) => profile.ownedBalls.includes(ballId);

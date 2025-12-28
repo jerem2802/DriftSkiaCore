@@ -6,15 +6,16 @@ import ProfileScreen from './ProfileScreen';
 
 type Props = {
   onClose: () => void;
+  onBallChanged?: () => void; // ✅ AJOUT
 };
 
 type MenuScreen = 'main' | 'profile' | 'settings' | 'about';
 
-export const OptionsMenu: React.FC<Props> = ({ onClose }) => {
+export const OptionsMenu: React.FC<Props> = ({ onClose, onBallChanged }) => {
   const [currentScreen, setCurrentScreen] = useState<MenuScreen>('main');
 
   if (currentScreen === 'profile') {
-    return <ProfileScreen onClose={() => setCurrentScreen('main')} />;
+    return <ProfileScreen onClose={() => setCurrentScreen('main')} onBallChanged={onBallChanged} />;
   }
 
   if (currentScreen === 'settings') {
