@@ -9,7 +9,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 
 import DriftGame from './src/game/DriftGame';
-import MainMenuScreen from './src/components/MainMenuScreen';
+import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
 import HeadphonesScreen from './src/components/HeadphonesScreen';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { ShopScreen } from './src/components/shop/ShopScreen';
@@ -23,10 +23,8 @@ const FADE_OUT_DURATION = 800;
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
 
-  // d'où vient le shop ? (menu ou game)
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
 
-  // bille équipée (MVP: visuel uniquement)
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
 
   useEffect(() => {
@@ -35,7 +33,6 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // Transition instantanée
   const handleTransition = useCallback((targetScreen: Screen) => {
     setScreen(targetScreen);
   }, []);
@@ -54,22 +51,17 @@ export default function App() {
     handleTransition(shopReturnTo);
   }, [handleTransition, shopReturnTo]);
 
-  // ✅ pré-mount game aussi pendant headphones (anti flash au OK)
   const shouldRenderGame =
     screen === 'game' ||
     screen === 'headphones' ||
     (screen === 'shop' && shopReturnTo === 'game');
 
-  // ✅ le game ne reçoit des touches QUE sur screen === 'game'
   const gamePointerEvents = screen === 'game' ? 'auto' : 'none';
 
-  // ✅ le game ne doit être VISIBLE que quand on est en game
-  // (ou derrière le shop si shop ouvert depuis game)
   const showGameVisual = screen === 'game' || (screen === 'shop' && shopReturnTo === 'game');
 
   return (
     <View style={styles.container}>
-      {/* GAME monté (pré-warm) mais invisible tant qu'on n'est pas en game */}
       {shouldRenderGame && (
         <View
           style={[
@@ -86,22 +78,29 @@ export default function App() {
         </View>
       )}
 
-      <ScreenTransition visible={screen === 'menu'} fadeOutDuration={FADE_OUT_DURATION}>
-        <MainMenuScreen
-          onPlay={() => handleTransition('headphones')}
-          onTuto={() => console.log('TUTO')}
-          onOptions={() => console.log('OPTIONS')}
-          onShop={openShopFromMenu}
-        />
-      </ScreenTransition>
+      {screen === 'menu' && (
+        <View style={StyleSheet.absoluteFillObject}>
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+           <MainMenuCanvasSkia
+  visible={true}
+  onPlay={() => handleTransition('headphones')}
+  onTuto={() => console.log('TUTO')}
+  onShop={openShopFromMenu}
+  // VIRE onOptions !
+/>
+          </View>
+        </View>
+      )}
 
       <ScreenTransition visible={screen === 'shop'} fadeOutDuration={FADE_OUT_DURATION}>
         <ShopScreen onBack={backFromShop} onSelectedBallId={setSelectedBallId} />
       </ScreenTransition>
 
-      <ScreenTransition visible={screen === 'headphones'} fadeOutDuration={FADE_OUT_DURATION}>
-        <HeadphonesScreen onConfirm={() => handleTransition('game')} />
-      </ScreenTransition>
+      {screen === 'headphones' && (
+        <ScreenTransition visible={true} fadeOutDuration={FADE_OUT_DURATION}>
+          <HeadphonesScreen onConfirm={() => handleTransition('game')} />
+        </ScreenTransition>
+      )}
     </View>
   );
 }

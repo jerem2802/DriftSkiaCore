@@ -30,4 +30,9 @@ export const FONTS = {
     fontSize: 18,
     fontWeight: '800',
   }),
+  ui: matchFont({
+    fontFamily,
+    fontSize: 16,
+    fontWeight: '700',
+  }),
 } as const;
