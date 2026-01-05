@@ -40,7 +40,7 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
 
   return (
     <View style={styles.container}>
-      <Canvas style={styles.canvas}>
+      <Canvas style={styles.canvas} pointerEvents="none">
         <Group>
           {/* BACKGROUND GRADIENT ANIMÉ */}
           <RoundedRect x={0} y={0} width={W} height={H} r={0}>
@@ -234,7 +234,7 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
       </View>
 
       {/* Header */}
-      <View style={styles.header}>
+ <View style={styles.header}>
         <View>
           <RNText style={styles.title}>PROFILE</RNText>
           <View style={styles.titleUnderline} />
@@ -245,7 +245,13 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
       </View>
 
       {/* Hitboxes */}
-      <Pressable style={[styles.hitbox, { top: collY, height: collH }]} onPress={() => setShowShopModal(true)}>
+      <Pressable 
+        style={[styles.hitbox, { top: collY, height: collH }]} 
+        onPress={() => {
+          console.log('🔥 SHOP PRESSED !');
+          setShowShopModal(true);
+        }}
+      >
         <View style={styles.preview}>
           {shopBalls.slice(0, 8).map(b => (
             <View key={b.id} style={styles.prevItem}>
@@ -255,7 +261,13 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
         </View>
       </Pressable>
 
-      <Pressable style={[styles.hitbox, { top: collY + collH + collGap, height: collH }]} onPress={() => setShowChestModal(true)}>
+      <Pressable 
+        style={[styles.hitbox, { top: collY + collH + collGap, height: collH }]} 
+        onPress={() => {
+          console.log('🔥 CHEST PRESSED !');
+          setShowChestModal(true);
+        }}
+      >
         <View style={styles.preview}>
           {chestBalls.slice(0, 8).map(b => (
             <View key={b.id} style={styles.prevItem}>
