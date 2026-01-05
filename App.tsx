@@ -13,7 +13,7 @@ import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
 import HeadphonesScreen from './src/components/HeadphonesScreen';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { ShopScreen } from './src/components/shop/ShopScreen';
-import ProfileScreen from './src/components/ProfileScreen'; // ✅ AJOUT
+import { ProfileCanvasSkia } from './src/components/profile/ProfileCanvasSkia';
 
 import { loadProfile, resetProfileForDev, type PlayerProfile } from './src/meta/playerProfile';
 
@@ -135,7 +135,7 @@ export default function App() {
 
       {/* ✅ PROFILE AVEC SCREENTRANSITION */}
       <ScreenTransition visible={screen === 'profile'} fadeOutDuration={FADE_OUT_DURATION}>
-        <ProfileScreen
+        <ProfileCanvasSkia
           profile={profile}
           onProfileUpdate={refreshProfile}
           onBack={backFromProfile}
