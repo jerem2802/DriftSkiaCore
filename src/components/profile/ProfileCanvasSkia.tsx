@@ -1,12 +1,25 @@
 // src/components/profile/ProfileCanvasSkia.tsx
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable, Text as RNText, Dimensions } from 'react-native';
-import { Canvas, Group, RoundedRect, LinearGradient, vec, Shadow, Circle, Blur } from '@shopify/react-native-skia';
+import {
+  Canvas,
+  Group,
+  RoundedRect,
+  LinearGradient,
+  vec,
+  Shadow,
+  Circle,
+  Blur,
+} from '@shopify/react-native-skia';
+
+import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
+
 import type { PlayerProfile } from '../../meta/playerProfile';
 import { SHOP_BALLS } from '../shop/shopCatalog';
 import { CHEST_BALLS } from '../../config/bonusConfig';
-import { BallPreviewSkia } from '../shop/BallPreviewSkia';
-import { CollectionModal } from './CollectionModal';
+
+import { CollectionScreenSkia } from './CollectionScreenSkia';
+import { BallPreviewNode } from '../shop/BallPreviewNode';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -16,39 +29,143 @@ type Props = {
   onBack: () => void;
 };
 
+type OpenCollection = null | 'shop' | 'chest';
+
+type Ball = {
+  id: string;
+  name: string;
+  desc?: string;
+  price?: number;
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+};
+
+const PREVIEW_COUNT = 8;
+
+function pickPreviewIds(balls: Ball[], ownedSet: Set<string>, count: number) {
+  const owned = balls.filter((b) => ownedSet.has(b.id)).slice(0, Math.ceil(count * 0.6)).map((b) => b.id);
+  const rest = balls.filter((b) => !ownedSet.has(b.id)).slice(0, Math.max(0, count - owned.length)).map((b) => b.id);
+  return [...owned, ...rest].slice(0, count);
+}
+
 export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, onBack }) => {
-  const [showShopModal, setShowShopModal] = useState(false);
-  const [showChestModal, setShowChestModal] = useState(false);
+  const [openCollection, setOpenCollection] = useState<OpenCollection>(null);
 
-  const shopBalls = SHOP_BALLS;
-  const chestBalls = [...CHEST_BALLS.common, ...CHEST_BALLS.rare, ...CHEST_BALLS.legendary];
-  const shopOwned = shopBalls.filter(b => profile.ownedBalls.includes(b.id)).length;
-  const chestOwned = chestBalls.filter(b => profile.ownedBalls.includes(b.id)).length;
+  // time (seconds) for shaders
+  const time = useSharedValue(0);
+  useFrameCallback((fi) => {
+    'worklet';
+    time.value = (fi.timestamp ?? 0) / 1000;
+  });
 
-  // Layout cyberpunk
+  const shopBalls = useMemo(() => SHOP_BALLS as Ball[], []);
+  const chestBalls = useMemo(
+    () => [...CHEST_BALLS.common, ...CHEST_BALLS.rare, ...CHEST_BALLS.legendary] as Ball[],
+    []
+  );
+
+  const ownedSet = useMemo(() => new Set(profile.ownedBalls), [profile.ownedBalls]);
+
+  const shopOwned = useMemo(
+    () => shopBalls.filter((b) => ownedSet.has(b.id)).length,
+    [shopBalls, ownedSet]
+  );
+  const chestOwned = useMemo(
+    () => chestBalls.filter((b) => ownedSet.has(b.id)).length,
+    [chestBalls, ownedSet]
+  );
+
+  const shopPreviewIds = useMemo(
+    () => pickPreviewIds(shopBalls, ownedSet, PREVIEW_COUNT),
+    [shopBalls, ownedSet]
+  );
+  const chestPreviewIds = useMemo(
+    () => pickPreviewIds(chestBalls, ownedSet, PREVIEW_COUNT),
+    [chestBalls, ownedSet]
+  );
+
+  // ✅ SWITCH DE PAGES - Si une collection est ouverte, affiche UNIQUEMENT la collection
+  if (openCollection === 'shop') {
+    return (
+      <CollectionScreenSkia
+        title="SHOP BALLS"
+        balls={shopBalls}
+        profile={profile}
+        onBack={() => setOpenCollection(null)}
+        onProfileUpdate={onProfileUpdate}
+      />
+    );
+  }
+
+  if (openCollection === 'chest') {
+    return (
+      <CollectionScreenSkia
+        title="CHEST BALLS"
+        balls={chestBalls}
+        profile={profile}
+        onBack={() => setOpenCollection(null)}
+        onProfileUpdate={onProfileUpdate}
+      />
+    );
+  }
+
+  // ✅ SINON affiche le PROFILE normal
+  // Layout
   const p = 16;
   const statsY = 80;
   const statsH = 90;
   const cardW = (W - p * 2 - 20) / 3;
+
   const collY = statsY + statsH + 24;
   const collH = 200;
   const collGap = 20;
+
   const upgradesY = collY + collH * 2 + collGap + 24;
 
   const shieldPercent = (profile.upgrades.shieldBank / 4) * 100;
   const autoPlayPercent = (profile.upgrades.autoPlayBank / 4) * 100;
 
+  // Preview strip geometry
+  const stripX = p + 16;
+  const stripW = W - p * 2 - 32;
+  const stripH = 66;
+
+  const renderPreviewsRow = (ids: string[], baseX: number, baseY: number, accent: string) => {
+    const size = 34;           // mini orb size
+    const step = 32;           // overlap/spacing
+    const startX = baseX + 18; // padding inside strip
+    const midY = baseY + stripH / 2;
+
+    return (
+      <Group clip={{ x: baseX, y: baseY, width: stripW, height: stripH }}>
+        {ids.map((id, i) => {
+          const cx = startX + i * step;
+          const cy = midY + ((i % 2 === 0) ? -4 : 4);
+
+          // stop if out of strip (avoid useless draws)
+          if (cx > baseX + stripW - 10) return null;
+
+          return (
+            <Group key={`${id}-${i}`}>
+              {/* soft glow behind */}
+              <Circle cx={cx} cy={cy} r={size * 0.62} color={accent} opacity={0.10}>
+                <Blur blur={10} />
+              </Circle>
+
+              <BallPreviewNode ballId={id} cx={cx} cy={cy} size={size} time={time} />
+            </Group>
+          );
+        })}
+      </Group>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Canvas style={styles.canvas} pointerEvents="none">
         <Group>
-          {/* BACKGROUND GRADIENT ANIMÉ */}
+          {/* BACKGROUND */}
           <RoundedRect x={0} y={0} width={W} height={H} r={0}>
-            <LinearGradient
-              start={vec(0, 0)}
-              end={vec(W, H)}
-              colors={['#0a0014', '#120a20', '#0a0014']}
-            />
+            <LinearGradient start={vec(0, 0)} end={vec(W, H)} colors={['#0a0014', '#120a20', '#0a0014']} />
           </RoundedRect>
 
           {/* AMBIENT GLOWS */}
@@ -59,18 +176,25 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
             <Blur blur={60} />
           </Circle>
 
-          {/* STATS CARDS - CYBERPUNK */}
+          {/* STATS CARDS */}
           {[
-            { x: p, color: '#ff6bd5', glow: '#ff6bd5', icon: '💰' },
-            { x: p + cardW + 10, color: '#fbbf24', glow: '#fbbf24', icon: '🏆' },
-            { x: p + (cardW + 10) * 2, color: '#22d3ee', glow: '#22d3ee', icon: '🎱' },
+            { x: p, color: '#ff6bd5', glow: '#ff6bd5' },
+            { x: p + cardW + 10, color: '#fbbf24', glow: '#fbbf24' },
+            { x: p + (cardW + 10) * 2, color: '#22d3ee', glow: '#22d3ee' },
           ].map((card, i) => (
             <Group key={i}>
-              {/* GLOW LAYER */}
-              <RoundedRect x={card.x - 2} y={statsY - 2} width={cardW + 4} height={statsH + 4} r={16} color={card.glow} opacity={0.3}>
+              <RoundedRect
+                x={card.x - 2}
+                y={statsY - 2}
+                width={cardW + 4}
+                height={statsH + 4}
+                r={16}
+                color={card.glow}
+                opacity={0.3}
+              >
                 <Blur blur={12} />
               </RoundedRect>
-              {/* CARD BG */}
+
               <RoundedRect x={card.x} y={statsY} width={cardW} height={statsH} r={16}>
                 <LinearGradient
                   start={vec(0, 0)}
@@ -79,113 +203,98 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
                 />
                 <Shadow dx={0} dy={8} blur={20} color={`${card.glow}88`} />
               </RoundedRect>
-              {/* BORDER NEON */}
+
               <RoundedRect x={card.x} y={statsY} width={cardW} height={statsH} r={16} style="stroke" strokeWidth={2} color={card.color} opacity={0.8} />
-              {/* INNER GLOW */}
               <RoundedRect x={card.x + 2} y={statsY + 2} width={cardW - 4} height={statsH - 4} r={14} style="stroke" strokeWidth={1} color={card.color} opacity={0.3} />
             </Group>
           ))}
 
-          {/* SHOP CARD - GLASSY */}
+          {/* SHOP CARD */}
           <Group>
-            {/* OUTER GLOW */}
             <RoundedRect x={p - 3} y={collY - 3} width={W - p * 2 + 6} height={collH + 6} r={22} color="#ff6bd5" opacity={0.2}>
               <Blur blur={16} />
             </RoundedRect>
-            {/* CARD GLASS */}
+
             <RoundedRect x={p} y={collY} width={W - p * 2} height={collH} r={20}>
-              <LinearGradient
-                start={vec(0, 0)}
-                end={vec(W - p * 2, collH)}
-                colors={['#ff6bd533', '#8b5cf622', '#00000066']}
-              />
+              <LinearGradient start={vec(0, 0)} end={vec(W - p * 2, collH)} colors={['#ff6bd533', '#8b5cf622', '#00000066']} />
               <Shadow dx={0} dy={10} blur={30} color="#ff6bd566" />
             </RoundedRect>
-            {/* BORDER NEON */}
+
             <RoundedRect x={p} y={collY} width={W - p * 2} height={collH} r={20} style="stroke" strokeWidth={3} color="#ff6bd5" opacity={0.9} />
-            {/* INNER BORDER */}
             <RoundedRect x={p + 3} y={collY + 3} width={W - p * 2 - 6} height={collH - 6} r={18} style="stroke" strokeWidth={1} color="#ff6bd5" opacity={0.3} />
-            {/* ACCENT GLOW */}
+
             <Circle cx={W - p - 40} cy={collY + 40} r={70} color="#ff6bd5" opacity={0.15}>
               <Blur blur={40} />
             </Circle>
-            {/* PREVIEW ZONE */}
-            <RoundedRect x={p + 16} y={collY + collH - 80} width={W - p * 2 - 32} height={66} r={14}>
-              <LinearGradient
-                start={vec(0, 0)}
-                end={vec(W - p * 2 - 32, 66)}
-                colors={['#00000077', '#00000099']}
-              />
+
+            {/* strip background */}
+            <RoundedRect x={stripX} y={collY + collH - 80} width={stripW} height={stripH} r={14}>
+              <LinearGradient start={vec(0, 0)} end={vec(stripW, stripH)} colors={['#00000077', '#00000099']} />
             </RoundedRect>
-            <RoundedRect x={p + 16} y={collY + collH - 80} width={W - p * 2 - 32} height={66} r={14} style="stroke" strokeWidth={1} color="#ff6bd5" opacity={0.3} />
+            <RoundedRect x={stripX} y={collY + collH - 80} width={stripW} height={stripH} r={14} style="stroke" strokeWidth={1} color="#ff6bd5" opacity={0.3} />
+
+            {/* ✅ previews row (no circle, more than 3) */}
+            {renderPreviewsRow(shopPreviewIds, stripX, collY + collH - 80, '#ff6bd5')}
           </Group>
 
-          {/* CHEST CARD - GLASSY */}
+          {/* CHEST CARD */}
           <Group>
             <RoundedRect x={p - 3} y={collY + collH + collGap - 3} width={W - p * 2 + 6} height={collH + 6} r={22} color="#22d3ee" opacity={0.2}>
               <Blur blur={16} />
             </RoundedRect>
+
             <RoundedRect x={p} y={collY + collH + collGap} width={W - p * 2} height={collH} r={20}>
-              <LinearGradient
-                start={vec(0, 0)}
-                end={vec(W - p * 2, collH)}
-                colors={['#22d3ee33', '#06b6d422', '#00000066']}
-              />
+              <LinearGradient start={vec(0, 0)} end={vec(W - p * 2, collH)} colors={['#22d3ee33', '#06b6d422', '#00000066']} />
               <Shadow dx={0} dy={10} blur={30} color="#22d3ee66" />
             </RoundedRect>
+
             <RoundedRect x={p} y={collY + collH + collGap} width={W - p * 2} height={collH} r={20} style="stroke" strokeWidth={3} color="#22d3ee" opacity={0.9} />
             <RoundedRect x={p + 3} y={collY + collH + collGap + 3} width={W - p * 2 - 6} height={collH - 6} r={18} style="stroke" strokeWidth={1} color="#22d3ee" opacity={0.3} />
+
             <Circle cx={W - p - 40} cy={collY + collH + collGap + 40} r={70} color="#22d3ee" opacity={0.15}>
               <Blur blur={40} />
             </Circle>
-            <RoundedRect x={p + 16} y={collY + collH + collGap + collH - 80} width={W - p * 2 - 32} height={66} r={14}>
-              <LinearGradient
-                start={vec(0, 0)}
-                end={vec(W - p * 2 - 32, 66)}
-                colors={['#00000077', '#00000099']}
-              />
+
+            {/* strip background */}
+            <RoundedRect x={stripX} y={collY + collH + collGap + collH - 80} width={stripW} height={stripH} r={14}>
+              <LinearGradient start={vec(0, 0)} end={vec(stripW, stripH)} colors={['#00000077', '#00000099']} />
             </RoundedRect>
-            <RoundedRect x={p + 16} y={collY + collH + collGap + collH - 80} width={W - p * 2 - 32} height={66} r={14} style="stroke" strokeWidth={1} color="#22d3ee" opacity={0.3} />
+            <RoundedRect x={stripX} y={collY + collH + collGap + collH - 80} width={stripW} height={stripH} r={14} style="stroke" strokeWidth={1} color="#22d3ee" opacity={0.3} />
+
+            {/* ✅ previews row */}
+            {renderPreviewsRow(chestPreviewIds, stripX, collY + collH + collGap + collH - 80, '#22d3ee')}
           </Group>
 
-          {/* UPGRADES - THICK BARS */}
+          {/* UPGRADES */}
           {[
             { y: upgradesY + 35, percent: shieldPercent, color1: '#ff6bd5', color2: '#a855f7' },
             { y: upgradesY + 125, percent: autoPlayPercent, color1: '#22d3ee', color2: '#06b6d4' },
           ].map((up, i) => {
             const barW = W - p * 2 - 110;
             const fillW = (barW * up.percent) / 100;
+
             return (
               <Group key={i}>
-                {/* CARD GLOW */}
                 <RoundedRect x={p - 2} y={up.y - 2} width={W - p * 2 + 4} height={74} r={16} color={up.color1} opacity={0.2}>
                   <Blur blur={12} />
                 </RoundedRect>
-                {/* CARD BG */}
+
                 <RoundedRect x={p} y={up.y} width={W - p * 2} height={70} r={14}>
-                  <LinearGradient
-                    start={vec(0, 0)}
-                    end={vec(W - p * 2, 70)}
-                    colors={[`${up.color1}22`, `${up.color2}11`, '#00000055']}
-                  />
+                  <LinearGradient start={vec(0, 0)} end={vec(W - p * 2, 70)} colors={[`${up.color1}22`, `${up.color2}11`, '#00000055']} />
                   <Shadow dx={0} dy={6} blur={16} color={`${up.color1}66`} />
                 </RoundedRect>
-                {/* BORDER */}
+
                 <RoundedRect x={p} y={up.y} width={W - p * 2} height={70} r={14} style="stroke" strokeWidth={2} color={up.color1} opacity={0.7} />
-                {/* BAR BG */}
+
                 <RoundedRect x={p + 60} y={up.y + 42} width={barW} height={14} r={7} color="#ffffff11" />
                 <RoundedRect x={p + 60} y={up.y + 42} width={barW} height={14} r={7} style="stroke" strokeWidth={1} color={up.color1} opacity={0.3} />
-                {/* BAR FILL GLOW */}
+
                 <RoundedRect x={p + 60 - 2} y={up.y + 42 - 2} width={fillW + 4} height={18} r={9} color={up.color1} opacity={0.4}>
                   <Blur blur={8} />
                 </RoundedRect>
-                {/* BAR FILL */}
+
                 <RoundedRect x={p + 60} y={up.y + 42} width={fillW} height={14} r={7}>
-                  <LinearGradient
-                    start={vec(0, 0)}
-                    end={vec(fillW, 14)}
-                    colors={[up.color1, up.color2]}
-                  />
+                  <LinearGradient start={vec(0, 0)} end={vec(fillW, 14)} colors={[up.color1, up.color2]} />
                   <Shadow dx={0} dy={2} blur={8} color={`${up.color1}CC`} />
                 </RoundedRect>
               </Group>
@@ -194,7 +303,7 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
         </Group>
       </Canvas>
 
-      {/* TEXTES */}
+      {/* TEXT LAYER (RN) */}
       <View style={styles.textLayer} pointerEvents="none">
         {/* Stats */}
         <RNText style={[styles.statIcon, { left: p + cardW / 2 - 14, top: statsY + 18 }]}>💰</RNText>
@@ -233,8 +342,8 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
         <RNText style={[styles.upPct, { right: p + 16, top: upgradesY + 142 }]}>{Math.round(autoPlayPercent)}%</RNText>
       </View>
 
-      {/* Header */}
- <View style={styles.header}>
+      {/* HEADER */}
+      <View style={styles.header}>
         <View>
           <RNText style={styles.title}>PROFILE</RNText>
           <View style={styles.titleUnderline} />
@@ -244,58 +353,9 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
         </Pressable>
       </View>
 
-      {/* Hitboxes */}
-      <Pressable 
-        style={[styles.hitbox, { top: collY, height: collH }]} 
-        onPress={() => {
-          console.log('🔥 SHOP PRESSED !');
-          setShowShopModal(true);
-        }}
-      >
-        <View style={styles.preview}>
-          {shopBalls.slice(0, 8).map(b => (
-            <View key={b.id} style={styles.prevItem}>
-              <BallPreviewSkia ballId={b.id} size={36} />
-            </View>
-          ))}
-        </View>
-      </Pressable>
-
-      <Pressable 
-        style={[styles.hitbox, { top: collY + collH + collGap, height: collH }]} 
-        onPress={() => {
-          console.log('🔥 CHEST PRESSED !');
-          setShowChestModal(true);
-        }}
-      >
-        <View style={styles.preview}>
-          {chestBalls.slice(0, 8).map(b => (
-            <View key={b.id} style={styles.prevItem}>
-              <BallPreviewSkia ballId={b.id} size={36} />
-            </View>
-          ))}
-        </View>
-      </Pressable>
-
-      {/* Modals */}
-      {showShopModal && (
-        <CollectionModal
-          title="SHOP BALLS"
-          balls={shopBalls}
-          profile={profile}
-          onClose={() => setShowShopModal(false)}
-          onProfileUpdate={onProfileUpdate}
-        />
-      )}
-      {showChestModal && (
-        <CollectionModal
-          title="CHEST BALLS"
-          balls={chestBalls}
-          profile={profile}
-          onClose={() => setShowChestModal(false)}
-          onProfileUpdate={onProfileUpdate}
-        />
-      )}
+      {/* HITBOXES */}
+      <Pressable style={[styles.hitbox, { top: collY, height: collH }]} onPress={() => setOpenCollection('shop')} />
+      <Pressable style={[styles.hitbox, { top: collY + collH + collGap, height: collH }]} onPress={() => setOpenCollection('chest')} />
     </View>
   );
 };
@@ -304,22 +364,89 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   canvas: { width: W, height: H },
   textLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  header: { position: 'absolute', top: 0, left: 0, right: 0, height: 75, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 24, borderBottomWidth: 2, borderBottomColor: '#ff6bd555' },
-  title: { fontSize: 32, fontWeight: '900', color: '#FFE6FF', letterSpacing: 4, textShadowColor: '#ff6bd5', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 },
+
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 75,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    borderBottomWidth: 2,
+    borderBottomColor: '#ff6bd555',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFE6FF',
+    letterSpacing: 4,
+    textShadowColor: '#ff6bd5',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
   titleUnderline: { height: 3, width: 80, backgroundColor: '#ff6bd5', marginTop: 4, borderRadius: 2 },
-  closeBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#ff6bd522', borderWidth: 2, borderColor: '#ff6bd5', justifyContent: 'center', alignItems: 'center' },
+  closeBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#ff6bd522',
+    borderWidth: 2,
+    borderColor: '#ff6bd5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   closeTxt: { fontSize: 24, fontWeight: '700', color: '#FFE6FF' },
+
   statIcon: { position: 'absolute', fontSize: 32 },
-  statNum: { position: 'absolute', fontSize: 24, fontWeight: '900', color: '#FFE6FF', textShadowColor: '#000', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  statNum: {
+    position: 'absolute',
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FFE6FF',
+    textShadowColor: '#000',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
   statLbl: { position: 'absolute', fontSize: 9, fontWeight: '900', color: '#9CA3AF', letterSpacing: 1 },
-  collTitle: { position: 'absolute', fontSize: 22, fontWeight: '900', color: '#FFE6FF', letterSpacing: 2, textShadowColor: '#000', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+
+  collTitle: {
+    position: 'absolute',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFE6FF',
+    letterSpacing: 2,
+    textShadowColor: '#000',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
   collSub: { position: 'absolute', fontSize: 12, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5 },
   collCount: { position: 'absolute', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
-  upTitle: { position: 'absolute', fontSize: 20, fontWeight: '900', color: '#FFE6FF', letterSpacing: 2, textShadowColor: '#ff6bd5', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 },
+
+  upTitle: {
+    position: 'absolute',
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFE6FF',
+    letterSpacing: 2,
+    textShadowColor: '#ff6bd5',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
   upIcon: { position: 'absolute', fontSize: 28 },
   upName: { position: 'absolute', fontSize: 15, fontWeight: '700', color: '#E5E7EB' },
-  upPct: { position: 'absolute', fontSize: 18, fontWeight: '900', color: '#FFE6FF', textShadowColor: '#ff6bd5', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 },
+  upPct: {
+    position: 'absolute',
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFE6FF',
+    textShadowColor: '#ff6bd5',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+
   hitbox: { position: 'absolute', left: 16, width: W - 32 },
-  preview: { position: 'absolute', bottom: 16, left: 16, right: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  prevItem: { width: 36, height: 36 },
 });

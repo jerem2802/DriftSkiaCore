@@ -9,7 +9,7 @@ export const REWARD_BALL_SHADERS: Record<string, string> = {
   // ============================================
   // COMMON CHEST BALLS (8 billes)
   // ============================================
-  
+
   ball_pool: `
 uniform float u_time;
 uniform vec2 u_center;
@@ -226,7 +226,6 @@ vec4 main(vec2 fragCoord) {
   // ============================================
   // RARE CHEST BALLS (10 billes)
   // ============================================
-  
   ball_earth: `
 uniform float u_time;
 uniform vec2 u_center;
@@ -598,7 +597,6 @@ vec4 main(vec2 fragCoord) {
   // ============================================
   // LEGENDARY CHEST BALLS (6 billes)
   // ============================================
-  
   ball_galaxy: `
 uniform float u_time;
 uniform vec2 u_center;
