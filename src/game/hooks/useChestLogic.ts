@@ -104,9 +104,16 @@ export const useChestLogic = (
     let inFlight = false;
 
     const tick = async () => {
-      if (modalOpenRef.current) return;
-      if (!visible) return;
-      if (inFlight) return;
+     if (modalOpenRef.current) {
+  return;
+}
+if (!visible) {
+  return;
+}
+if (inFlight) {
+  return;
+}
+
       inFlight = true;
 
       try {

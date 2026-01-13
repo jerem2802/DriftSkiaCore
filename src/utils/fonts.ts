@@ -35,4 +35,16 @@ export const FONTS = {
     fontSize: 16,
     fontWeight: '700',
   }),
+  
+  // Header fonts (RÉDUIT pour header compact)
+  headerName: matchFont({
+    fontFamily,
+    fontSize: 14,  // Réduit (était 16)
+    fontWeight: '700',
+  }),
+  headerCoins: matchFont({
+    fontFamily,
+    fontSize: 16,  // Réduit (était 18)
+    fontWeight: '900',
+  }),
 } as const;

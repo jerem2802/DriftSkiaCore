@@ -31,59 +31,31 @@ type Props = {
 
 type OpenCollection = null | 'shop' | 'chest';
 
-type Ball = {
-  id: string;
-  name: string;
-  desc?: string;
-  price?: number;
-  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
-};
-
-const PREVIEW_COUNT = 8;
-
-function pickPreviewIds(balls: Ball[], ownedSet: Set<string>, count: number) {
-  const owned = balls.filter((b) => ownedSet.has(b.id)).slice(0, Math.ceil(count * 0.6)).map((b) => b.id);
-  const rest = balls.filter((b) => !ownedSet.has(b.id)).slice(0, Math.max(0, count - owned.length)).map((b) => b.id);
-  return [...owned, ...rest].slice(0, count);
-}
-
 export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, onBack }) => {
   const [openCollection, setOpenCollection] = useState<OpenCollection>(null);
 
-  // time (seconds) for shaders
+  const shopBalls = useMemo(() => SHOP_BALLS, []);
+  const chestBalls = useMemo(
+    () => [...CHEST_BALLS.common, ...CHEST_BALLS.rare, ...CHEST_BALLS.legendary],
+    []
+  );
+
+  const shopOwned = useMemo(
+    () => shopBalls.filter((b) => profile.ownedBalls.includes(b.id)).length,
+    [shopBalls, profile.ownedBalls]
+  );
+  const chestOwned = useMemo(
+    () => chestBalls.filter((b) => profile.ownedBalls.includes(b.id)).length,
+    [chestBalls, profile.ownedBalls]
+  );
+
+  // time for previews
   const time = useSharedValue(0);
   useFrameCallback((fi) => {
     'worklet';
     time.value = (fi.timestamp ?? 0) / 1000;
   });
 
-  const shopBalls = useMemo(() => SHOP_BALLS as Ball[], []);
-  const chestBalls = useMemo(
-    () => [...CHEST_BALLS.common, ...CHEST_BALLS.rare, ...CHEST_BALLS.legendary] as Ball[],
-    []
-  );
-
-  const ownedSet = useMemo(() => new Set(profile.ownedBalls), [profile.ownedBalls]);
-
-  const shopOwned = useMemo(
-    () => shopBalls.filter((b) => ownedSet.has(b.id)).length,
-    [shopBalls, ownedSet]
-  );
-  const chestOwned = useMemo(
-    () => chestBalls.filter((b) => ownedSet.has(b.id)).length,
-    [chestBalls, ownedSet]
-  );
-
-  const shopPreviewIds = useMemo(
-    () => pickPreviewIds(shopBalls, ownedSet, PREVIEW_COUNT),
-    [shopBalls, ownedSet]
-  );
-  const chestPreviewIds = useMemo(
-    () => pickPreviewIds(chestBalls, ownedSet, PREVIEW_COUNT),
-    [chestBalls, ownedSet]
-  );
-
-  // ✅ SWITCH DE PAGES - Si une collection est ouverte, affiche UNIQUEMENT la collection
   if (openCollection === 'shop') {
     return (
       <CollectionScreenSkia
@@ -108,7 +80,6 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
     );
   }
 
-  // ✅ SINON affiche le PROFILE normal
   // Layout
   const p = 16;
   const statsY = 80;
@@ -124,37 +95,49 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
   const shieldPercent = (profile.upgrades.shieldBank / 4) * 100;
   const autoPlayPercent = (profile.upgrades.autoPlayBank / 4) * 100;
 
-  // Preview strip geometry
+  // previews row geometry (shared)
   const stripX = p + 16;
   const stripW = W - p * 2 - 32;
   const stripH = 66;
+  const stripPad = 18;
 
-  const renderPreviewsRow = (ids: string[], baseX: number, baseY: number, accent: string) => {
-    const size = 34;           // mini orb size
-    const step = 32;           // overlap/spacing
-    const startX = baseX + 18; // padding inside strip
-    const midY = baseY + stripH / 2;
+  const previewCount = 6;
+  const previewSize = 34;
+  const previewAvail = stripW - stripPad * 2;
+  const gap = previewCount > 1 ? (previewAvail - previewCount * previewSize) / (previewCount - 1) : 0;
+
+  const renderPreviewRow = (ballsForRow: { id: string }[], cy: number, accent: string) => {
+    const items = ballsForRow.slice(0, previewCount);
 
     return (
-      <Group clip={{ x: baseX, y: baseY, width: stripW, height: stripH }}>
-        {ids.map((id, i) => {
-          const cx = startX + i * step;
-          const cy = midY + ((i % 2 === 0) ? -4 : 4);
+      <Group>
+        {/* clip strip */}
+        <RoundedRect x={stripX} y={cy - stripH / 2} width={stripW} height={stripH} r={14} color="#00000066" />
+        <RoundedRect
+          x={stripX}
+          y={cy - stripH / 2}
+          width={stripW}
+          height={stripH}
+          r={14}
+          style="stroke"
+          strokeWidth={1}
+          color={accent}
+          opacity={0.25}
+        />
 
-          // stop if out of strip (avoid useless draws)
-          if (cx > baseX + stripW - 10) return null;
-
-          return (
-            <Group key={`${id}-${i}`}>
-              {/* soft glow behind */}
-              <Circle cx={cx} cy={cy} r={size * 0.62} color={accent} opacity={0.10}>
-                <Blur blur={10} />
-              </Circle>
-
-              <BallPreviewNode ballId={id} cx={cx} cy={cy} size={size} time={time} />
-            </Group>
-          );
-        })}
+        <Group clip={{ x: stripX, y: cy - stripH / 2, width: stripW, height: stripH }}>
+          {items.map((b, idx) => {
+            const cx = stripX + stripPad + previewSize / 2 + idx * (previewSize + gap);
+            return (
+              <Group key={`${b.id}-${idx}`}>
+                <Circle cx={cx} cy={cy} r={previewSize / 2 + 10} color={accent} opacity={0.06}>
+                  <Blur blur={14} />
+                </Circle>
+                <BallPreviewNode ballId={b.id} cx={cx} cy={cy} size={previewSize} time={time} />
+              </Group>
+            );
+          })}
+        </Group>
       </Group>
     );
   };
@@ -183,15 +166,7 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
             { x: p + (cardW + 10) * 2, color: '#22d3ee', glow: '#22d3ee' },
           ].map((card, i) => (
             <Group key={i}>
-              <RoundedRect
-                x={card.x - 2}
-                y={statsY - 2}
-                width={cardW + 4}
-                height={statsH + 4}
-                r={16}
-                color={card.glow}
-                opacity={0.3}
-              >
+              <RoundedRect x={card.x - 2} y={statsY - 2} width={cardW + 4} height={statsH + 4} r={16} color={card.glow} opacity={0.3}>
                 <Blur blur={12} />
               </RoundedRect>
 
@@ -227,14 +202,8 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
               <Blur blur={40} />
             </Circle>
 
-            {/* strip background */}
-            <RoundedRect x={stripX} y={collY + collH - 80} width={stripW} height={stripH} r={14}>
-              <LinearGradient start={vec(0, 0)} end={vec(stripW, stripH)} colors={['#00000077', '#00000099']} />
-            </RoundedRect>
-            <RoundedRect x={stripX} y={collY + collH - 80} width={stripW} height={stripH} r={14} style="stroke" strokeWidth={1} color="#ff6bd5" opacity={0.3} />
-
-            {/* ✅ previews row (no circle, more than 3) */}
-            {renderPreviewsRow(shopPreviewIds, stripX, collY + collH - 80, '#ff6bd5')}
+            {/* preview strip */}
+            {renderPreviewRow(shopBalls, collY + collH - 80 + stripH / 2, '#ff6bd5')}
           </Group>
 
           {/* CHEST CARD */}
@@ -255,14 +224,8 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
               <Blur blur={40} />
             </Circle>
 
-            {/* strip background */}
-            <RoundedRect x={stripX} y={collY + collH + collGap + collH - 80} width={stripW} height={stripH} r={14}>
-              <LinearGradient start={vec(0, 0)} end={vec(stripW, stripH)} colors={['#00000077', '#00000099']} />
-            </RoundedRect>
-            <RoundedRect x={stripX} y={collY + collH + collGap + collH - 80} width={stripW} height={stripH} r={14} style="stroke" strokeWidth={1} color="#22d3ee" opacity={0.3} />
-
-            {/* ✅ previews row */}
-            {renderPreviewsRow(chestPreviewIds, stripX, collY + collH + collGap + collH - 80, '#22d3ee')}
+            {/* preview strip */}
+            {renderPreviewRow(chestBalls, collY + collH + collGap + collH - 80 + stripH / 2, '#22d3ee')}
           </Group>
 
           {/* UPGRADES */}
@@ -294,7 +257,7 @@ export const ProfileCanvasSkia: React.FC<Props> = ({ profile, onProfileUpdate, o
                 </RoundedRect>
 
                 <RoundedRect x={p + 60} y={up.y + 42} width={fillW} height={14} r={7}>
-                  <LinearGradient start={vec(0, 0)} end={vec(fillW, 14)} colors={[up.color1, up.color2]} />
+                  <LinearGradient start={vec(0, 0)} end={vec(Math.max(1, fillW), 14)} colors={[up.color1, up.color2]} />
                   <Shadow dx={0} dy={2} blur={8} color={`${up.color1}CC`} />
                 </RoundedRect>
               </Group>
