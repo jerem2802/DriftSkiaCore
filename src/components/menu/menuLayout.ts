@@ -139,11 +139,11 @@ export const createMenuLayout = (W: number, H: number): MenuLayout => {
   const playRect = rr(W * 0.18, H * 0.44, W * 0.64, H * 0.105, Math.round(W * 0.05));
 
   // CHESTS row (descendus pour le hero agrandi)
-  const chestY = H * 0.66;  // Était 0.62
-  const chestH = H * 0.20;
-  const chestW = W * 0.26;
-  const chestGap = W * 0.05;
-  const chestX0 = W * 0.08;
+  const chestY = H * 0.60;  // Était 0.62
+  const chestH = H * 0.19;
+  const chestW = W * 0.31;
+  const chestGap = W * 0.02;
+  const chestX0 = W * 0.02;
 
   const chestRowBronzeRect = rr(chestX0, chestY, chestW, chestH, Math.round(W * 0.03));
   const chestRowSilverRect = rr(chestX0 + chestW + chestGap, chestY, chestW, chestH, Math.round(W * 0.03));

@@ -1,6 +1,6 @@
 // src/components/menu/MenuHitBoxes.tsx
 import React, { useMemo } from 'react';
-import { StyleSheet, View, Pressable, Text as RNText } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
 import type { MenuLayout } from './menuLayout';
 
 type MenuHitBoxesProps = {
@@ -12,6 +12,7 @@ type MenuHitBoxesProps = {
 
   onPlay: () => void;
   onShop: () => void;
+  onLeaderboard: () => void;
   onCollection: () => void;
 };
 
@@ -40,10 +41,8 @@ const makeStyles = (l: MenuLayout) =>
 
     // NAV
     navShop: { position: 'absolute', ...navItemRect(l.navRect, 0) },
-    navProfile: { position: 'absolute', ...navItemRect(l.navRect, 1) },
-    navInv: { position: 'absolute', ...navItemRect(l.navRect, 2) },
-    navCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    navText: { color: '#cbd5e1', fontWeight: '900', letterSpacing: 1.2, fontSize: l.font.small, textAlign: 'center' },
+    navLeaderboard: { position: 'absolute', ...navItemRect(l.navRect, 1) },
+    navCollection: { position: 'absolute', ...navItemRect(l.navRect, 2) },
 
     footer: {
       position: 'absolute',
@@ -65,6 +64,7 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
   onSettings,
   onPlay,
   onShop,
+  onLeaderboard,
   onCollection,
 }) => {
   const s = useMemo(() => makeStyles(layout), [layout]);
@@ -80,32 +80,12 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
       {/* PLAY - hitbox invisible, texte/style dans PlayButtonSkia */}
       <Pressable style={s.playHit} onPress={onPlay} />
 
-      {/* NAV */}
-      <Pressable style={s.navShop} onPress={onShop}>
-        <View style={s.navCenter}>
-          <RNText style={s.navText} allowFontScaling={false}>
-            SHOP
-          </RNText>
-        </View>
-      </Pressable>
-      <Pressable style={s.navProfile} onPress={onProfile}>
-        <View style={s.navCenter}>
-          <RNText style={s.navText} allowFontScaling={false}>
-            PROFILE
-          </RNText>
-        </View>
-      </Pressable>
-      <Pressable style={s.navInv} onPress={onCollection}>
-        <View style={s.navCenter}>
-          <RNText style={s.navText} allowFontScaling={false}>
-            INVENTORY
-          </RNText>
-        </View>
-      </Pressable>
+      {/* NAV - hitboxes invisibles */}
+      <Pressable style={s.navShop} onPress={onShop} />
+      <Pressable style={s.navLeaderboard} onPress={onLeaderboard} />
+      <Pressable style={s.navCollection} onPress={onCollection} />
 
-      <RNText style={s.footer} numberOfLines={1} allowFontScaling={false}>
-        For the best experience, use headphones.
-      </RNText>
+
     </View>
   );
 };

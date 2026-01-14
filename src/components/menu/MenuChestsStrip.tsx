@@ -48,19 +48,31 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
   const onChestPress = useCallback(
     (type: 'bronze' | 'silver' | 'neon') => {
       if (type === 'bronze') {
-        if (logic.bronzeStatus === 'locked') logic.handleBronzeUnlock();
-        else if (logic.bronzeStatus === 'countdown') return; // Pas de tap pendant countdown
-        else logic.handleBronzeOpen();
+        if (logic.bronzeStatus === 'locked') {
+          logic.handleBronzeUnlock();
+        } else if (logic.bronzeStatus === 'countdown') {
+          return;
+        } else {
+          logic.handleBronzeOpen();
+        }
       }
       if (type === 'silver') {
-        if (logic.silverStatus === 'locked') logic.handleSilverUnlock();
-        else if (logic.silverStatus === 'countdown') return;
-        else logic.handleSilverOpen();
+        if (logic.silverStatus === 'locked') {
+          logic.handleSilverUnlock();
+        } else if (logic.silverStatus === 'countdown') {
+          return;
+        } else {
+          logic.handleSilverOpen();
+        }
       }
       if (type === 'neon') {
-        if (logic.neonStatus === 'locked') logic.handleNeonUnlock();
-        else if (logic.neonStatus === 'countdown') return;
-        else logic.handleNeonOpen();
+        if (logic.neonStatus === 'locked') {
+          logic.handleNeonUnlock();
+        } else if (logic.neonStatus === 'countdown') {
+          return;
+        } else {
+          logic.handleNeonOpen();
+        }
       }
     },
     [logic]
@@ -72,7 +84,9 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
       const t = type === 'bronze' ? logic.bronzeTime : type === 'silver' ? logic.silverTime : logic.neonTime;
       return `⏰ ${fmt(t)}`;
     }
-    if (status === 'ready') return 'READY!';
+    if (status === 'ready') {
+      return 'READY!';
+    }
     return '';
   };
 
@@ -117,25 +131,20 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         )}
       </Pressable>
 
-      {/* Watch Ad Bronze */}
+      {/* Watch Ad Bronze - hitbox invisible */}
       {logic.bronzeStatus === 'countdown' && (
         <Pressable
           onPress={logic.handleBronzeWatchAd}
           style={[
-            styles.watch,
+            styles.watchHit,
             {
               left: watchAdRect('bronze').x,
               top: watchAdRect('bronze').y,
               width: watchAdRect('bronze').w,
               height: watchAdRect('bronze').h,
-              borderRadius: watchAdRect('bronze').r,
             },
           ]}
-        >
-          <RNText style={[styles.watchText, { fontSize: layout.font.labelSmall }]} allowFontScaling={false}>
-            ▶ Watch Ad (-3h)
-          </RNText>
-        </Pressable>
+        />
       )}
 
       {/* SILVER - hitbox invisible */}
@@ -166,25 +175,20 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         )}
       </Pressable>
 
-      {/* Watch Ad Silver */}
+      {/* Watch Ad Silver - hitbox invisible */}
       {logic.silverStatus === 'countdown' && (
         <Pressable
           onPress={logic.handleSilverWatchAd}
           style={[
-            styles.watch,
+            styles.watchHit,
             {
               left: watchAdRect('silver').x,
               top: watchAdRect('silver').y,
               width: watchAdRect('silver').w,
               height: watchAdRect('silver').h,
-              borderRadius: watchAdRect('silver').r,
             },
           ]}
-        >
-          <RNText style={[styles.watchText, { fontSize: layout.font.labelSmall }]} allowFontScaling={false}>
-            ▶ Watch Ad (-3h)
-          </RNText>
-        </Pressable>
+        />
       )}
 
       {/* NEON - hitbox invisible */}
@@ -215,25 +219,20 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         )}
       </Pressable>
 
-      {/* Watch Ad Neon */}
+      {/* Watch Ad Neon - hitbox invisible */}
       {logic.neonStatus === 'countdown' && (
         <Pressable
           onPress={logic.handleNeonWatchAd}
           style={[
-            styles.watch,
+            styles.watchHit,
             {
               left: watchAdRect('neon').x,
               top: watchAdRect('neon').y,
               width: watchAdRect('neon').w,
               height: watchAdRect('neon').h,
-              borderRadius: watchAdRect('neon').r,
             },
           ]}
-        >
-          <RNText style={[styles.watchText, { fontSize: layout.font.labelSmall }]} allowFontScaling={false}>
-            ▶ Watch Ad (-3h)
-          </RNText>
-        </Pressable>
+        />
       )}
     </View>
   );
@@ -253,17 +252,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  watch: {
+  watchHit: {
     position: 'absolute',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    borderWidth: 2,
-    borderColor: 'rgba(34, 197, 94, 0.65)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  watchText: {
-    color: 'rgba(34, 197, 94, 0.95)',
-    fontWeight: '900',
-    letterSpacing: 1.2,
   },
 });
