@@ -15,16 +15,23 @@ type MenuHubSkiaProps = {
   bronzeStatus: ChestStatus;
   silverStatus: ChestStatus;
   neonStatus: ChestStatus;
+  activeTab: 'shop' | 'leaderboard' | 'collection';
 };
 
-export const MenuHubSkia: React.FC<MenuHubSkiaProps> = ({ layout, bronzeStatus, silverStatus, neonStatus }) => {
+export const MenuHubSkia: React.FC<MenuHubSkiaProps> = ({ 
+  layout, 
+  bronzeStatus, 
+  silverStatus, 
+  neonStatus,
+  activeTab,
+}) => {
   return (
     <Group>
       <PlayButtonSkia layout={layout} />
       <MenuChestsCardsSkia layout={layout} bronzeStatus={bronzeStatus} silverStatus={silverStatus} neonStatus={neonStatus} />
       <MenuChestButtonsSkia layout={layout} bronzeStatus={bronzeStatus} silverStatus={silverStatus} neonStatus={neonStatus} />
       <MenuWatchAdButtonsSkia layout={layout} bronzeStatus={bronzeStatus} silverStatus={silverStatus} neonStatus={neonStatus} />
-      <MenuNavIconsSkia layout={layout} />
+      <MenuNavIconsSkia layout={layout} activeTab={activeTab} />
     </Group>
   );
 };

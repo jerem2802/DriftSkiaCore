@@ -157,7 +157,7 @@ export const createMenuLayout = (W: number, H: number): MenuLayout => {
   const watchAdRect = rr(W * 0.24, chestY + chestH + H * 0.018, W * 0.52, H * 0.060, Math.round(W * 0.03));
 
   // BOTTOM NAV
-  const navH = H * 0.10;
+  const navH = H * 0.25;
   const navRect = rr(0, H - navH, W, navH, 0);
 
   const footerBottom = H * 0.015;

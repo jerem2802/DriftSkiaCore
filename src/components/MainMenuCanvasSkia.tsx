@@ -61,6 +61,9 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   const logic = useChestLogic(visible, profile, onProfileUpdate);
   const [showOptions, setShowOptions] = useState(false);
 
+  // Active tab state for nav icons
+  const [activeTab, setActiveTab] = useState<'shop' | 'leaderboard' | 'collection'>('shop');
+
   useAnimatedReaction(
     () => visible,
     (v) => {
@@ -87,6 +90,7 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
             bronzeStatus={logic.bronzeStatus}
             silverStatus={logic.silverStatus}
             neonStatus={logic.neonStatus}
+            activeTab={activeTab}
           />
         </Canvas>
 
@@ -99,8 +103,18 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
             }}
             onSettings={() => setShowOptions(true)}
             onPlay={onPlay}
-            onShop={onShop}
-            onCollection={handleCollection}
+            onShop={() => {
+              setActiveTab('shop');
+              onShop();
+            }}
+            onLeaderboard={() => {
+              setActiveTab('leaderboard');
+              console.log('Leaderboard clicked');
+            }}
+            onCollection={() => {
+              setActiveTab('collection');
+              handleCollection();
+            }}
           />
 
           <MenuChestsStrip layout={layout} logic={logic} />
