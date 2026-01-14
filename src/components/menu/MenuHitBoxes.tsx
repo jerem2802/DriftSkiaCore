@@ -35,13 +35,8 @@ const makeStyles = (l: MenuLayout) =>
     coinsHit: { position: 'absolute', left: l.coinsRect.x, top: l.coinsRect.y, width: l.coinsRect.w, height: l.coinsRect.h },
     settingsHit: { position: 'absolute', left: l.settingsRect.x, top: l.settingsRect.y, width: l.settingsRect.w, height: l.settingsRect.h },
 
-    // HERO
-    heroHit: { position: 'absolute', left: 0, top: l.heroRingRect.y, width: l.W, height: l.heroRingRect.h },
-
-    // PLAY
+    // PLAY (hitbox sans texte - le texte est dans PlayButtonSkia)
     playHit: { position: 'absolute', left: l.playRect.x, top: l.playRect.y, width: l.playRect.w, height: l.playRect.h },
-    playCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    playText: { color: '#ffffff', fontWeight: '900', letterSpacing: 2, fontSize: Math.round(l.font.play * 0.55) },
 
     // NAV
     navShop: { position: 'absolute', ...navItemRect(l.navRect, 0) },
@@ -75,24 +70,15 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
   const s = useMemo(() => makeStyles(layout), [layout]);
 
   return (
-    <View style={s.root} pointerEvents="auto">
+    <View style={s.root} pointerEvents="box-none">
       {/* TOP BAR HITBOXES */}
       <Pressable style={s.avatarHit} onPress={onProfile} />
       <Pressable style={s.playerNameHit} onPress={onProfile} />
       <Pressable style={s.coinsHit} onPress={onShopCoins} />
       <Pressable style={s.settingsHit} onPress={onSettings} />
 
-      {/* HERO tap → Collection */}
-      <Pressable style={s.heroHit} onPress={onCollection} />
-
-      {/* PLAY */}
-      <Pressable style={s.playHit} onPress={onPlay}>
-        <View style={s.playCenter}>
-          <RNText style={s.playText} allowFontScaling={false}>
-            PLAY
-          </RNText>
-        </View>
-      </Pressable>
+      {/* PLAY - hitbox invisible, texte/style dans PlayButtonSkia */}
+      <Pressable style={s.playHit} onPress={onPlay} />
 
       {/* NAV */}
       <Pressable style={s.navShop} onPress={onShop}>

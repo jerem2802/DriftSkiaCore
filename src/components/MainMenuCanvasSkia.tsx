@@ -46,7 +46,6 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   const W = CANVAS_WIDTH;
   const H = CANVAS_HEIGHT;
 
-  // scalabilité : stage 1080x1920 scale dans l'écran
   const scale = Math.min(winW / W, winH / H);
   const stageStyle = useMemo(
     () => ({
@@ -83,16 +82,19 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           <MenuBackgroundSkia W={W} H={H} opacity={logic.state.screenOpacity} />
           <MenuTopBarSkia layout={layout} coins={logic.totalCoinsUI} />
           <MenuHeaderSkia layout={layout} />
-          <MenuHubSkia layout={layout} />
+          <MenuHubSkia
+            layout={layout}
+            bronzeStatus={logic.bronzeStatus}
+            silverStatus={logic.silverStatus}
+            neonStatus={logic.neonStatus}
+          />
         </Canvas>
 
-        {/* RN overlay (hitboxes + labels + buttons) */}
         <Animated.View style={[styles.uiLayer, uiOpacity]}>
           <MenuHitBoxes
             layout={layout}
             onProfile={onProfile}
             onShopCoins={() => {
-              // TODO: Ouvrir mini-shop IAP
               console.log('Shop coins IAP');
             }}
             onSettings={() => setShowOptions(true)}
@@ -104,7 +106,6 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           <MenuChestsStrip layout={layout} logic={logic} />
         </Animated.View>
 
-        {/* coffres visuels : dans leurs zones dédiées */}
         <View style={styles.chestLayer} pointerEvents="none">
           <View
             style={[
@@ -161,7 +162,6 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           </View>
         </View>
 
-        {/* Anim + rewards */}
         <ChestOpeningAnimation isActive={logic.showBronzeFlash} onComplete={logic.handleBronzeComplete} />
         <ChestOpeningAnimation isActive={logic.showSilverFlash} onComplete={logic.handleSilverComplete} />
         <ChestOpeningAnimation isActive={logic.showNeonFlash} onComplete={logic.handleNeonComplete} />

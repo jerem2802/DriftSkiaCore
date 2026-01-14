@@ -12,7 +12,7 @@ type MenuTopBarSkiaProps = {
 export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins }) => {
   const formatCoins = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   
-  const settingsIcon = useImage(require('../../assets/images/settings.png'));
+  const settingsIcon = useImage(require('../../assets/images/settings_menu.png'));
 
   return (
     <Group>
@@ -132,32 +132,14 @@ export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins })
         color="#ffffff"
       />
 
-      {/* SETTINGS avec icône engrenage */}
-      <Circle
-        cx={layout.settingsRect.x + layout.settingsRect.w / 2}
-        cy={layout.settingsRect.y + layout.settingsRect.h / 2}
-        r={layout.settingsRect.w / 2}
-        color="rgba(30, 41, 59, 0.85)"
-      />
-
-      <Circle
-        cx={layout.settingsRect.x + layout.settingsRect.w / 2}
-        cy={layout.settingsRect.y + layout.settingsRect.h / 2}
-        r={layout.settingsRect.w / 2 - 2}
-        style="stroke"
-        strokeWidth={2.5}
-        color="rgba(148, 163, 184, 0.75)"
-      />
-
-      {/* Icône settings (engrenage) */}
+      {/* SETTINGS - engrenage réduit de 10% */}
       {settingsIcon && (
         <Image
           image={settingsIcon}
-          x={layout.settingsRect.x + layout.settingsRect.w * 0.25}
-          y={layout.settingsRect.y + layout.settingsRect.h * 0.25}
-          width={layout.settingsRect.w * 0.50}
-          height={layout.settingsRect.h * 0.50}
-          opacity={0.85}
+          x={layout.settingsRect.x + layout.settingsRect.w * 0.05}
+          y={layout.settingsRect.y + layout.settingsRect.h * 0.05}
+          width={layout.settingsRect.w * 0.90}
+          height={layout.settingsRect.h * 0.90}
         />
       )}
     </Group>

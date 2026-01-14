@@ -118,22 +118,28 @@ export const createMenuLayout = (W: number, H: number): MenuLayout => {
   const coinsPillW = W * 0.26;
   const coinsRect = rr(coinsPillX, playerPillY, coinsPillW, topH, topH * 0.30);
 
-  // Settings à DROITE (tout à droite)
-  const settingsSize = topH;
+  // Settings à DROITE (AGRANDI)
+  const settingsSize = topH * 1.3;  // Plus gros que les pills
   const settingsX = W - marginX - settingsSize;
-  const settingsRect = rr(settingsX, playerPillY, settingsSize, settingsSize, settingsSize / 2);
+  const settingsRect = rr(settingsX, playerPillY - (settingsSize - topH) / 2, settingsSize, settingsSize, settingsSize / 2);
 
-  // HERO (ring + logo PNG)
-  const heroY = H * 0.14;
-  const heroH = H * 0.30;
+  // HERO (ring + logo PNG) - Ratio ajusté pour PNG horizontal
+  const heroY = H * 0.07;
+  const heroH = H * 0.40;
   const heroRingRect = rr(W * 0.10, heroY, W * 0.80, heroH, Math.round(W * 0.06));
-  const heroLogoRect = rr(W * 0.15, heroY + heroH * 0.20, W * 0.70, heroH * 0.60, 0);
 
-  // PLAY (plus grand, pas de daily/upgrades)
-  const playRect = rr(W * 0.18, H * 0.48, W * 0.64, H * 0.105, Math.round(W * 0.05));
+  // Logo avec ratio 3.3:1 (très horizontal comme le PNG)
+  const logoW = W * 0.95;  // 70% de la largeur
+  const logoH = logoW / 3.3;  // Hauteur calculée selon ratio du PNG
+  const logoX = (W - logoW) / 1;  // Centré horizontalement
+  const logoY = heroY + (heroH - logoH) / 2.2;  // Centré verticalement dans le ring
+  const heroLogoRect = rr(logoX, logoY, logoW, logoH, 0);
 
-  // CHESTS row (plus espacés)
-  const chestY = H * 0.62;
+  // PLAY (ajusté pour le hero plus grand)
+  const playRect = rr(W * 0.18, H * 0.44, W * 0.64, H * 0.105, Math.round(W * 0.05));
+
+  // CHESTS row (descendus pour le hero agrandi)
+  const chestY = H * 0.66;  // Était 0.62
   const chestH = H * 0.20;
   const chestW = W * 0.26;
   const chestGap = W * 0.05;

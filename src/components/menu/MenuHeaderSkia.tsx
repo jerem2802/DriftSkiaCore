@@ -14,7 +14,7 @@ export const MenuHeaderSkia: React.FC<Props> = ({ layout }) => {
 
   return (
     <Group>
-      {/* Ring stylisé PNG */}
+      {/* Ring stylisé PNG - FIT COVER pour remplir */}
       {ringImg && (
         <Image
           image={ringImg}
@@ -22,11 +22,11 @@ export const MenuHeaderSkia: React.FC<Props> = ({ layout }) => {
           y={ring.y}
           width={ring.w}
           height={ring.h}
-          fit="contain"
+          fit="cover"
         />
       )}
 
-      {/* Typo "DRIFT RING" PNG */}
+      {/* Typo "DRIFT RING" PNG - FIT COVER */}
       {typoImg && (
         <Image
           image={typoImg}
@@ -34,7 +34,7 @@ export const MenuHeaderSkia: React.FC<Props> = ({ layout }) => {
           y={logo.y}
           width={logo.w}
           height={logo.h}
-          fit="contain"
+          fit="cover"
         />
       )}
     </Group>

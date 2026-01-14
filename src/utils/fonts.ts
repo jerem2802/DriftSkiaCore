@@ -47,4 +47,11 @@ export const FONTS = {
     fontSize: 16,  // Réduit (était 18)
     fontWeight: '900',
   }),
+
+  // Play button (ÉNORME)
+  play: matchFont({
+    fontFamily,
+    fontSize: 40,  // TRÈS GROS (était 28)
+    fontWeight: '900',
+  }),
 } as const;

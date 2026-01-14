@@ -45,49 +45,28 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
     [layout.W, layout.H]
   );
 
-  const pickCountdown = useCallback(() => {
-    if (logic.bronzeStatus === 'countdown') return 'bronze';
-    if (logic.silverStatus === 'countdown') return 'silver';
-    if (logic.neonStatus === 'countdown') return 'neon';
-    return null;
-  }, [logic.bronzeStatus, logic.silverStatus, logic.neonStatus]);
-
-  const countdownChest = pickCountdown();
-
-  const watchAd = useCallback(() => {
-    if (countdownChest === 'bronze') logic.handleBronzeWatchAd();
-    if (countdownChest === 'silver') logic.handleSilverWatchAd();
-    if (countdownChest === 'neon') logic.handleNeonWatchAd();
-  }, [countdownChest, logic]);
-
   const onChestPress = useCallback(
     (type: 'bronze' | 'silver' | 'neon') => {
       if (type === 'bronze') {
         if (logic.bronzeStatus === 'locked') logic.handleBronzeUnlock();
-        else if (logic.bronzeStatus === 'countdown') logic.handleBronzeWatchAd();
+        else if (logic.bronzeStatus === 'countdown') return; // Pas de tap pendant countdown
         else logic.handleBronzeOpen();
       }
       if (type === 'silver') {
         if (logic.silverStatus === 'locked') logic.handleSilverUnlock();
-        else if (logic.silverStatus === 'countdown') logic.handleSilverWatchAd();
+        else if (logic.silverStatus === 'countdown') return;
         else logic.handleSilverOpen();
       }
       if (type === 'neon') {
         if (logic.neonStatus === 'locked') logic.handleNeonUnlock();
-        else if (logic.neonStatus === 'countdown') logic.handleNeonWatchAd();
+        else if (logic.neonStatus === 'countdown') return;
         else logic.handleNeonOpen();
       }
     },
     [logic]
   );
 
-  const chestLabel = (type: 'bronze' | 'silver' | 'neon') => {
-    const status = type === 'bronze' ? logic.bronzeStatus : type === 'silver' ? logic.silverStatus : logic.neonStatus;
-    if (status === 'ready') return 'OPEN';
-    return 'Unlock';
-  };
-
-  const badgeText = (type: 'bronze' | 'silver' | 'neon') => {
+  const countdownText = (type: 'bronze' | 'silver' | 'neon') => {
     const status = type === 'bronze' ? logic.bronzeStatus : type === 'silver' ? logic.silverStatus : logic.neonStatus;
     if (status === 'countdown') {
       const t = type === 'bronze' ? logic.bronzeTime : type === 'silver' ? logic.silverTime : logic.neonTime;
@@ -97,25 +76,20 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
     return '';
   };
 
-  const badgeColor = (type: 'bronze' | 'silver' | 'neon') => {
-    const status = type === 'bronze' ? logic.bronzeStatus : type === 'silver' ? logic.silverStatus : logic.neonStatus;
-    if (status === 'ready') {
-      return type === 'neon' ? 'rgba(34, 197, 94, 0.95)' : 'rgba(255, 255, 255, 0.92)';
-    }
-    return 'rgba(255, 255, 255, 0.88)';
+  const watchAdRect = (type: 'bronze' | 'silver' | 'neon') => {
+    const card = type === 'bronze' ? layout.chestRowBronzeRect : type === 'silver' ? layout.chestRowSilverRect : layout.chestRowNeonRect;
+    return {
+      x: card.x,
+      y: card.y + card.h + layout.H * 0.012,
+      w: card.w,
+      h: layout.H * 0.045,
+      r: card.r,
+    };
   };
-
-  const buttonColor = (type: 'bronze' | 'silver' | 'neon') => {
-    if (type === 'bronze') return ['rgba(245, 158, 11, 0.75)', 'rgba(217, 119, 6, 0.85)'];
-    if (type === 'silver') return ['rgba(59, 130, 246, 0.75)', 'rgba(37, 99, 235, 0.85)'];
-    return ['rgba(34, 197, 94, 0.75)', 'rgba(22, 163, 74, 0.85)'];
-  };
-
-  const showWatch = countdownChest !== null;
 
   return (
     <View style={st.root} pointerEvents="auto">
-      {/* BRONZE */}
+      {/* BRONZE - hitbox invisible */}
       <Pressable
         style={[
           styles.cardHit,
@@ -128,55 +102,43 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         ]}
         onPress={() => onChestPress('bronze')}
       >
-        {badgeText('bronze') ? (
-          <View
-            style={[
-              styles.badge,
-              {
-                left: layout.chestBronzeBadgeRect.x,
-                top: layout.chestBronzeBadgeRect.y,
-                width: layout.chestBronzeBadgeRect.w,
-                height: layout.chestBronzeBadgeRect.h,
-                borderRadius: layout.chestBronzeBadgeRect.r,
-                backgroundColor: logic.bronzeStatus === 'ready' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(0, 0, 0, 0.65)',
-              },
-            ]}
-          >
+        {countdownText('bronze') && (
+          <View style={[styles.countdown, {
+            top: layout.chestRowBronzeRect.h * 0.05,
+            width: layout.chestRowBronzeRect.w,
+          }]}>
             <RNText
-              style={[styles.badgeText, { fontSize: layout.font.countdown, color: badgeColor('bronze') }]}
+              style={[styles.countdownText, { fontSize: layout.font.countdown }]}
               allowFontScaling={false}
-              numberOfLines={1}
             >
-              {badgeText('bronze')}
+              {countdownText('bronze')}
             </RNText>
           </View>
-        ) : null}
+        )}
+      </Pressable>
 
-        <View
+      {/* Watch Ad Bronze */}
+      {logic.bronzeStatus === 'countdown' && (
+        <Pressable
+          onPress={logic.handleBronzeWatchAd}
           style={[
-            styles.btn,
+            styles.watch,
             {
-              left: layout.chestBronzeButtonRect.x,
-              top: layout.chestBronzeButtonRect.y,
-              width: layout.chestBronzeButtonRect.w,
-              height: layout.chestBronzeButtonRect.h,
-              borderRadius: layout.chestBronzeButtonRect.r,
-              backgroundColor: buttonColor('bronze')[0],
-              borderColor: buttonColor('bronze')[1],
+              left: watchAdRect('bronze').x,
+              top: watchAdRect('bronze').y,
+              width: watchAdRect('bronze').w,
+              height: watchAdRect('bronze').h,
+              borderRadius: watchAdRect('bronze').r,
             },
           ]}
         >
-          <RNText
-            style={[styles.btnText, { fontSize: layout.font.chestButton }]}
-            allowFontScaling={false}
-            numberOfLines={1}
-          >
-            {chestLabel('bronze')}
+          <RNText style={[styles.watchText, { fontSize: layout.font.labelSmall }]} allowFontScaling={false}>
+            ▶ Watch Ad (-3h)
           </RNText>
-        </View>
-      </Pressable>
+        </Pressable>
+      )}
 
-      {/* SILVER */}
+      {/* SILVER - hitbox invisible */}
       <Pressable
         style={[
           styles.cardHit,
@@ -189,55 +151,43 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         ]}
         onPress={() => onChestPress('silver')}
       >
-        {badgeText('silver') ? (
-          <View
-            style={[
-              styles.badge,
-              {
-                left: layout.chestSilverBadgeRect.x,
-                top: layout.chestSilverBadgeRect.y,
-                width: layout.chestSilverBadgeRect.w,
-                height: layout.chestSilverBadgeRect.h,
-                borderRadius: layout.chestSilverBadgeRect.r,
-                backgroundColor: logic.silverStatus === 'ready' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(0, 0, 0, 0.65)',
-              },
-            ]}
-          >
+        {countdownText('silver') && (
+          <View style={[styles.countdown, {
+            top: layout.chestRowSilverRect.h * 0.05,
+            width: layout.chestRowSilverRect.w,
+          }]}>
             <RNText
-              style={[styles.badgeText, { fontSize: layout.font.countdown, color: badgeColor('silver') }]}
+              style={[styles.countdownText, { fontSize: layout.font.countdown }]}
               allowFontScaling={false}
-              numberOfLines={1}
             >
-              {badgeText('silver')}
+              {countdownText('silver')}
             </RNText>
           </View>
-        ) : null}
+        )}
+      </Pressable>
 
-        <View
+      {/* Watch Ad Silver */}
+      {logic.silverStatus === 'countdown' && (
+        <Pressable
+          onPress={logic.handleSilverWatchAd}
           style={[
-            styles.btn,
+            styles.watch,
             {
-              left: layout.chestSilverButtonRect.x,
-              top: layout.chestSilverButtonRect.y,
-              width: layout.chestSilverButtonRect.w,
-              height: layout.chestSilverButtonRect.h,
-              borderRadius: layout.chestSilverButtonRect.r,
-              backgroundColor: buttonColor('silver')[0],
-              borderColor: buttonColor('silver')[1],
+              left: watchAdRect('silver').x,
+              top: watchAdRect('silver').y,
+              width: watchAdRect('silver').w,
+              height: watchAdRect('silver').h,
+              borderRadius: watchAdRect('silver').r,
             },
           ]}
         >
-          <RNText
-            style={[styles.btnText, { fontSize: layout.font.chestButton }]}
-            allowFontScaling={false}
-            numberOfLines={1}
-          >
-            {chestLabel('silver')}
+          <RNText style={[styles.watchText, { fontSize: layout.font.labelSmall }]} allowFontScaling={false}>
+            ▶ Watch Ad (-3h)
           </RNText>
-        </View>
-      </Pressable>
+        </Pressable>
+      )}
 
-      {/* NEON */}
+      {/* NEON - hitbox invisible */}
       <Pressable
         style={[
           styles.cardHit,
@@ -250,66 +200,33 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         ]}
         onPress={() => onChestPress('neon')}
       >
-        {badgeText('neon') ? (
-          <View
-            style={[
-              styles.badge,
-              {
-                left: layout.chestNeonBadgeRect.x,
-                top: layout.chestNeonBadgeRect.y,
-                width: layout.chestNeonBadgeRect.w,
-                height: layout.chestNeonBadgeRect.h,
-                borderRadius: layout.chestNeonBadgeRect.r,
-                backgroundColor: logic.neonStatus === 'ready' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(0, 0, 0, 0.65)',
-              },
-            ]}
-          >
+        {countdownText('neon') && (
+          <View style={[styles.countdown, {
+            top: layout.chestRowNeonRect.h * 0.05,
+            width: layout.chestRowNeonRect.w,
+          }]}>
             <RNText
-              style={[styles.badgeText, { fontSize: layout.font.countdown, color: badgeColor('neon') }]}
+              style={[styles.countdownText, { fontSize: layout.font.countdown }]}
               allowFontScaling={false}
-              numberOfLines={1}
             >
-              {badgeText('neon')}
+              {countdownText('neon')}
             </RNText>
           </View>
-        ) : null}
-
-        <View
-          style={[
-            styles.btn,
-            {
-              left: layout.chestNeonButtonRect.x,
-              top: layout.chestNeonButtonRect.y,
-              width: layout.chestNeonButtonRect.w,
-              height: layout.chestNeonButtonRect.h,
-              borderRadius: layout.chestNeonButtonRect.r,
-              backgroundColor: buttonColor('neon')[0],
-              borderColor: buttonColor('neon')[1],
-            },
-          ]}
-        >
-          <RNText
-            style={[styles.btnText, { fontSize: layout.font.chestButton }]}
-            allowFontScaling={false}
-            numberOfLines={1}
-          >
-            {chestLabel('neon')}
-          </RNText>
-        </View>
+        )}
       </Pressable>
 
-      {/* WATCH AD (centré sous les 3 cards) */}
-      {showWatch ? (
+      {/* Watch Ad Neon */}
+      {logic.neonStatus === 'countdown' && (
         <Pressable
-          onPress={watchAd}
+          onPress={logic.handleNeonWatchAd}
           style={[
             styles.watch,
             {
-              left: layout.watchAdRect.x,
-              top: layout.watchAdRect.y,
-              width: layout.watchAdRect.w,
-              height: layout.watchAdRect.h,
-              borderRadius: layout.watchAdRect.r,
+              left: watchAdRect('neon').x,
+              top: watchAdRect('neon').y,
+              width: watchAdRect('neon').w,
+              height: watchAdRect('neon').h,
+              borderRadius: watchAdRect('neon').r,
             },
           ]}
         >
@@ -317,7 +234,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
             ▶ Watch Ad (-3h)
           </RNText>
         </Pressable>
-      ) : null}
+      )}
     </View>
   );
 };
@@ -325,28 +242,15 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
 const styles = StyleSheet.create({
   cardHit: { position: 'absolute' },
 
-  badge: {
+  countdown: {
     position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  badgeText: {
+  countdownText: {
     fontWeight: '900',
-    letterSpacing: 1,
-  },
-
-  btn: {
-    position: 'absolute',
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnText: {
     color: '#ffffff',
-    fontWeight: '900',
-    letterSpacing: 1.4,
+    letterSpacing: 1,
   },
 
   watch: {
