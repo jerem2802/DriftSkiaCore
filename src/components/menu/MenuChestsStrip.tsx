@@ -26,6 +26,7 @@ type ChestLogic = {
 type Props = {
   layout: MenuLayout;
   logic: ChestLogic;
+  hideText?: boolean; // 🔥 NEW: Masquer le texte quand modal ouverte
 };
 
 const fmt = (sec: number) => {
@@ -37,7 +38,7 @@ const fmt = (sec: number) => {
   return `${h}:${pad(m)}:${pad(ss)}`;
 };
 
-export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
+export const MenuChestsStrip: React.FC<Props> = ({ layout, logic, hideText = false }) => {
   const st = useMemo(
     () => ({
       root: { position: 'absolute' as const, left: 0, top: 0, width: layout.W, height: layout.H },
@@ -102,7 +103,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
   };
 
   return (
-    <View style={st.root} pointerEvents="auto">
+    <View style={st.root} pointerEvents="box-none">
       {/* BRONZE - hitbox invisible */}
       <Pressable
         style={[
@@ -116,7 +117,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         ]}
         onPress={() => onChestPress('bronze')}
       >
-        {countdownText('bronze') && (
+        {!hideText && countdownText('bronze') && (
           <View style={[styles.countdown, {
             top: layout.chestRowBronzeRect.h * 0.05,
             width: layout.chestRowBronzeRect.w,
@@ -160,7 +161,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         ]}
         onPress={() => onChestPress('silver')}
       >
-        {countdownText('silver') && (
+        {!hideText && countdownText('silver') && (
           <View style={[styles.countdown, {
             top: layout.chestRowSilverRect.h * 0.05,
             width: layout.chestRowSilverRect.w,
@@ -204,7 +205,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic }) => {
         ]}
         onPress={() => onChestPress('neon')}
       >
-        {countdownText('neon') && (
+        {!hideText && countdownText('neon') && (
           <View style={[styles.countdown, {
             top: layout.chestRowNeonRect.h * 0.05,
             width: layout.chestRowNeonRect.w,

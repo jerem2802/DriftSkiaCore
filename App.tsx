@@ -17,7 +17,7 @@ import { ProfileCanvasSkia } from './src/components/profile/ProfileCanvasSkia';
 
 import { loadProfile, resetProfileForDev, type PlayerProfile } from './src/meta/playerProfile';
 
-type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'profile'; // ✅ AJOUT 'profile'
+type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'profile';
 
 const FADE_OUT_DURATION = 800;
 const DEV_RESET_PROFILE_ON_LAUNCH = false;
@@ -74,7 +74,6 @@ export default function App() {
     handleTransition(shopReturnTo);
   }, [handleTransition, shopReturnTo]);
 
-  // ✅ HANDLERS PROFILE
   const openProfile = useCallback(() => {
     handleTransition('profile');
   }, [handleTransition]);
@@ -99,6 +98,9 @@ export default function App() {
   const gamePointerEvents = screen === 'game' ? 'auto' : 'none';
   const showGameVisual = screen === 'game' || (screen === 'shop' && shopReturnTo === 'game');
 
+  // 🔥 MENU TOUJOURS MONTÉ (visible seulement quand screen === 'menu')
+  const menuVisible = screen === 'menu';
+
   return (
     <View style={styles.container}>
       {shouldRenderGame && (
@@ -117,23 +119,29 @@ export default function App() {
         </View>
       )}
 
-      {screen === 'menu' && (
-        <View style={StyleSheet.absoluteFillObject}>
-          <View style={{ flex: 1, backgroundColor: '#000' }}>
-            <MainMenuCanvasSkia
-              visible={true}
-              profile={profile}
-              onProfileUpdate={refreshProfile}
-              onPlay={() => handleTransition('headphones')}
-              onTuto={() => console.log('TUTO')}
-              onShop={openShopFromMenu}
-              onProfile={openProfile} // ✅ AJOUT
-            />
-          </View>
+      {/* 🔥 MENU TOUJOURS RENDU - opacity contrôle la visibilité */}
+      <View 
+        style={[
+          StyleSheet.absoluteFillObject,
+          { 
+            opacity: menuVisible ? 1 : 0,
+            pointerEvents: menuVisible ? 'auto' : 'none',
+          }
+        ]}
+      >
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <MainMenuCanvasSkia
+            visible={menuVisible}
+            profile={profile}
+            onProfileUpdate={refreshProfile}
+            onPlay={() => handleTransition('headphones')}
+            onTuto={() => console.log('TUTO')}
+            onShop={openShopFromMenu}
+            onProfile={openProfile}
+          />
         </View>
-      )}
+      </View>
 
-      {/* ✅ PROFILE AVEC SCREENTRANSITION */}
       <ScreenTransition visible={screen === 'profile'} fadeOutDuration={FADE_OUT_DURATION}>
         <ProfileCanvasSkia
           profile={profile}

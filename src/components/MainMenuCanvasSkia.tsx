@@ -61,7 +61,6 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   const logic = useChestLogic(visible, profile, onProfileUpdate);
   const [showOptions, setShowOptions] = useState(false);
 
-  // Active tab state for nav icons
   const [activeTab, setActiveTab] = useState<'shop' | 'leaderboard' | 'collection'>('shop');
 
   useAnimatedReaction(
@@ -78,6 +77,9 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   const uiOpacity = useAnimatedStyle(() => ({ opacity: logic.state.screenOpacity.value }));
   const handleCollection = onCollection ?? onProfile;
 
+  const isModalOpen = logic.showBronzePanel || logic.showSilverPanel || logic.showNeonPanel || showOptions;
+  const uiPointerEvents = isModalOpen ? 'none' : 'auto';
+
   return (
     <View style={styles.container} pointerEvents={visible ? 'auto' : 'none'}>
       <View style={[styles.stage, stageStyle]}>
@@ -93,32 +95,6 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
             activeTab={activeTab}
           />
         </Canvas>
-
-        <Animated.View style={[styles.uiLayer, uiOpacity]}>
-          <MenuHitBoxes
-            layout={layout}
-            onProfile={onProfile}
-            onShopCoins={() => {
-              console.log('Shop coins IAP');
-            }}
-            onSettings={() => setShowOptions(true)}
-            onPlay={onPlay}
-            onShop={() => {
-              setActiveTab('shop');
-              onShop();
-            }}
-            onLeaderboard={() => {
-              setActiveTab('leaderboard');
-              console.log('Leaderboard clicked');
-            }}
-            onCollection={() => {
-              setActiveTab('collection');
-              handleCollection();
-            }}
-          />
-
-          <MenuChestsStrip layout={layout} logic={logic} />
-        </Animated.View>
 
         <View style={styles.chestLayer} pointerEvents="none">
           <View
@@ -176,6 +152,32 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           </View>
         </View>
 
+        <Animated.View style={[styles.uiLayer, uiOpacity]} pointerEvents={uiPointerEvents}>
+          <MenuChestsStrip layout={layout} logic={logic} hideText={isModalOpen} />
+
+          <MenuHitBoxes
+            layout={layout}
+            onProfile={onProfile}
+            onShopCoins={() => {
+              console.log('Shop coins IAP');
+            }}
+            onSettings={() => setShowOptions(true)}
+            onPlay={onPlay}
+            onShop={() => {
+              setActiveTab('shop');
+              onShop();
+            }}
+            onLeaderboard={() => {
+              setActiveTab('leaderboard');
+              console.log('Leaderboard clicked');
+            }}
+            onCollection={() => {
+              setActiveTab('collection');
+              handleCollection();
+            }}
+          />
+        </Animated.View>
+
         <ChestOpeningAnimation isActive={logic.showBronzeFlash} onComplete={logic.handleBronzeComplete} />
         <ChestOpeningAnimation isActive={logic.showSilverFlash} onComplete={logic.handleSilverComplete} />
         <ChestOpeningAnimation isActive={logic.showNeonFlash} onComplete={logic.handleNeonComplete} />
@@ -194,7 +196,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
   stage: { position: 'relative' },
   canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'absolute' },
-  uiLayer: { position: 'absolute', width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+  uiLayer: {
+    position: 'absolute',
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    zIndex: 10
+  },
   chestLayer: { position: 'absolute', top: 0, left: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
   chestBox: { position: 'absolute' },
 });
