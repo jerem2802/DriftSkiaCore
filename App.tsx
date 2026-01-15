@@ -13,11 +13,11 @@ import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
 import HeadphonesScreen from './src/components/HeadphonesScreen';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { ShopScreen } from './src/components/shop/ShopScreen';
-import { CollectionScreenSkia } from './src/components/profile/CollectionScreenSkia';
+import { CollectionScreen } from './src/components/collection/CollectionScreen';
 
 import { loadProfile, resetProfileForDev, type PlayerProfile } from './src/meta/playerProfile';
 
-type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'profile';
+type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection';
 
 const FADE_OUT_DURATION = 800;
 const DEV_RESET_PROFILE_ON_LAUNCH = false;
@@ -74,11 +74,11 @@ export default function App() {
     handleTransition(shopReturnTo);
   }, [handleTransition, shopReturnTo]);
 
-  const openProfile = useCallback(() => {
-    handleTransition('profile');
+  const openCollection = useCallback(() => {
+    handleTransition('collection');
   }, [handleTransition]);
 
-  const backFromProfile = useCallback(() => {
+  const backFromCollection = useCallback(() => {
     handleTransition('menu');
   }, [handleTransition]);
 
@@ -98,7 +98,6 @@ export default function App() {
   const gamePointerEvents = screen === 'game' ? 'auto' : 'none';
   const showGameVisual = screen === 'game' || (screen === 'shop' && shopReturnTo === 'game');
 
-  // 🔥 MENU TOUJOURS MONTÉ (visible seulement quand screen === 'menu')
   const menuVisible = screen === 'menu';
 
   return (
@@ -119,7 +118,6 @@ export default function App() {
         </View>
       )}
 
-      {/* 🔥 MENU TOUJOURS RENDU - opacity contrôle la visibilité */}
       <View 
         style={[
           StyleSheet.absoluteFillObject,
@@ -137,16 +135,15 @@ export default function App() {
             onPlay={() => handleTransition('headphones')}
             onTuto={() => console.log('TUTO')}
             onShop={openShopFromMenu}
-            onProfile={openProfile}
+            onProfile={openCollection}
           />
         </View>
       </View>
 
-      <ScreenTransition visible={screen === 'profile'} fadeOutDuration={FADE_OUT_DURATION}>
-        <CollectionScreenSkia
+      <ScreenTransition visible={screen === 'collection'} fadeOutDuration={FADE_OUT_DURATION}>
+        <CollectionScreen
           profile={profile}
-          onProfileUpdate={refreshProfile}
-          onBack={backFromProfile}
+          onBack={backFromCollection}
         />
       </ScreenTransition>
 
