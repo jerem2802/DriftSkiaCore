@@ -1,3 +1,4 @@
+// App.tsx
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 
 configureReanimatedLogger({
@@ -6,7 +7,7 @@ configureReanimatedLogger({
 });
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
 import DriftGame from './src/game/DriftGame';
 import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
@@ -17,17 +18,23 @@ import { CollectionScreen } from './src/components/collection/CollectionScreen';
 
 import { loadProfile, resetProfileForDev, type PlayerProfile } from './src/meta/playerProfile';
 
+import { PreloadProvider } from './src/contexts/PreloadContext';
+import { usePreloadAssets } from './src/game/hooks/usePreloadAssets';
+import { PreloadSplashScreen } from './src/components/preload/PreloadSplashScreen';
+
 type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection';
 
 const FADE_OUT_DURATION = 800;
 const DEV_RESET_PROFILE_ON_LAUNCH = false;
 
-export default function App() {
+function AppContent() {
   const [appReady, setAppReady] = useState(false);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [screen, setScreen] = useState<Screen>('menu');
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
+
+  const assetsReady = usePreloadAssets();
 
   useEffect(() => {
     const init = async () => {
@@ -82,12 +89,8 @@ export default function App() {
     handleTransition('menu');
   }, [handleTransition]);
 
-  if (!appReady || !profile) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.splashText}>DRIFT-RING</Text>
-      </View>
-    );
+  if (!appReady || !profile || !assetsReady) {
+    return <PreloadSplashScreen title="DRIFT-RING" />;
   }
 
   const shouldRenderGame =
@@ -118,13 +121,13 @@ export default function App() {
         </View>
       )}
 
-      <View 
+      <View
         style={[
           StyleSheet.absoluteFillObject,
-          { 
+          {
             opacity: menuVisible ? 1 : 0,
             pointerEvents: menuVisible ? 'auto' : 'none',
-          }
+          },
         ]}
       >
         <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -141,18 +144,11 @@ export default function App() {
       </View>
 
       <ScreenTransition visible={screen === 'collection'} fadeOutDuration={FADE_OUT_DURATION}>
-        <CollectionScreen
-          profile={profile}
-          onBack={backFromCollection}
-        />
+        <CollectionScreen profile={profile} onBack={backFromCollection} />
       </ScreenTransition>
 
       <ScreenTransition visible={screen === 'shop'} fadeOutDuration={FADE_OUT_DURATION}>
-        <ShopScreen
-          profile={profile}
-          onProfileUpdate={refreshProfile}
-          onBack={backFromShop}
-        />
+        <ShopScreen profile={profile} onProfileUpdate={refreshProfile} onBack={backFromShop} />
       </ScreenTransition>
 
       {screen === 'headphones' && (
@@ -164,22 +160,17 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <PreloadProvider>
+      <AppContent />
+    </PreloadProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
-  },
-  splash: {
-    flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  splashText: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#f9fafb',
-    letterSpacing: 4,
-    opacity: 0.3,
   },
 });

@@ -1,8 +1,7 @@
-// src/components/collection/glasscard/GlassCard.tsx
 import React from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 import { useDerivedValue } from 'react-native-reanimated';
-import { Group } from '@shopify/react-native-skia';
+import { Group, SkImage } from '@shopify/react-native-skia';
 import { LAYOUT } from '../collectionLayout';
 import { GlassCardMetal } from './GlassCardMetal';
 import { GlassCardText } from './GlassCardText';
@@ -18,12 +17,21 @@ type Props = {
   ball: Ball;
   x: number;
   y: number;
-  tiltX: SharedValue<number>;
-  tiltY: SharedValue<number>;
+  scrollX: SharedValue<number>;
+  isDragging: SharedValue<boolean>;
+  dragVelocity: SharedValue<number>;
   time: SharedValue<number>;
+  metalImage: SkImage | null;
 };
 
-export const GlassCard: React.FC<Props> = ({ ball, x, y, tiltX, tiltY, time }) => {
+export const GlassCard: React.FC<Props> = ({
+  ball,
+  x,
+  y,
+  scrollX,
+  time,
+  metalImage,
+}) => {
   const cx = x + LAYOUT.CARD_W / 2;
   const cy = y + LAYOUT.CARD_H / 2.2;
 
@@ -31,30 +39,37 @@ export const GlassCard: React.FC<Props> = ({ ball, x, y, tiltX, tiltY, time }) =
 
   const cardTransform = useDerivedValue(() => {
     'worklet';
-    const sx = tiltX.value;
-    const sy = tiltY.value;
+    const cardScreenX = x + scrollX.value + LAYOUT.CARD_W / 2;
+    const screenCenterX = LAYOUT.W / 2;
+    const d = (cardScreenX - screenCenterX) / LAYOUT.W;
+
+    const scale = 1 - Math.abs(d) * 0.15;
+    const rotateZ = d * 0.2;
 
     return [
       { translateX: cx },
       { translateY: cy },
-      { skewX: sx * 0.25 },
-      { skewY: -sy * 0.2 },
-      { rotate: sx * 0.10 },
-      { scaleY: 1 - Math.min(Math.abs(sy) * 0.08, 0.06) },
+      { rotate: rotateZ },
+      { scale },
       { translateX: -cx },
       { translateY: -cy },
     ];
-  }, [cx, cy, tiltX, tiltY]);
+  });
+
+  const cardOpacity = useDerivedValue(() => {
+    'worklet';
+    const cardScreenX = x + scrollX.value + LAYOUT.CARD_W / 2;
+    const screenCenterX = LAYOUT.W / 2;
+    const dist = Math.abs((cardScreenX - screenCenterX) / LAYOUT.W);
+    return Math.max(0.55, 1 - dist * 0.5);
+  });
 
   return (
-    <Group transform={cardTransform}>
-      {/* ✅ PNG CARD */}
-      <GlassCardMetal x={x} y={y} width={LAYOUT.CARD_W} height={LAYOUT.CARD_H} />
+    <Group transform={cardTransform} opacity={cardOpacity}>
+      <GlassCardMetal x={x} y={y} width={LAYOUT.CARD_W} height={LAYOUT.CARD_H} image={metalImage} />
 
-      {/* ✅ BALL */}
       <BallPreviewNode ballId={ball.id} cx={cx} cy={cy} size={LAYOUT.BALL_SIZE} time={time} />
 
-      {/* ✅ TEXT */}
       <GlassCardText
         x={x}
         y={y}
@@ -62,7 +77,7 @@ export const GlassCard: React.FC<Props> = ({ ball, x, y, tiltX, tiltY, time }) =
         height={LAYOUT.CARD_H}
         rarityLabel={rarityLabel}
         ballName={ball.name}
-        rarityColor="#ffffff"
+        rarityColor="#FFD700"
       />
     </Group>
   );

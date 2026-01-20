@@ -1,7 +1,15 @@
-// src/components/collection/CollectionScreen.tsx
 import React, { useMemo } from 'react';
 import { View, StyleSheet, Pressable, Text as RNText } from 'react-native';
-import { Canvas, RoundedRect, LinearGradient, vec, Circle, Blur, Group } from '@shopify/react-native-skia';
+import {
+  Canvas,
+  RoundedRect,
+  LinearGradient,
+  vec,
+  Circle,
+  Blur,
+  Group,
+  useImage,
+} from '@shopify/react-native-skia';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useFrameCallback, useSharedValue, useDerivedValue } from 'react-native-reanimated';
 import type { PlayerProfile } from '../../meta/playerProfile';
@@ -9,7 +17,6 @@ import { SHOP_BALLS } from '../shop/shopCatalog';
 import { CHEST_BALLS } from '../../config/bonusConfig';
 import { GlassCard } from './glasscard';
 import { useCollectionGesture } from './useCollectionGesture';
-import { useGyroParallax } from './useGyroParallax';
 import { LAYOUT, COLORS, getCardX } from './collectionLayout';
 
 type Props = {
@@ -31,11 +38,7 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
       rarity: ('rarity' in b ? b.rarity : undefined) as Ball['rarity'],
     }));
 
-    const chest = [
-      ...CHEST_BALLS.common,
-      ...CHEST_BALLS.rare,
-      ...CHEST_BALLS.legendary,
-    ].map((b) => ({
+    const chest = [...CHEST_BALLS.common, ...CHEST_BALLS.rare, ...CHEST_BALLS.legendary].map((b) => ({
       id: b.id,
       name: b.name,
       rarity: b.rarity as Ball['rarity'],
@@ -55,11 +58,9 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
     time.value = (fi.timestamp ?? 0) / 1000;
   });
 
-  const { scrollX, gesture } = useCollectionGesture({
+  const { scrollX, isDragging, dragVelocity, gesture } = useCollectionGesture({
     ballCount: ownedBalls.length,
   });
-
-  const { tiltX, tiltY } = useGyroParallax();
 
   const scrollTransform = useDerivedValue(() => {
     'worklet';
@@ -69,11 +70,15 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
   const startX = (LAYOUT.W - LAYOUT.CARD_W) / 2;
   const startY = (LAYOUT.H - LAYOUT.CARD_H) / 2;
 
+  // ✅ charge 1 fois ici (stable)
+  const metalImage = useImage(require('../../assets/images/glasscard.png'));
+
   return (
     <View style={styles.container}>
       <GestureDetector gesture={gesture}>
         <View style={styles.body}>
           <Canvas style={styles.canvas} pointerEvents="none">
+            {/* Background */}
             <RoundedRect x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} r={0}>
               <LinearGradient
                 start={vec(0, 0)}
@@ -90,6 +95,7 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
               <Blur blur={120} />
             </Circle>
 
+            {/* Cards */}
             <Group transform={scrollTransform}>
               {ownedBalls.map((ball, i) => {
                 const x = getCardX(i) + startX;
@@ -101,9 +107,11 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
                     ball={ball}
                     x={x}
                     y={y}
-                    tiltX={tiltX}
-                    tiltY={tiltY}
+                    scrollX={scrollX}
+                    isDragging={isDragging}
+                    dragVelocity={dragVelocity}
                     time={time}
+                    metalImage={metalImage}
                   />
                 );
               })}
@@ -112,16 +120,19 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
         </View>
       </GestureDetector>
 
+      {/* Header */}
       <View style={styles.header}>
         <View>
           <RNText style={styles.title}>COLLECTION</RNText>
           <View style={styles.underline} />
         </View>
+
         <Pressable onPress={onBack} style={styles.closeBtn}>
           <RNText style={styles.closeTxt}>✕</RNText>
         </Pressable>
       </View>
 
+      {/* Footer */}
       <View style={styles.footer} pointerEvents="none">
         <RNText style={styles.counter}>
           {ownedBalls.length} / {allBalls.length} UNLOCKED
@@ -132,13 +143,8 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  body: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: '#000' },
+  body: { flex: 1 },
   canvas: {
     width: LAYOUT.W,
     height: LAYOUT.H,
@@ -178,11 +184,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeTxt: {
-    color: COLORS.TEXT_WHITE,
-    fontSize: 24,
-    fontWeight: '800',
-  },
+  closeTxt: { color: COLORS.TEXT_WHITE, fontSize: 24, fontWeight: '800' },
   footer: {
     position: 'absolute',
     bottom: 30,

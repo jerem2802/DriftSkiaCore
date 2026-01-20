@@ -1,70 +1,69 @@
-// src/components/collection/useCollectionGesture.ts
-import { useMemo } from 'react';
+import { useSharedValue, withSpring, cancelAnimation } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
-import { useSharedValue, withDecay, withSpring, runOnJS } from 'react-native-reanimated';
-import { LAYOUT, getCardX } from './collectionLayout';
+import { LAYOUT } from './collectionLayout';
 
-const clamp = (value: number, min: number, max: number) => {
-  'worklet';
-  return Math.min(max, Math.max(min, value));
-};
-
-const snapToNearest = (value: number, maxScroll: number) => {
-  'worklet';
-  const snapPoint = LAYOUT.CARD_W + LAYOUT.CARD_GAP;
-  const snappedIndex = Math.round(-value / snapPoint);
-  const snappedValue = -snappedIndex * snapPoint;
-  return clamp(snappedValue, -maxScroll, 0);
-};
+const CARD_TOTAL_WIDTH = LAYOUT.CARD_W + LAYOUT.CARD_GAP;
 
 type Props = {
   ballCount: number;
-  onCardChange?: (index: number) => void;
 };
 
-export const useCollectionGesture = ({ ballCount, onCardChange }: Props) => {
+export const useCollectionGesture = ({ ballCount }: Props) => {
   const scrollX = useSharedValue(0);
-  const startX = useSharedValue(0);
+  const startScrollX = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+  const dragVelocity = useSharedValue(0);
 
-  const maxScroll = Math.max(0, getCardX(ballCount - 1));
+  const gesture = Gesture.Pan()
+    .onStart(() => {
+      'worklet';
+      // ✅ IMPORTANT: stoppe le spring en cours (sinon "fight" = rollback/flash)
+      cancelAnimation(scrollX);
 
-  const gesture = useMemo(() => {
-    return Gesture.Pan()
-      .activeOffsetX([-10, 10])
-      .failOffsetY([-10, 10])
-      .onBegin(() => {
-        startX.value = scrollX.value;
-      })
-      .onUpdate((e) => {
-        const next = startX.value + e.translationX;
-        scrollX.value = clamp(next, -maxScroll, 0);
-      })
-      .onEnd((e) => {
-        const velocity = e.velocityX;
+      isDragging.value = true;
+      startScrollX.value = scrollX.value;
+      dragVelocity.value = 0;
+    })
+    .onUpdate((e) => {
+      'worklet';
+      const newX = startScrollX.value + e.translationX;
+      const minX = -(ballCount - 1) * CARD_TOTAL_WIDTH;
+      const maxX = 0;
 
-        scrollX.value = withDecay(
-          {
-            velocity,
-            clamp: [-maxScroll, 0],
-            deceleration: 0.998,
-          },
-          (finished) => {
-            if (finished) {
-              const snapped = snapToNearest(scrollX.value, maxScroll);
-              scrollX.value = withSpring(snapped, {
-                damping: 20,
-                stiffness: 90,
-              });
+      // Rubberband aux extrémités
+      if (newX > maxX) {
+        scrollX.value = maxX + (newX - maxX) * 0.3;
+      } else if (newX < minX) {
+        scrollX.value = minX + (newX - minX) * 0.3;
+      } else {
+        scrollX.value = newX;
+      }
 
-              if (onCardChange) {
-                const index = Math.round(-snapped / (LAYOUT.CARD_W + LAYOUT.CARD_GAP));
-                runOnJS(onCardChange)(index);
-              }
-            }
-          }
-        );
+      dragVelocity.value = e.velocityX;
+    })
+    .onEnd(() => {
+      'worklet';
+      isDragging.value = false;
+
+      const currentIndex = -scrollX.value / CARD_TOTAL_WIDTH;
+      const velocity = dragVelocity.value;
+
+      // Momentum léger
+      const momentumOffset = velocity / 2000;
+      let targetIndex = Math.round(currentIndex - momentumOffset);
+      targetIndex = Math.max(0, Math.min(ballCount - 1, targetIndex));
+
+      const targetX = -targetIndex * CARD_TOTAL_WIDTH;
+
+      scrollX.value = withSpring(targetX, {
+        damping: 24,
+        stiffness: 140,
+        mass: 0.9,
+        velocity: velocity / 1000,
+        // ✅ réduit les rebonds "retour arrière"
+        overshootClamping: true,
       });
-  }, [maxScroll, scrollX, startX, onCardChange]);
+    });
 
-  return { scrollX, gesture };
+  return { scrollX, isDragging, dragVelocity, gesture };
 };

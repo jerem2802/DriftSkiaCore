@@ -12,7 +12,6 @@ export const LAYOUT = {
   CARD_RADIUS: 32,
   BORDER_WIDTH: 4,
   BALL_SIZE: 130,
-  PARALLAX_INTENSITY: 0.015,
 };
 
 export const COLORS = {
