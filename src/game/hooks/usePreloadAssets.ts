@@ -1,28 +1,23 @@
-// src/game/hooks/usePreloadAssets.ts
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { usePreloadedAssets } from '../../contexts/PreloadContext';
 
 export const usePreloadAssets = () => {
-  const assets = usePreloadedAssets();
-  const [isReady, setIsReady] = useState(false);
+  const a = usePreloadedAssets();
 
-  useEffect(() => {
-    if (!assets.loaded) return;
-
-    let raf1 = 0;
-    let raf2 = 0;
-
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        setIsReady(true);
-      });
-    });
-
-    return () => {
-      if (raf1) cancelAnimationFrame(raf1);
-      if (raf2) cancelAnimationFrame(raf2);
-    };
-  }, [assets.loaded]);
-
-  return isReady;
+  return useMemo(() => {
+    return !!(
+      a.glassCard &&
+      a.menuDriftring &&
+      a.menuRing &&
+      a.typoMenu &&
+      a.shopIcon &&
+      a.cupIcon &&
+      a.collectionIcon &&
+      a.settingsIcon &&
+      a.headphonesIcon &&
+      a.chestBronze &&
+      a.chestSilver &&
+      a.chestNeon
+    );
+  }, [a]);
 };

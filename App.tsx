@@ -18,8 +18,11 @@ import { CollectionScreen } from './src/components/collection/CollectionScreen';
 
 import { loadProfile, resetProfileForDev, type PlayerProfile } from './src/meta/playerProfile';
 
+// Garde ton système actuel si tu en as besoin pour Collection.
+// Si tu veux TOUT virer plus tard, on le fera proprement.
 import { PreloadProvider } from './src/contexts/PreloadContext';
 import { usePreloadAssets } from './src/game/hooks/usePreloadAssets';
+
 import { PreloadSplashScreen } from './src/components/preload/PreloadSplashScreen';
 
 type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection';
@@ -34,26 +37,26 @@ function AppContent() {
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
 
+  // ✅ preload “meta/collection” si tu l’utilises (ex: glassCard). Sinon tu peux le retirer plus tard.
   const assetsReady = usePreloadAssets();
+
+  // ✅ warmup menu PNG via PreloadSplashScreen (anti-latence accueil)
+  const [splashReady, setSplashReady] = useState(false);
 
   useEffect(() => {
     const init = async () => {
       try {
         if (DEV_RESET_PROFILE_ON_LAUNCH) {
           await resetProfileForDev();
-          console.log('🔥 DEV MODE: Profil reset !');
         }
-
         const p = await loadProfile();
         setProfile(p);
         setSelectedBallId(p.selectedBallId || 'core');
         setAppReady(true);
-      } catch (error) {
-        console.error('Init error:', error);
+      } catch (e) {
         setAppReady(true);
       }
     };
-
     init();
   }, []);
 
@@ -63,9 +66,7 @@ function AppContent() {
     setSelectedBallId(p.selectedBallId || 'core');
   }, []);
 
-  const handleTransition = useCallback((targetScreen: Screen) => {
-    setScreen(targetScreen);
-  }, []);
+  const handleTransition = useCallback((target: Screen) => setScreen(target), []);
 
   const openShopFromMenu = useCallback(() => {
     setShopReturnTo('menu');
@@ -89,8 +90,9 @@ function AppContent() {
     handleTransition('menu');
   }, [handleTransition]);
 
-  if (!appReady || !profile || !assetsReady) {
-    return <PreloadSplashScreen title="DRIFT-RING" />;
+  // ✅ Splash tant que : profil pas prêt OU preload pas prêt OU warmup menu pas prêt
+  if (!appReady || !profile || !assetsReady || !splashReady) {
+    return <PreloadSplashScreen title="DRIFT-RING" onReady={() => setSplashReady(true)} />;
   }
 
   const shouldRenderGame =
@@ -107,10 +109,7 @@ function AppContent() {
     <View style={styles.container}>
       {shouldRenderGame && (
         <View
-          style={[
-            StyleSheet.absoluteFillObject,
-            { opacity: showGameVisual ? 1 : 0 },
-          ]}
+          style={[StyleSheet.absoluteFillObject, { opacity: showGameVisual ? 1 : 0 }]}
           pointerEvents={gamePointerEvents}
         >
           <DriftGame
@@ -124,10 +123,7 @@ function AppContent() {
       <View
         style={[
           StyleSheet.absoluteFillObject,
-          {
-            opacity: menuVisible ? 1 : 0,
-            pointerEvents: menuVisible ? 'auto' : 'none',
-          },
+          { opacity: menuVisible ? 1 : 0, pointerEvents: menuVisible ? 'auto' : 'none' },
         ]}
       >
         <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -136,7 +132,7 @@ function AppContent() {
             profile={profile}
             onProfileUpdate={refreshProfile}
             onPlay={() => handleTransition('headphones')}
-            onTuto={() => console.log('TUTO')}
+            onTuto={() => {}}
             onShop={openShopFromMenu}
             onProfile={openCollection}
           />
@@ -152,7 +148,7 @@ function AppContent() {
       </ScreenTransition>
 
       {screen === 'headphones' && (
-        <ScreenTransition visible={true} fadeOutDuration={FADE_OUT_DURATION}>
+        <ScreenTransition visible fadeOutDuration={FADE_OUT_DURATION}>
           <HeadphonesScreen onConfirm={() => handleTransition('game')} />
         </ScreenTransition>
       )}
@@ -169,8 +165,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
+  container: { flex: 1, backgroundColor: 'black' },
 });

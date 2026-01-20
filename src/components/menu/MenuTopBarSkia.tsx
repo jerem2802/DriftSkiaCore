@@ -4,14 +4,14 @@ import { Group, Circle, RoundedRect, Text, Image, useImage } from '@shopify/reac
 import type { MenuLayout } from './menuLayout';
 import { FONTS } from '../../utils/fonts';
 
-type MenuTopBarSkiaProps = {
+type Props = {
   layout: MenuLayout;
   coins: number;
 };
 
-export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins }) => {
+export const MenuTopBarSkia: React.FC<Props> = ({ layout, coins }) => {
   const formatCoins = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  
+
   const settingsIcon = useImage(require('../../assets/images/settings_menu.png'));
 
   return (
@@ -25,7 +25,6 @@ export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins })
         r={layout.playerNameRect.r}
         color="rgba(30, 41, 59, 0.85)"
       />
-
       <RoundedRect
         x={layout.playerNameRect.x + 2}
         y={layout.playerNameRect.y + 2}
@@ -44,7 +43,6 @@ export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins })
         r={layout.avatarRect.w / 2}
         color="rgba(139, 92, 246, 1.0)"
       />
-
       <Circle
         cx={layout.avatarRect.x + layout.avatarRect.w / 2}
         cy={layout.avatarRect.y + layout.avatarRect.h / 2}
@@ -65,12 +63,11 @@ export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins })
       <RoundedRect
         x={layout.playerNameRect.x + layout.playerNameRect.w - layout.playerNameRect.h * 0.85}
         y={layout.playerNameRect.y + layout.playerNameRect.h * 0.15}
-        width={layout.playerNameRect.h * 0.70}
-        height={layout.playerNameRect.h * 0.70}
+        width={layout.playerNameRect.h * 0.7}
+        height={layout.playerNameRect.h * 0.7}
         r={layout.playerNameRect.h * 0.08}
         color="rgba(139, 92, 246, 0.90)"
       />
-
       <Text
         x={layout.playerNameRect.x + layout.playerNameRect.w - layout.playerNameRect.h * 0.60}
         y={layout.playerNameRect.y + layout.playerNameRect.h * 0.68}
@@ -88,7 +85,6 @@ export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins })
         r={layout.coinsRect.r}
         color="rgba(30, 41, 59, 0.85)"
       />
-
       <RoundedRect
         x={layout.coinsRect.x + 2}
         y={layout.coinsRect.y + 2}
@@ -123,7 +119,6 @@ export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins })
         r={layout.coinsRect.h * 0.08}
         color="rgba(34, 197, 94, 0.90)"
       />
-
       <Text
         x={layout.coinsRect.x + layout.coinsRect.w - layout.coinsRect.h * 0.60}
         y={layout.coinsRect.y + layout.coinsRect.h * 0.68}
@@ -132,7 +127,7 @@ export const MenuTopBarSkia: React.FC<MenuTopBarSkiaProps> = ({ layout, coins })
         color="#ffffff"
       />
 
-      {/* SETTINGS - engrenage réduit de 10% */}
+      {/* SETTINGS */}
       {settingsIcon && (
         <Image
           image={settingsIcon}

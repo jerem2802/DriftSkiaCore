@@ -8,7 +8,7 @@ import {
   Circle,
   Blur,
   Group,
-  useImage,
+
 } from '@shopify/react-native-skia';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useFrameCallback, useSharedValue, useDerivedValue } from 'react-native-reanimated';
@@ -18,6 +18,7 @@ import { CHEST_BALLS } from '../../config/bonusConfig';
 import { GlassCard } from './glasscard';
 import { useCollectionGesture } from './useCollectionGesture';
 import { LAYOUT, COLORS, getCardX } from './collectionLayout';
+import { usePreloadedAssets } from '../../contexts/PreloadContext';
 
 type Props = {
   profile: PlayerProfile;
@@ -71,7 +72,7 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
   const startY = (LAYOUT.H - LAYOUT.CARD_H) / 2;
 
   // ✅ charge 1 fois ici (stable)
-  const metalImage = useImage(require('../../assets/images/glasscard.png'));
+  const { glassCard: metalImage } = usePreloadedAssets();
 
   return (
     <View style={styles.container}>

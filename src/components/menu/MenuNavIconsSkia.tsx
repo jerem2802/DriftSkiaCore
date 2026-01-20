@@ -14,12 +14,10 @@ const ACTIVE_SCALE = 1.15;
 const INACTIVE_SCALE = 1.0;
 
 export const MenuNavIconsSkia: React.FC<Props> = ({ layout, activeTab }) => {
-  // Load PNG images
   const shopIcon = useImage(require('../../assets/images/shop.png'));
   const cupIcon = useImage(require('../../assets/images/cup.png'));
   const collectionIcon = useImage(require('../../assets/images/collection.png'));
 
-  // Calculate scales based on activeTab
   const shopScale = activeTab === 'shop' ? ACTIVE_SCALE : INACTIVE_SCALE;
   const leaderboardScale = activeTab === 'leaderboard' ? ACTIVE_SCALE : INACTIVE_SCALE;
   const collectionScale = activeTab === 'collection' ? ACTIVE_SCALE : INACTIVE_SCALE;
@@ -31,36 +29,29 @@ export const MenuNavIconsSkia: React.FC<Props> = ({ layout, activeTab }) => {
     const w = (layout.navRect.w - pad * 2 - gap * 2) / 3;
     const x = layout.navRect.x + pad + index * (w + gap);
     const y = layout.navRect.y + layout.navRect.h * 0.25;
-    const h = layout.navRect.h * 0.80;
+    const h = layout.navRect.h * 0.8;
     return { x, y, w, h };
   };
 
-  // If images not loaded, return null
-  if (!shopIcon || !cupIcon || !collectionIcon) {
-    return null;
-  }
+  if (!shopIcon || !cupIcon || !collectionIcon) return null;
 
-  // Shop (index 0)
   const shopRect = navItemRect(0);
   const shopCx = shopRect.x + shopRect.w / 2;
   const shopCy = shopRect.y + shopRect.h / 2;
-  const shopIconSize = shopRect.h * 0.95; // Much larger, no ring
+  const shopIconSize = shopRect.h * 0.95;
 
-  // Leaderboard (index 1)
   const leaderboardRect = navItemRect(1);
   const leaderboardCx = leaderboardRect.x + leaderboardRect.w / 2;
   const leaderboardCy = leaderboardRect.y + leaderboardRect.h / 2;
-  const leaderboardIconSize = leaderboardRect.h * 0.95; // Much larger, no ring
+  const leaderboardIconSize = leaderboardRect.h * 0.95;
 
-  // Collection (index 2)
   const collectionRect = navItemRect(2);
   const collectionCx = collectionRect.x + collectionRect.w / 2;
   const collectionCy = collectionRect.y + collectionRect.h / 2;
-  const collectionIconSize = collectionRect.h * 0.95; // Much larger, no ring
+  const collectionIconSize = collectionRect.h * 0.95;
 
   return (
     <Group>
-      {/* ===== SHOP (VIOLET) ===== */}
       <Group
         transform={[
           { translateX: shopCx },
@@ -80,7 +71,6 @@ export const MenuNavIconsSkia: React.FC<Props> = ({ layout, activeTab }) => {
         />
       </Group>
 
-      {/* ===== LEADERBOARD (GOLD) ===== */}
       <Group
         transform={[
           { translateX: leaderboardCx },
@@ -100,7 +90,6 @@ export const MenuNavIconsSkia: React.FC<Props> = ({ layout, activeTab }) => {
         />
       </Group>
 
-      {/* ===== COLLECTION (GREEN) ===== */}
       <Group
         transform={[
           { translateX: collectionCx },
