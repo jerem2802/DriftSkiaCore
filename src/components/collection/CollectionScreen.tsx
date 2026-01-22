@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+// src/components/collection/CollectionScreen.tsx
+import React, { useMemo, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Text as RNText } from 'react-native';
 import {
   Canvas,
@@ -10,9 +11,17 @@ import {
   Group,
   Image,
 } from '@shopify/react-native-skia';
-import { GestureDetector } from 'react-native-gesture-handler';
-import { useFrameCallback, useSharedValue, useDerivedValue } from 'react-native-reanimated';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, {
+  useFrameCallback,
+  useSharedValue,
+  useDerivedValue,
+  useAnimatedStyle,
+  runOnJS,
+} from 'react-native-reanimated';
+
 import type { PlayerProfile } from '../../meta/playerProfile';
+import { setSelectedBall } from '../../meta/playerProfile';
 import { SHOP_BALLS } from '../shop/shopCatalog';
 import { CHEST_BALLS } from '../../config/bonusConfig';
 import { GlassCard } from './glasscard';
@@ -20,9 +29,13 @@ import { useCollectionGesture } from './useCollectionGesture';
 import { LAYOUT, COLORS, getCardX } from './collectionLayout';
 import { usePreloadedAssets } from '../../contexts/PreloadContext';
 
+const CARD_TOTAL_WIDTH = LAYOUT.CARD_W + LAYOUT.CARD_GAP;
+
 type Props = {
   profile: PlayerProfile;
   onBack: () => void;
+  _onProfileUpdate: () => void; // compat / eslint
+  onSelectedBallIdChange: (id: string) => void; // sera appelé UNIQUEMENT au exit
 };
 
 type Ball = {
@@ -31,7 +44,12 @@ type Ball = {
   rarity?: 'common' | 'rare' | 'epic' | 'legendary';
 };
 
-export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
+export const CollectionScreen: React.FC<Props> = ({
+  profile,
+  onBack,
+  _onProfileUpdate,
+  onSelectedBallIdChange,
+}) => {
   const allBalls = useMemo<Ball[]>(() => {
     const shop = SHOP_BALLS.map((b) => ({
       id: b.id,
@@ -39,11 +57,13 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
       rarity: ('rarity' in b ? b.rarity : undefined) as Ball['rarity'],
     }));
 
-    const chest = [...CHEST_BALLS.common, ...CHEST_BALLS.rare, ...CHEST_BALLS.legendary].map((b) => ({
-      id: b.id,
-      name: b.name,
-      rarity: b.rarity as Ball['rarity'],
-    }));
+    const chest = [...CHEST_BALLS.common, ...CHEST_BALLS.rare, ...CHEST_BALLS.legendary].map(
+      (b) => ({
+        id: b.id,
+        name: b.name,
+        rarity: b.rarity as Ball['rarity'],
+      })
+    );
 
     return [...shop, ...chest];
   }, []);
@@ -52,6 +72,19 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
     () => allBalls.filter((b) => profile.ownedBalls.includes(b.id)),
     [allBalls, profile.ownedBalls]
   );
+
+  const ownedBallIds = useMemo(() => ownedBalls.map((b) => b.id), [ownedBalls]);
+
+  // ✅ pending selection (JS ref) : AUCUN setState App pendant Collection
+  const pendingSelectedIdRef = useRef<string | null>(null);
+
+  // ✅ index selection UI (SharedValue)
+  const selectedIndexSV = useSharedValue(0);
+
+  useEffect(() => {
+    const idx = ownedBallIds.indexOf(profile.selectedBallId);
+    selectedIndexSV.value = idx >= 0 ? idx : 0;
+  }, [profile.selectedBallId, ownedBallIds, selectedIndexSV]);
 
   const time = useSharedValue(0);
   useFrameCallback((fi) => {
@@ -68,29 +101,96 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
     return [{ translateX: scrollX.value }];
   }, [scrollX]);
 
+  const focusedIndexDV = useDerivedValue(() => {
+    'worklet';
+    const n = ownedBallIds.length;
+    if (n <= 0) return 0;
+    const raw = -scrollX.value / CARD_TOTAL_WIDTH;
+    const idx = Math.round(raw);
+    return Math.max(0, Math.min(n - 1, idx));
+  }, [scrollX, ownedBallIds.length]);
+
+  const isEquippedDV = useDerivedValue(() => {
+    'worklet';
+    return focusedIndexDV.value === selectedIndexSV.value;
+  });
+
+  const equipBtnAnim = useAnimatedStyle(() => {
+    return { opacity: isEquippedDV.value ? 0.55 : 1 };
+  });
+
+  const equipTxtEquipAnim = useAnimatedStyle(() => {
+    return { opacity: isEquippedDV.value ? 0 : 1 };
+  });
+
+  const equipTxtEquippedAnim = useAnimatedStyle(() => {
+    return { opacity: isEquippedDV.value ? 1 : 0 };
+  });
+
   const startX = (LAYOUT.W - LAYOUT.CARD_W) / 2;
   const startY = (LAYOUT.H - LAYOUT.CARD_H) / 2;
 
-  // ✅ assets preloaded (stable + fluide)
   const assets = usePreloadedAssets();
   const metalImage = assets.glassCard;
   const bgCollection = assets.backgroundCollection;
+
+  // ✅ JS helper (no setState, just ref)
+  const setPendingJS = useCallback((id: string) => {
+    pendingSelectedIdRef.current = id;
+  }, []);
+
+  // ✅ Tap UI-thread (instant) + store pending in JS ref (no App rerender)
+  const equipTap = useMemo(() => {
+    return Gesture.Tap()
+      .maxDuration(250)
+      .onStart(() => {
+        'worklet';
+        if (isDragging.value) return;
+
+        const n = ownedBallIds.length;
+        if (n <= 0) return;
+
+        const idx = Math.max(0, Math.min(n - 1, Math.round(-scrollX.value / CARD_TOTAL_WIDTH)));
+        if (idx === selectedIndexSV.value) return;
+
+        selectedIndexSV.value = idx; // ✅ instant UI
+
+        const id = ownedBallIds[idx];
+        if (!id) return;
+
+        // ✅ store pending only (no setState)
+        runOnJS(setPendingJS)(id);
+      });
+  }, [ownedBallIds, scrollX, selectedIndexSV, isDragging, setPendingJS]);
+
+  // ✅ Commit uniquement au exit (X)
+  const commitAndBack = useCallback(() => {
+    const pending = pendingSelectedIdRef.current;
+    if (pending && pending !== profile.selectedBallId) {
+      // 1) Update App (light) — au moment où tu quittes l’écran
+      onSelectedBallIdChange(pending);
+
+      // 2) Persist AsyncStorage en background (peut stutter, mais tu as déjà quitté)
+      setSelectedBall(pending).catch(() => {});
+
+      // 3) optionnel: garde pour compat (si tu veux reload plus tard)
+      _onProfileUpdate();
+    }
+
+    onBack();
+  }, [onBack, onSelectedBallIdChange, profile.selectedBallId, _onProfileUpdate]);
 
   return (
     <View style={styles.container}>
       <GestureDetector gesture={gesture}>
         <View style={styles.body}>
           <Canvas style={styles.canvas} pointerEvents="none">
-            {/* ✅ BACKGROUND IMAGE */}
             {bgCollection ? (
               <Group>
-                {/* Si ton Skia supporte fit="cover" -> nickel */}
                 <Image image={bgCollection} x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} fit="cover" />
-                {/* léger voile pour lisibilité */}
                 <RoundedRect x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} r={0} color="#00000055" />
               </Group>
             ) : (
-              // fallback (au cas où)
               <RoundedRect x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} r={0}>
                 <LinearGradient
                   start={vec(0, 0)}
@@ -100,7 +200,6 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
               </RoundedRect>
             )}
 
-            {/* GLOWS (par-dessus) */}
             <Circle cx={LAYOUT.W * 0.8} cy={LAYOUT.H * 0.3} r={200} color={COLORS.GLOW_PINK} opacity={0.08}>
               <Blur blur={100} />
             </Circle>
@@ -108,12 +207,10 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
               <Blur blur={120} />
             </Circle>
 
-            {/* Cards */}
             <Group transform={scrollTransform}>
               {ownedBalls.map((ball, i) => {
                 const x = getCardX(i) + startX;
                 const y = startY;
-
                 return (
                   <GlassCard
                     key={ball.id}
@@ -144,9 +241,25 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
           </View>
         </View>
 
-        <Pressable onPress={onBack} style={styles.closeBtn} hitSlop={10}>
+        <Pressable onPress={commitAndBack} style={styles.closeBtn} hitSlop={10}>
           <RNText style={styles.closeTxt}>✕</RNText>
         </Pressable>
+      </View>
+
+      {/* Equip button (UI thread) */}
+      <View style={styles.equipWrap} pointerEvents="box-none">
+        <GestureDetector gesture={equipTap}>
+          <Animated.View style={[styles.equipBtn, equipBtnAnim]}>
+            <View style={styles.equipPressable}>
+              <View style={styles.equipTxtWrap}>
+                <Animated.Text style={[styles.equipTxt, equipTxtEquipAnim]}>EQUIP</Animated.Text>
+                <Animated.Text style={[styles.equipTxt, styles.equipTxtAbs, equipTxtEquippedAnim]}>
+                  EQUIPPED
+                </Animated.Text>
+              </View>
+            </View>
+          </Animated.View>
+        </GestureDetector>
       </View>
 
       {/* Footer */}
@@ -258,6 +371,59 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     textAlignVertical: 'center',
     transform: [{ translateY: 3 }],
+  },
+
+  equipWrap: {
+    position: 'absolute',
+    bottom: 78,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+
+  equipBtn: {
+    width: 220,
+    height: 54,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: COLORS.BORDER_START,
+    backgroundColor: 'rgba(10,10,18,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.BORDER_START,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
+    overflow: 'hidden',
+  },
+
+  equipPressable: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  equipTxtWrap: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  equipTxtAbs: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+  },
+
+  equipTxt: {
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 3,
+    color: 'rgba(255,255,255,0.92)',
+    textAlign: 'center',
   },
 
   footer: {

@@ -14,15 +14,24 @@ export const useCollectionGesture = ({ ballCount }: Props) => {
   const isDragging = useSharedValue(false);
   const dragVelocity = useSharedValue(0);
 
+  const focusedIndex = useSharedValue(0);
+
+  const clampIndex = (idx: number) => {
+    'worklet';
+    if (ballCount <= 0) return 0;
+    return Math.max(0, Math.min(ballCount - 1, idx));
+  };
+
   const gesture = Gesture.Pan()
     .onStart(() => {
       'worklet';
-      // ✅ IMPORTANT: stoppe le spring en cours (sinon "fight" = rollback/flash)
       cancelAnimation(scrollX);
 
       isDragging.value = true;
       startScrollX.value = scrollX.value;
       dragVelocity.value = 0;
+
+      focusedIndex.value = clampIndex(Math.round(-scrollX.value / CARD_TOTAL_WIDTH));
     })
     .onUpdate((e) => {
       'worklet';
@@ -30,7 +39,6 @@ export const useCollectionGesture = ({ ballCount }: Props) => {
       const minX = -(ballCount - 1) * CARD_TOTAL_WIDTH;
       const maxX = 0;
 
-      // Rubberband aux extrémités
       if (newX > maxX) {
         scrollX.value = maxX + (newX - maxX) * 0.3;
       } else if (newX < minX) {
@@ -40,6 +48,8 @@ export const useCollectionGesture = ({ ballCount }: Props) => {
       }
 
       dragVelocity.value = e.velocityX;
+
+      focusedIndex.value = clampIndex(Math.round(-scrollX.value / CARD_TOTAL_WIDTH));
     })
     .onEnd(() => {
       'worklet';
@@ -48,22 +58,22 @@ export const useCollectionGesture = ({ ballCount }: Props) => {
       const currentIndex = -scrollX.value / CARD_TOTAL_WIDTH;
       const velocity = dragVelocity.value;
 
-      // Momentum léger
       const momentumOffset = velocity / 2000;
       let targetIndex = Math.round(currentIndex - momentumOffset);
-      targetIndex = Math.max(0, Math.min(ballCount - 1, targetIndex));
+      targetIndex = clampIndex(targetIndex);
 
       const targetX = -targetIndex * CARD_TOTAL_WIDTH;
+
+      focusedIndex.value = targetIndex;
 
       scrollX.value = withSpring(targetX, {
         damping: 24,
         stiffness: 140,
         mass: 0.9,
         velocity: velocity / 1000,
-        // ✅ réduit les rebonds "retour arrière"
         overshootClamping: true,
       });
     });
 
-  return { scrollX, isDragging, dragVelocity, gesture };
+  return { scrollX, isDragging, dragVelocity, focusedIndex, gesture };
 };

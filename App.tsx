@@ -16,10 +16,13 @@ import { ScreenTransition } from './src/components/ScreenTransition';
 import { ShopScreen } from './src/components/shop/ShopScreen';
 import { CollectionScreen } from './src/components/collection/CollectionScreen';
 
-import { loadProfile, resetProfileForDev, type PlayerProfile } from './src/meta/playerProfile';
+import {
+  loadProfile,
+  resetProfileForDev,
+  setSelectedBall,
+  type PlayerProfile,
+} from './src/meta/playerProfile';
 
-// Garde ton système actuel si tu en as besoin pour Collection.
-// Si tu veux TOUT virer plus tard, on le fera proprement.
 import { PreloadProvider } from './src/contexts/PreloadContext';
 import { usePreloadAssets } from './src/game/hooks/usePreloadAssets';
 
@@ -37,11 +40,13 @@ function AppContent() {
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
 
-  // ✅ preload “meta/collection” si tu l’utilises (ex: glassCard). Sinon tu peux le retirer plus tard.
   const assetsReady = usePreloadAssets();
-
-  // ✅ warmup menu PNG via PreloadSplashScreen (anti-latence accueil)
   const [splashReady, setSplashReady] = useState(false);
+
+  // ✅ persist selected ball (debounced) to avoid jank during scroll
+  const persistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistSeqRef = React.useRef(0);
+  const persistedSelectedRef = React.useRef<string>('core');
 
   useEffect(() => {
     const init = async () => {
@@ -52,6 +57,7 @@ function AppContent() {
         const p = await loadProfile();
         setProfile(p);
         setSelectedBallId(p.selectedBallId || 'core');
+        persistedSelectedRef.current = p.selectedBallId || 'core';
         setAppReady(true);
       } catch (e) {
         setAppReady(true);
@@ -64,6 +70,7 @@ function AppContent() {
     const p = await loadProfile();
     setProfile(p);
     setSelectedBallId(p.selectedBallId || 'core');
+    persistedSelectedRef.current = p.selectedBallId || 'core';
   }, []);
 
   const handleTransition = useCallback((target: Screen) => setScreen(target), []);
@@ -90,7 +97,43 @@ function AppContent() {
     handleTransition('menu');
   }, [handleTransition]);
 
-  // ✅ Splash tant que : profil pas prêt OU preload pas prêt OU warmup menu pas prêt
+  // ✅ Collection -> App: instant UI update (no reload)
+  const onSelectedBallIdChange = useCallback((id: string) => {
+    setSelectedBallId(id);
+    setProfile((p) => (p ? { ...p, selectedBallId: id, updatedAt: Date.now() } : p));
+  }, []);
+
+  // ✅ Debounced persist (AsyncStorage) in App, not in Collection
+  useEffect(() => {
+    if (!profile) return;
+
+    if (selectedBallId === persistedSelectedRef.current) return;
+
+    persistSeqRef.current += 1;
+    const mySeq = persistSeqRef.current;
+
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+
+    persistTimerRef.current = setTimeout(() => {
+      setSelectedBall(selectedBallId)
+        .then(() => {
+          if (mySeq !== persistSeqRef.current) return;
+          persistedSelectedRef.current = selectedBallId;
+        })
+        .catch(() => {
+          if (mySeq !== persistSeqRef.current) return;
+
+          const back = persistedSelectedRef.current;
+          setSelectedBallId(back);
+          setProfile((p) => (p ? { ...p, selectedBallId: back, updatedAt: Date.now() } : p));
+        });
+    }, 180);
+
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    };
+  }, [selectedBallId, profile]);
+
   if (!appReady || !profile || !assetsReady || !splashReady) {
     return <PreloadSplashScreen title="DRIFT-RING" onReady={() => setSplashReady(true)} />;
   }
@@ -140,7 +183,12 @@ function AppContent() {
       </View>
 
       <ScreenTransition visible={screen === 'collection'} fadeOutDuration={FADE_OUT_DURATION}>
-        <CollectionScreen profile={profile} onBack={backFromCollection} />
+        <CollectionScreen
+          profile={profile}
+          onBack={backFromCollection}
+          _onProfileUpdate={refreshProfile}
+          onSelectedBallIdChange={onSelectedBallIdChange}
+        />
       </ScreenTransition>
 
       <ScreenTransition visible={screen === 'shop'} fadeOutDuration={FADE_OUT_DURATION}>
