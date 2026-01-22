@@ -1,3 +1,4 @@
+// src/components/collection/glasscard/GlassCard.tsx
 import React from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 import { useDerivedValue } from 'react-native-reanimated';
@@ -64,11 +65,32 @@ export const GlassCard: React.FC<Props> = ({
     return Math.max(0.55, 1 - dist * 0.5);
   });
 
+  // ✅ Levitation légère (transform animé au bon type: DerivedValue<Transform[]>)
+  const ballTransform = useDerivedValue(() => {
+    'worklet';
+    const lift = Math.sin(time.value * 1.6) * 2 - 5; // amplitude 2px, offset -5
+    return [{ translateY: lift }];
+  });
+
   return (
     <Group transform={cardTransform} opacity={cardOpacity}>
-      <GlassCardMetal x={x} y={y} width={LAYOUT.CARD_W} height={LAYOUT.CARD_H} image={metalImage} />
+      <GlassCardMetal
+        x={x}
+        y={y}
+        width={LAYOUT.CARD_W}
+        height={LAYOUT.CARD_H}
+        image={metalImage}
+      />
 
-      <BallPreviewNode ballId={ball.id} cx={cx} cy={cy} size={LAYOUT.BALL_SIZE} time={time} />
+      <Group transform={ballTransform}>
+        <BallPreviewNode
+          ballId={ball.id}
+          cx={cx}
+          cy={cy}
+          size={LAYOUT.BALL_SIZE}
+          time={time}
+        />
+      </Group>
 
       <GlassCardText
         x={x}
