@@ -8,7 +8,6 @@ import {
   Circle,
   Blur,
   Group,
-
 } from '@shopify/react-native-skia';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useFrameCallback, useSharedValue, useDerivedValue } from 'react-native-reanimated';
@@ -123,12 +122,21 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
 
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <RNText style={styles.title}>COLLECTION</RNText>
-          <View style={styles.underline} />
+        {/* slot gauche = même largeur que le bouton close -> centrage parfait */}
+        <View style={styles.headerLeftSlot} />
+
+        <View style={styles.headerCenter}>
+          {/* halo néon (fake blur) */}
+          <View style={styles.headerGlow} />
+
+          {/* card glass */}
+          <View style={styles.headerCard}>
+            <RNText style={styles.title}>COLLECTION</RNText>
+            <View style={styles.underline} />
+          </View>
         </View>
 
-        <Pressable onPress={onBack} style={styles.closeBtn}>
+        <Pressable onPress={onBack} style={styles.closeBtn} hitSlop={10}>
           <RNText style={styles.closeTxt}>✕</RNText>
         </Pressable>
       </View>
@@ -146,46 +154,110 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   body: { flex: 1 },
-  canvas: {
-    width: LAYOUT.W,
-    height: LAYOUT.H,
-  },
+  canvas: { width: LAYOUT.W, height: LAYOUT.H },
+
+  // ✅ header descendu + centré
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 90,
-    paddingTop: 30,
+    height: 120,
+    paddingTop: 44, // ✅ sous la zone top foncée
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: COLORS.TEXT_WHITE,
-    letterSpacing: 4,
-  },
-  underline: {
-    height: 4,
-    width: 140,
-    backgroundColor: COLORS.BORDER_START,
-    marginTop: 6,
-    borderRadius: 2,
-  },
-  closeBtn: {
+
+  headerLeftSlot: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: COLORS.BORDER_START,
+  },
+
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 14,
+  },
+
+  headerGlow: {
+    position: 'absolute',
+    width: 310,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.BORDER_START,
+    opacity: 0.20,
+    shadowColor: COLORS.BORDER_START,
+    shadowOpacity: 0.85,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 20,
+  },
+
+  headerCard: {
+    width: 310,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    backgroundColor: 'rgba(10,10,18,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
     alignItems: 'center',
   },
-  closeTxt: { color: COLORS.TEXT_WHITE, fontSize: 24, fontWeight: '800' },
+
+  title: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: 'rgba(255,255,255,0.96)',
+    letterSpacing: 7,
+    textTransform: 'uppercase',
+    textShadowColor: COLORS.BORDER_START,
+    textShadowRadius: 14,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+
+  underline: {
+    height: 3,
+    width: 140,
+    marginTop: 8,
+    borderRadius: 3,
+    backgroundColor: COLORS.BORDER_START,
+    shadowColor: COLORS.BORDER_START,
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
+  },
+
+closeBtn: {
+  width: 50,
+  height: 50,
+  borderRadius: 25,
+  borderWidth: 2,
+  borderColor: COLORS.BORDER_START,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+closeTxt: {
+  color: COLORS.TEXT_WHITE,
+  fontSize: 28,
+  fontWeight: '900',
+  lineHeight: 28,           // ✅ important (égale à fontSize)
+  textAlign: 'center',
+  includeFontPadding: false, // ✅ Android: enlève le padding interne des fonts
+  textAlignVertical: 'center',// ✅ Android: aide au centrage vertical
+  transform: [{ translateY: 3 }], // ✅ micro offset visuel
+},
+
+
+
   footer: {
     position: 'absolute',
     bottom: 30,
