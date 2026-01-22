@@ -7,6 +7,7 @@ export const usePreloadAssets = () => {
   return useMemo(() => {
     return !!(
       a.glassCard &&
+      a.backgroundCollection && // ✅ AJOUT
       a.menuDriftring &&
       a.menuRing &&
       a.typoMenu &&

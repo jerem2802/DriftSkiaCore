@@ -9,6 +9,7 @@ export type PreloadedAssets = {
   menuDriftring: SkImage | null;
   menuRing: SkImage | null;
   typoMenu: SkImage | null;
+  menuDriftringHeader: SkImage | null;
 
   shopIcon: SkImage | null;
   cupIcon: SkImage | null;
@@ -16,10 +17,12 @@ export type PreloadedAssets = {
   settingsIcon: SkImage | null;
   headphonesIcon: SkImage | null;
 
-  // ✅ CHESTS (pour que le menu arrive complet)
   chestBronze: SkImage | null;
   chestSilver: SkImage | null;
   chestNeon: SkImage | null;
+
+  // ✅ NEW: Collection background
+  backgroundCollection: SkImage | null;
 };
 
 const DEFAULT_ASSETS: PreloadedAssets = {
@@ -28,6 +31,7 @@ const DEFAULT_ASSETS: PreloadedAssets = {
   glassCard: null,
 
   menuDriftring: null,
+  menuDriftringHeader: null,
   menuRing: null,
   typoMenu: null,
 
@@ -40,6 +44,8 @@ const DEFAULT_ASSETS: PreloadedAssets = {
   chestBronze: null,
   chestSilver: null,
   chestNeon: null,
+
+  backgroundCollection: null,
 };
 
 const PreloadContext = createContext<PreloadedAssets>(DEFAULT_ASSETS);
@@ -62,9 +68,11 @@ type Props = { children: ReactNode };
 export const PreloadProvider: React.FC<Props> = ({ children }) => {
   // ✅ Collection
   const glassCard = useImage(require('../assets/images/glasscard.png'));
+  const backgroundCollection = useImage(require('../assets/images/background_collection.png')); // ✅ AJOUT
 
   // ✅ Menu
   const menuDriftring = useImage(require('../assets/images/menu_driftring.png'));
+  const menuDriftringHeader = useImage(require('../assets/images/menu_driftring_header.png'));
   const menuRing = useImage(require('../assets/images/menu_ring.png'));
   const typoMenu = useImage(require('../assets/images/typo_menu.png'));
 
@@ -74,7 +82,7 @@ export const PreloadProvider: React.FC<Props> = ({ children }) => {
   const settingsIcon = useImage(require('../assets/images/settings_menu.png'));
   const headphonesIcon = useImage(require('../assets/images/headphones_icon.png'));
 
-  // ✅ Chests (⚠️ adapte les noms si besoin)
+  // ✅ Chests
   const chestBronze = useImage(require('../assets/images/chest_bronze.png'));
   const chestSilver = useImage(require('../assets/images/chest_silver.png'));
   const chestNeon = useImage(require('../assets/images/chest_neon.png'));
@@ -84,8 +92,10 @@ export const PreloadProvider: React.FC<Props> = ({ children }) => {
       __hasProvider: true,
 
       glassCard,
+      backgroundCollection, // ✅ AJOUT
 
       menuDriftring,
+      menuDriftringHeader,
       menuRing,
       typoMenu,
 
@@ -101,7 +111,9 @@ export const PreloadProvider: React.FC<Props> = ({ children }) => {
     }),
     [
       glassCard,
+      backgroundCollection,
       menuDriftring,
+      menuDriftringHeader,
       menuRing,
       typoMenu,
       shopIcon,

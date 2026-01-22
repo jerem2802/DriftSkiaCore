@@ -8,6 +8,7 @@ import {
   Circle,
   Blur,
   Group,
+  Image,
 } from '@shopify/react-native-skia';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useFrameCallback, useSharedValue, useDerivedValue } from 'react-native-reanimated';
@@ -70,27 +71,39 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
   const startX = (LAYOUT.W - LAYOUT.CARD_W) / 2;
   const startY = (LAYOUT.H - LAYOUT.CARD_H) / 2;
 
-  // ✅ charge 1 fois ici (stable)
-  const { glassCard: metalImage } = usePreloadedAssets();
+  // ✅ assets preloaded (stable + fluide)
+  const assets = usePreloadedAssets();
+  const metalImage = assets.glassCard;
+  const bgCollection = assets.backgroundCollection;
 
   return (
     <View style={styles.container}>
       <GestureDetector gesture={gesture}>
         <View style={styles.body}>
           <Canvas style={styles.canvas} pointerEvents="none">
-            {/* Background */}
-            <RoundedRect x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} r={0}>
-              <LinearGradient
-                start={vec(0, 0)}
-                end={vec(LAYOUT.W, LAYOUT.H)}
-                colors={['#06000f', '#120a20', '#06000f']}
-              />
-            </RoundedRect>
+            {/* ✅ BACKGROUND IMAGE */}
+            {bgCollection ? (
+              <Group>
+                {/* Si ton Skia supporte fit="cover" -> nickel */}
+                <Image image={bgCollection} x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} fit="cover" />
+                {/* léger voile pour lisibilité */}
+                <RoundedRect x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} r={0} color="#00000055" />
+              </Group>
+            ) : (
+              // fallback (au cas où)
+              <RoundedRect x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} r={0}>
+                <LinearGradient
+                  start={vec(0, 0)}
+                  end={vec(LAYOUT.W, LAYOUT.H)}
+                  colors={['#06000f', '#120a20', '#06000f']}
+                />
+              </RoundedRect>
+            )}
 
+            {/* GLOWS (par-dessus) */}
             <Circle cx={LAYOUT.W * 0.8} cy={LAYOUT.H * 0.3} r={200} color={COLORS.GLOW_PINK} opacity={0.08}>
               <Blur blur={100} />
             </Circle>
-
             <Circle cx={LAYOUT.W * 0.2} cy={LAYOUT.H * 0.7} r={250} color={COLORS.GLOW_CYAN} opacity={0.06}>
               <Blur blur={120} />
             </Circle>
@@ -122,14 +135,9 @@ export const CollectionScreen: React.FC<Props> = ({ profile, onBack }) => {
 
       {/* Header */}
       <View style={styles.header}>
-        {/* slot gauche = même largeur que le bouton close -> centrage parfait */}
         <View style={styles.headerLeftSlot} />
-
         <View style={styles.headerCenter}>
-          {/* halo néon (fake blur) */}
           <View style={styles.headerGlow} />
-
-          {/* card glass */}
           <View style={styles.headerCard}>
             <RNText style={styles.title}>COLLECTION</RNText>
             <View style={styles.underline} />
@@ -156,23 +164,19 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   canvas: { width: LAYOUT.W, height: LAYOUT.H },
 
-  // ✅ header descendu + centré
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 120,
-    paddingTop: 44, // ✅ sous la zone top foncée
+    paddingTop: 44,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
   },
 
-  headerLeftSlot: {
-    width: 50,
-    height: 50,
-  },
+  headerLeftSlot: { width: 50, height: 50 },
 
   headerCenter: {
     flex: 1,
@@ -187,7 +191,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     backgroundColor: COLORS.BORDER_START,
-    opacity: 0.20,
+    opacity: 0.2,
     shadowColor: COLORS.BORDER_START,
     shadowOpacity: 0.85,
     shadowRadius: 30,
@@ -235,28 +239,26 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
 
-closeBtn: {
-  width: 50,
-  height: 50,
-  borderRadius: 25,
-  borderWidth: 2,
-  borderColor: COLORS.BORDER_START,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
+  closeBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: COLORS.BORDER_START,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-closeTxt: {
-  color: COLORS.TEXT_WHITE,
-  fontSize: 28,
-  fontWeight: '900',
-  lineHeight: 28,           // ✅ important (égale à fontSize)
-  textAlign: 'center',
-  includeFontPadding: false, // ✅ Android: enlève le padding interne des fonts
-  textAlignVertical: 'center',// ✅ Android: aide au centrage vertical
-  transform: [{ translateY: 3 }], // ✅ micro offset visuel
-},
-
-
+  closeTxt: {
+    color: COLORS.TEXT_WHITE,
+    fontSize: 28,
+    fontWeight: '900',
+    lineHeight: 28,
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    transform: [{ translateY: 3 }],
+  },
 
   footer: {
     position: 'absolute',
@@ -265,6 +267,7 @@ closeTxt: {
     right: 0,
     alignItems: 'center',
   },
+
   counter: {
     fontSize: 14,
     fontWeight: '900',
