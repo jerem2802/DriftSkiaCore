@@ -31,6 +31,11 @@ import { usePreloadedAssets } from '../../contexts/PreloadContext';
 
 const CARD_TOTAL_WIDTH = LAYOUT.CARD_W + LAYOUT.CARD_GAP;
 
+// ✅ NEW: blue equipped theme (only UI)
+const EQUIP_BLUE_BG = 'rgba(40, 140, 255, 0.26)';
+const EQUIP_BLUE_BORDER = 'rgba(80, 170, 255, 0.95)';
+const EQUIP_BLUE_TEXT = 'rgba(215, 240, 255, 0.98)';
+
 type Props = {
   profile: PlayerProfile;
   onBack: () => void;
@@ -104,7 +109,9 @@ export const CollectionScreen: React.FC<Props> = ({
   const focusedIndexDV = useDerivedValue(() => {
     'worklet';
     const n = ownedBallIds.length;
-    if (n <= 0) return 0;
+    if (n <= 0) {
+      return 0;
+    }
     const raw = -scrollX.value / CARD_TOTAL_WIDTH;
     const idx = Math.round(raw);
     return Math.max(0, Math.min(n - 1, idx));
@@ -117,6 +124,20 @@ export const CollectionScreen: React.FC<Props> = ({
 
   const equipBtnAnim = useAnimatedStyle(() => {
     return { opacity: isEquippedDV.value ? 0.55 : 1 };
+  });
+
+  // ✅ NEW: color changes (no logic change)
+  const equipBtnColorAnim = useAnimatedStyle(() => {
+    return {
+      backgroundColor: isEquippedDV.value ? EQUIP_BLUE_BG : 'rgba(10,10,18,0.55)',
+      borderColor: isEquippedDV.value ? EQUIP_BLUE_BORDER : COLORS.BORDER_START,
+    };
+  });
+
+  const equipTxtColorAnim = useAnimatedStyle(() => {
+    return {
+      color: isEquippedDV.value ? EQUIP_BLUE_TEXT : 'rgba(255,255,255,0.92)',
+    };
   });
 
   const equipTxtEquipAnim = useAnimatedStyle(() => {
@@ -192,11 +213,7 @@ export const CollectionScreen: React.FC<Props> = ({
               </Group>
             ) : (
               <RoundedRect x={0} y={0} width={LAYOUT.W} height={LAYOUT.H} r={0}>
-                <LinearGradient
-                  start={vec(0, 0)}
-                  end={vec(LAYOUT.W, LAYOUT.H)}
-                  colors={['#06000f', '#120a20', '#06000f']}
-                />
+                <LinearGradient start={vec(0, 0)} end={vec(LAYOUT.W, LAYOUT.H)} colors={['#06000f', '#120a20', '#06000f']} />
               </RoundedRect>
             )}
 
@@ -249,24 +266,26 @@ export const CollectionScreen: React.FC<Props> = ({
       {/* Equip button (UI thread) */}
       <View style={styles.equipWrap} pointerEvents="box-none">
         <GestureDetector gesture={equipTap}>
-          <Animated.View style={[styles.equipBtn, equipBtnAnim]}>
+          <Animated.View style={[styles.equipBtn, equipBtnAnim, equipBtnColorAnim]}>
             <View style={styles.equipPressable}>
               <View style={styles.equipTxtWrap}>
-                <Animated.Text style={[styles.equipTxt, equipTxtEquipAnim]}>EQUIP</Animated.Text>
-                <Animated.Text style={[styles.equipTxt, styles.equipTxtAbs, equipTxtEquippedAnim]}>
+                <Animated.Text style={[styles.equipTxt, equipTxtColorAnim, equipTxtEquipAnim]}>
+                  EQUIP
+                </Animated.Text>
+                <Animated.Text
+                  style={[
+                    styles.equipTxt,
+                    styles.equipTxtAbs,
+                    equipTxtColorAnim,
+                    equipTxtEquippedAnim,
+                  ]}
+                >
                   EQUIPPED
                 </Animated.Text>
               </View>
             </View>
           </Animated.View>
         </GestureDetector>
-      </View>
-
-      {/* Footer */}
-      <View style={styles.footer} pointerEvents="none">
-        <RNText style={styles.counter}>
-          {ownedBalls.length} / {allBalls.length} UNLOCKED
-        </RNText>
       </View>
     </View>
   );
@@ -424,20 +443,5 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     color: 'rgba(255,255,255,0.92)',
     textAlign: 'center',
-  },
-
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-
-  counter: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: COLORS.TEXT_GRAY,
-    letterSpacing: 2,
   },
 });

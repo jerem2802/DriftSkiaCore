@@ -1,18 +1,66 @@
 // src/components/menu/MenuTopBarSkia.tsx
-import React from 'react';
-import { Group, Circle, RoundedRect, Text, Image, useImage } from '@shopify/react-native-skia';
+import React, { useMemo } from 'react';
+import { Group, Circle, RoundedRect, Text, Image, useImage, Skia } from '@shopify/react-native-skia';
 import type { MenuLayout } from './menuLayout';
 import { FONTS } from '../../utils/fonts';
 
 type Props = {
   layout: MenuLayout;
   coins: number;
+  playerName: string;
+  avatarId: string; // a01..a15
 };
 
-export const MenuTopBarSkia: React.FC<Props> = ({ layout, coins }) => {
+// src/components/menu/MenuTopBarSkia.tsx
+
+const getAvatarSource = (id: string) => {
+  switch (id) {
+    case 'a02': return require('../../assets/avatars/avatar2.png');
+    case 'a03': return require('../../assets/avatars/avatar3.png');
+    case 'a04': return require('../../assets/avatars/avatar4.png');
+    case 'a05': return require('../../assets/avatars/avatar5.png');
+    case 'a06': return require('../../assets/avatars/avatar6.png');
+    case 'a07': return require('../../assets/avatars/avatar7.png');
+    case 'a08': return require('../../assets/avatars/avatar8.png');
+    case 'a09': return require('../../assets/avatars/avatar9.png');
+    case 'a10': return require('../../assets/avatars/avatar10.png');
+    case 'a11': return require('../../assets/avatars/avatar11.png');
+    case 'a12': return require('../../assets/avatars/avatar12.png');
+    case 'a13': return require('../../assets/avatars/avatar13.png');
+    case 'a14': return require('../../assets/avatars/avatar14.png');
+    case 'a15': return require('../../assets/avatars/avatar15.png');
+    case 'a01':
+    default: return require('../../assets/avatars/avatar1.png');
+  }
+};
+
+
+export const MenuTopBarSkia: React.FC<Props> = ({ layout, coins, playerName, avatarId }) => {
   const formatCoins = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
   const settingsIcon = useImage(require('../../assets/images/settings_menu.png'));
+
+  const avatarSrc = useMemo(() => getAvatarSource(avatarId), [avatarId]);
+  const avatarImg = useImage(avatarSrc);
+
+  // ✅ AVATAR: plus gros + clip + liseré visible
+  const cx = layout.avatarRect.x + layout.avatarRect.w / 2;
+  const cy = layout.avatarRect.y + layout.avatarRect.h / 2;
+
+  const OUTER_SCALE = 1.35; // plus gros
+  const outerR = (layout.avatarRect.w / 2) * OUTER_SCALE;
+
+  const STROKE_W = 2.5;
+  const innerR = outerR - (STROKE_W + 2);
+
+  const IMG_SCALE = 1.15;
+  const imgW = outerR * 2 * IMG_SCALE;
+  const imgH = outerR * 2 * IMG_SCALE;
+  const imgX = cx - imgW / 2;
+  const imgY = cy - imgH / 2;
+
+  const clipPath = Skia.Path.Make();
+  clipPath.addCircle(cx, cy, innerR);
 
   return (
     <Group>
@@ -37,29 +85,32 @@ export const MenuTopBarSkia: React.FC<Props> = ({ layout, coins }) => {
       />
 
       {/* AVATAR */}
+      <Circle cx={cx} cy={cy} r={outerR} color="rgba(139, 92, 246, 1.0)" />
+
+      {avatarImg && (
+        <Group clip={clipPath}>
+          <Image image={avatarImg} x={imgX} y={imgY} width={imgW} height={imgH} />
+        </Group>
+      )}
+
       <Circle
-        cx={layout.avatarRect.x + layout.avatarRect.w / 2}
-        cy={layout.avatarRect.y + layout.avatarRect.h / 2}
-        r={layout.avatarRect.w / 2}
-        color="rgba(139, 92, 246, 1.0)"
-      />
-      <Circle
-        cx={layout.avatarRect.x + layout.avatarRect.w / 2}
-        cy={layout.avatarRect.y + layout.avatarRect.h / 2}
-        r={layout.avatarRect.w / 2 - 2}
+        cx={cx}
+        cy={cy}
+        r={innerR}
         style="stroke"
-        strokeWidth={2.5}
+        strokeWidth={STROKE_W}
         color="rgba(168, 85, 247, 1.0)"
       />
 
       <Text
         x={layout.playerNameRect.x + layout.playerNameRect.w * 0.25}
         y={layout.playerNameRect.y + layout.playerNameRect.h * 0.68}
-        text="PLAYER"
+        text={(playerName || 'PLAYER').toUpperCase()}
         font={FONTS.headerName}
         color="#ffffff"
       />
 
+      {/* + name */}
       <RoundedRect
         x={layout.playerNameRect.x + layout.playerNameRect.w - layout.playerNameRect.h * 0.85}
         y={layout.playerNameRect.y + layout.playerNameRect.h * 0.15}

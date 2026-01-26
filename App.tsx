@@ -15,11 +15,14 @@ import HeadphonesScreen from './src/components/HeadphonesScreen';
 import { ScreenTransition } from './src/components/ScreenTransition';
 import { ShopScreen } from './src/components/shop/ShopScreen';
 import { CollectionScreen } from './src/components/collection/CollectionScreen';
+import { ProfileScreen } from './src/components/profile/ProlfileScreen';
+import { CoinShopScreen } from './src/components/shop/CoinShopScreen';
 
 import {
   loadProfile,
   resetProfileForDev,
   setSelectedBall,
+  purchaseRemoveAds,
   type PlayerProfile,
 } from './src/meta/playerProfile';
 
@@ -28,7 +31,7 @@ import { usePreloadAssets } from './src/game/hooks/usePreloadAssets';
 
 import { PreloadSplashScreen } from './src/components/preload/PreloadSplashScreen';
 
-type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection';
+type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection' | 'profile' | 'coinshop';
 
 const FADE_OUT_DURATION = 800;
 const DEV_RESET_PROFILE_ON_LAUNCH = false;
@@ -43,7 +46,6 @@ function AppContent() {
   const assetsReady = usePreloadAssets();
   const [splashReady, setSplashReady] = useState(false);
 
-  // ✅ persist selected ball (debounced) to avoid jank during scroll
   const persistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistSeqRef = React.useRef(0);
   const persistedSelectedRef = React.useRef<string>('core');
@@ -97,13 +99,32 @@ function AppContent() {
     handleTransition('menu');
   }, [handleTransition]);
 
-  // ✅ Collection -> App: instant UI update (no reload)
+  const openProfile = useCallback(() => {
+    handleTransition('profile');
+  }, [handleTransition]);
+
+  const backFromProfile = useCallback(() => {
+    handleTransition('menu');
+  }, [handleTransition]);
+
+  const openCoinShop = useCallback(() => {
+    handleTransition('coinshop');
+  }, [handleTransition]);
+
+  const backFromCoinShop = useCallback(() => {
+    handleTransition('menu');
+  }, [handleTransition]);
+
+  const handleRemoveAds = useCallback(async () => {
+    await purchaseRemoveAds();
+    await refreshProfile();
+  }, [refreshProfile]);
+
   const onSelectedBallIdChange = useCallback((id: string) => {
     setSelectedBallId(id);
     setProfile((p) => (p ? { ...p, selectedBallId: id, updatedAt: Date.now() } : p));
   }, []);
 
-  // ✅ Debounced persist (AsyncStorage) in App, not in Collection
   useEffect(() => {
     if (!profile) return;
 
@@ -177,7 +198,10 @@ function AppContent() {
             onPlay={() => handleTransition('headphones')}
             onTuto={() => {}}
             onShop={openShopFromMenu}
-            onProfile={openCollection}
+            onProfile={openProfile}
+            onCollection={openCollection}
+            onCoinShop={openCoinShop}
+            onRemoveAds={handleRemoveAds}
           />
         </View>
       </View>
@@ -191,8 +215,16 @@ function AppContent() {
         />
       </ScreenTransition>
 
+      <ScreenTransition visible={screen === 'profile'} fadeOutDuration={FADE_OUT_DURATION}>
+        <ProfileScreen profile={profile} onBack={backFromProfile} onProfileUpdate={refreshProfile} />
+      </ScreenTransition>
+
       <ScreenTransition visible={screen === 'shop'} fadeOutDuration={FADE_OUT_DURATION}>
         <ShopScreen profile={profile} onProfileUpdate={refreshProfile} onBack={backFromShop} />
+      </ScreenTransition>
+
+      <ScreenTransition visible={screen === 'coinshop'} fadeOutDuration={FADE_OUT_DURATION}>
+        <CoinShopScreen profile={profile} onBack={backFromCoinShop} onProfileUpdate={refreshProfile} />
       </ScreenTransition>
 
       {screen === 'headphones' && (

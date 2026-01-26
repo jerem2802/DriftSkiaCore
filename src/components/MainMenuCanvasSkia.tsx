@@ -1,12 +1,13 @@
 // src/components/MainMenuCanvasSkia.tsx
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Canvas } from '@shopify/react-native-skia';
+import { StyleSheet, View, useWindowDimensions, Platform } from 'react-native';
+import { Canvas, Text, matchFont } from '@shopify/react-native-skia';
 import Animated, { useAnimatedReaction, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants/gameplay';
 import { useChestLogic } from '../game/hooks/useChestLogic';
 import type { PlayerProfile } from '../meta/playerProfile';
+
 
 import { ChestBoxSkia } from './chests/ChestBoxSkia';
 import { ChestOpeningAnimation } from './chests/ChestOpeningAnimation';
@@ -20,6 +21,7 @@ import { MenuHeaderSkia } from './menu/MenuHeaderSkia';
 import { MenuHubSkia } from './menu/MenuHubSkia';
 import { MenuHitBoxes } from './menu/MenuHitBoxes';
 import { MenuChestsStrip } from './menu/MenuChestsStrip';
+import { MenuRemoveAdsButton } from './menu/MenuRemoveAdsButton';
 
 type MainMenuCanvasSkiaProps = {
   visible: boolean;
@@ -30,6 +32,8 @@ type MainMenuCanvasSkiaProps = {
   onShop: () => void;
   onProfile: () => void;
   onCollection?: () => void;
+  onCoinShop: () => void;
+  onRemoveAds: () => void;
 };
 
 export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
@@ -40,6 +44,8 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   onShop,
   onProfile,
   onCollection,
+  onCoinShop,
+  onRemoveAds,
 }) => {
   const { width: winW, height: winH } = useWindowDimensions();
 
@@ -80,13 +86,40 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   const isModalOpen = logic.showBronzePanel || logic.showSilverPanel || logic.showNeonPanel || showOptions;
   const uiPointerEvents = isModalOpen ? 'none' : 'auto';
 
+  const playerName = profile.playerName ?? 'Player';
+  const avatarId = profile.avatarId ?? 'a01';
+
+  const priceFont = useMemo(() => matchFont({
+    fontFamily: Platform.select({ ios: 'Helvetica', default: 'sans-serif' }),
+    fontSize: 23,
+    fontWeight: '900',
+  }), []);
+
   return (
     <View style={styles.container} pointerEvents={visible ? 'auto' : 'none'}>
       <View style={[styles.stage, stageStyle]}>
         <Canvas style={styles.canvas}>
           <MenuBackgroundSkia W={W} H={H} opacity={logic.state.screenOpacity} />
-          <MenuTopBarSkia layout={layout} coins={logic.totalCoinsUI} />
+          <MenuTopBarSkia layout={layout} coins={logic.totalCoinsUI} playerName={playerName} avatarId={avatarId} />
           <MenuHeaderSkia layout={layout} />
+
+          <MenuRemoveAdsButton
+            x={layout.removeAdsRect.x}
+            y={layout.removeAdsRect.y}
+            w={layout.removeAdsRect.w}
+            h={layout.removeAdsRect.h}
+            isPremium={profile.isPremium ?? false}
+          />
+
+          {/* ✅ PRIX TOUJOURS VISIBLE */}
+          <Text
+            x={layout.removeAdsRect.x + layout.removeAdsRect.w * 0.39}
+            y={layout.removeAdsRect.y + layout.removeAdsRect.h * 1.2}
+            text="€2.99"
+            font={priceFont}
+            color="#FF6B35"
+          />
+
           <MenuHubSkia
             layout={layout}
             bronzeStatus={logic.bronzeStatus}
@@ -100,10 +133,7 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           <View
             style={[
               styles.chestBox,
-              {
-                left: layout.chestBronzeVisualRect.x,
-                top: layout.chestBronzeVisualRect.y,
-              },
+              { left: layout.chestBronzeVisualRect.x, top: layout.chestBronzeVisualRect.y },
             ]}
           >
             <ChestBoxSkia
@@ -118,10 +148,7 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           <View
             style={[
               styles.chestBox,
-              {
-                left: layout.chestSilverVisualRect.x,
-                top: layout.chestSilverVisualRect.y,
-              },
+              { left: layout.chestSilverVisualRect.x, top: layout.chestSilverVisualRect.y },
             ]}
           >
             <ChestBoxSkia
@@ -136,10 +163,7 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           <View
             style={[
               styles.chestBox,
-              {
-                left: layout.chestNeonVisualRect.x,
-                top: layout.chestNeonVisualRect.y,
-              },
+              { left: layout.chestNeonVisualRect.x, top: layout.chestNeonVisualRect.y },
             ]}
           >
             <ChestBoxSkia
@@ -158,9 +182,7 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
           <MenuHitBoxes
             layout={layout}
             onProfile={onProfile}
-            onShopCoins={() => {
-              console.log('Shop coins IAP');
-            }}
+            onShopCoins={onCoinShop}
             onSettings={() => setShowOptions(true)}
             onPlay={onPlay}
             onShop={() => {
@@ -175,6 +197,7 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
               setActiveTab('collection');
               handleCollection();
             }}
+            onRemoveAds={onRemoveAds}
           />
         </Animated.View>
 
@@ -196,12 +219,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
   stage: { position: 'relative' },
   canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'absolute' },
-  uiLayer: {
-    position: 'absolute',
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-    zIndex: 10
-  },
+  uiLayer: { position: 'absolute', width: CANVAS_WIDTH, height: CANVAS_HEIGHT, zIndex: 10 },
   chestLayer: { position: 'absolute', top: 0, left: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
   chestBox: { position: 'absolute' },
 });

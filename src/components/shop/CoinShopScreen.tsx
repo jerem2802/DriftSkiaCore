@@ -1,0 +1,478 @@
+// src/components/shop/CoinShopScreen.tsx
+import React, { useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  Text,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  useWindowDimensions,
+} from 'react-native';
+import type { PlayerProfile } from '../../meta/playerProfile';
+import { loadProfile, saveProfile } from '../../meta/playerProfile';
+
+// ============================================
+// TYPES
+// ============================================
+
+type CoinPack = {
+  id: string;
+  coins: number;
+  price: string;
+  priceValue: number;
+  badge?: 'BEST VALUE' | 'POPULAR' | 'ULTIMATE';
+  bonus?: number; // %
+  sku?: string; // Google Play product ID
+};
+
+type Props = {
+  profile: PlayerProfile;
+  onBack: () => void;
+  onProfileUpdate: () => void;
+};
+
+// ============================================
+// PACKS CONFIG
+// ============================================
+
+const COIN_PACKS: CoinPack[] = [
+  {
+    id: 'starter',
+    coins: 2500,
+    price: '€0.99',
+    priceValue: 0.99,
+    badge: 'BEST VALUE',
+    sku: 'coins_starter_099',
+  },
+  {
+    id: 'small',
+    coins: 8000,
+    price: '€2.99',
+    priceValue: 2.99,
+    sku: 'coins_small_299',
+  },
+  {
+    id: 'medium',
+    coins: 15000,
+    price: '€4.99',
+    priceValue: 4.99,
+    badge: 'POPULAR',
+    sku: 'coins_medium_499',
+  },
+  {
+    id: 'large',
+    coins: 35000,
+    price: '€9.99',
+    priceValue: 9.99,
+    bonus: 5,
+    sku: 'coins_large_999',
+  },
+  {
+    id: 'mega',
+    coins: 80000,
+    price: '€19.99',
+    priceValue: 19.99,
+    bonus: 10,
+    badge: 'BEST VALUE',
+    sku: 'coins_mega_1999',
+  },
+  {
+    id: 'ultimate',
+    coins: 250000,
+    price: '€49.99',
+    priceValue: 49.99,
+    bonus: 25,
+    badge: 'ULTIMATE',
+    sku: 'coins_ultimate_4999',
+  },
+];
+
+// ============================================
+// COMPONENT
+// ============================================
+
+export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpdate }) => {
+  const { width } = useWindowDimensions();
+
+  const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  // ============================================
+  // PURCHASE LOGIC (DEV MODE - NO REAL IAP YET)
+  // ============================================
+
+  const handlePurchase = async (pack: CoinPack) => {
+    setPurchasing(pack.id);
+
+    try {
+      // ✅ TODO: Replace with real IAP call
+      // await requestPurchase(pack.sku);
+
+      // ✅ DEV: Simulate 2s loading
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // ✅ Add coins to profile
+      const updated = await loadProfile();
+      const finalCoins = updated.totalCoins + pack.coins;
+      const next: PlayerProfile = {
+        ...updated,
+        totalCoins: finalCoins,
+        updatedAt: Date.now(),
+      };
+      await saveProfile(next);
+
+      // ✅ Show confetti
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+
+      // ✅ Refresh parent
+      onProfileUpdate();
+    } catch (err) {
+      console.error('Purchase failed:', err);
+    } finally {
+      setPurchasing(null);
+    }
+  };
+
+  // ============================================
+  // LAYOUT
+  // ============================================
+
+  const COLS = width > 400 ? 2 : 1;
+  const H_PADDING = 18;
+  const GAP = 14;
+  const available = Math.max(280, width - H_PADDING * 2);
+  const CARD_W = COLS === 2 ? (available - GAP) / 2 : available;
+
+  const formatCoins = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  return (
+    <View style={styles.root}>
+      {/* ============================================ */}
+      {/* TOP BAR */}
+      {/* ============================================ */}
+      <View style={styles.topBar}>
+        <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
+          <Text style={styles.backTxt}>←</Text>
+        </Pressable>
+        <Text style={styles.title}>COIN SHOP</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      {/* ============================================ */}
+      {/* CURRENT BALANCE */}
+      {/* ============================================ */}
+      <View style={styles.balanceContainer}>
+        <Text style={styles.balanceLabel}>YOUR BALANCE</Text>
+        <View style={styles.balancePill}>
+          <View style={styles.coinIcon} />
+          <Text style={styles.balanceValue}>{formatCoins(profile.totalCoins)}</Text>
+        </View>
+      </View>
+
+      {/* ============================================ */}
+      {/* PACKS GRID */}
+      {/* ============================================ */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: H_PADDING }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.grid, { gap: GAP }]}>
+          {COIN_PACKS.map((pack) => {
+            const isPurchasing = purchasing === pack.id;
+
+            return (
+              <Pressable
+                key={pack.id}
+                onPress={() => handlePurchase(pack)}
+                disabled={isPurchasing || purchasing !== null}
+                style={[styles.packCard, { width: CARD_W }]}
+                hitSlop={8}
+              >
+                {/* Badge */}
+                {pack.badge && (
+                  <View
+                    style={[
+                      styles.badge,
+                      pack.badge === 'ULTIMATE' && styles.badgeUltimate,
+                      pack.badge === 'BEST VALUE' && styles.badgeBestValue,
+                      pack.badge === 'POPULAR' && styles.badgePopular,
+                    ]}
+                  >
+                    <Text style={styles.badgeText}>{pack.badge}</Text>
+                  </View>
+                )}
+
+                {/* Coin amount */}
+                <View style={styles.packIconContainer}>
+                  <View style={styles.packCoinIcon} />
+                  <Text style={styles.packCoins}>{formatCoins(pack.coins)}</Text>
+                </View>
+
+                {/* Bonus */}
+                {pack.bonus && (
+                  <View style={styles.bonusPill}>
+                    <Text style={styles.bonusText}>+{pack.bonus}% BONUS</Text>
+                  </View>
+                )}
+
+                {/* Price */}
+                <View style={styles.priceContainer}>
+                  {isPurchasing ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.price}>{pack.price}</Text>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* ============================================ */}
+      {/* CONFETTI OVERLAY */}
+      {/* ============================================ */}
+      {showConfetti && (
+        <View style={styles.confettiOverlay} pointerEvents="none">
+          <Text style={styles.confettiText}>🎉 COINS ADDED! 🎉</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+// ============================================
+// STYLES
+// ============================================
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+
+  // ===== TOP BAR =====
+  topBar: {
+    height: 64,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+
+  backTxt: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+
+  title: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+
+  // ===== BALANCE =====
+  balanceContainer: {
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+
+  balanceLabel: {
+    color: 'rgba(255,255,255,0.60)',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+
+  balancePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 41, 59, 0.75)',
+    borderWidth: 2,
+    borderColor: 'rgba(251, 191, 36, 0.75)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    shadowColor: 'rgba(251, 191, 36, 1)',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+
+  coinIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(251, 191, 36, 0.95)',
+    marginRight: 10,
+  },
+
+  balanceValue: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+
+  // ===== GRID =====
+  scrollView: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingTop: 10,
+  },
+
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+
+  // ===== PACK CARD =====
+  packCard: {
+    backgroundColor: 'rgba(30, 41, 59, 0.70)',
+    borderWidth: 2.5,
+    borderColor: 'rgba(139, 92, 246, 0.60)',
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    position: 'relative',
+    shadowColor: 'rgba(139, 92, 246, 1)',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+
+  // ===== BADGE =====
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#000',
+  },
+
+  badgeUltimate: {
+    backgroundColor: 'rgba(251, 191, 36, 1.0)',
+  },
+
+  badgeBestValue: {
+    backgroundColor: 'rgba(34, 197, 94, 1.0)',
+  },
+
+  badgePopular: {
+    backgroundColor: 'rgba(139, 92, 246, 1.0)',
+  },
+
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  // ===== COIN ICON =====
+  packIconContainer: {
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  packCoinIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(251, 191, 36, 0.90)',
+    marginBottom: 12,
+    shadowColor: 'rgba(251, 191, 36, 1)',
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+
+  packCoins: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+
+  // ===== BONUS =====
+  bonusPill: {
+    backgroundColor: 'rgba(34, 197, 94, 0.25)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(34, 197, 94, 0.70)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 14,
+  },
+
+  bonusText: {
+    color: 'rgba(34, 197, 94, 1.0)',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  // ===== PRICE =====
+  priceContainer: {
+    backgroundColor: 'rgba(251, 191, 36, 0.20)',
+    borderWidth: 2,
+    borderColor: 'rgba(251, 191, 36, 0.80)',
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+
+  price: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+
+  // ===== CONFETTI =====
+  confettiOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.70)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  confettiText: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+});

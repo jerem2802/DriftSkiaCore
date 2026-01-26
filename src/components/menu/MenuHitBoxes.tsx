@@ -12,6 +12,7 @@ type MenuHitBoxesProps = {
   onShop: () => void;
   onLeaderboard: () => void;
   onCollection: () => void;
+  onRemoveAds: () => void;
 };
 
 const navItemRect = (nav: { x: number; y: number; w: number; h: number }, index: 0 | 1 | 2) => {
@@ -19,8 +20,8 @@ const navItemRect = (nav: { x: number; y: number; w: number; h: number }, index:
   const gap = nav.w * 0.06;
   const w = (nav.w - pad * 2 - gap * 2) / 3;
   const x = nav.x + pad + index * (w + gap);
-  const y = nav.y + nav.h * 0.40; // PLUS BAS (40% au lieu de 10%)
-  const h = nav.h * 0.45; // PLUS PETIT (45% au lieu de 80%)
+  const y = nav.y + nav.h * 0.40;
+  const h = nav.h * 0.45;
   return { x, y, w, h };
 };
 
@@ -86,6 +87,13 @@ const makeStyles = (l: MenuLayout) => {
       width: collectionRect.w,
       height: collectionRect.h,
     } as ViewStyle,
+    removeAdsHit: {
+      position: 'absolute',
+      left: l.removeAdsRect.x,
+      top: l.removeAdsRect.y,
+      width: l.removeAdsRect.w,
+      height: l.removeAdsRect.h,
+    } as ViewStyle,
   });
 };
 
@@ -98,6 +106,7 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
   onShop,
   onLeaderboard,
   onCollection,
+  onRemoveAds,
 }) => {
   const styles = useMemo(() => makeStyles(layout), [layout]);
 
@@ -122,6 +131,8 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
         console.log('💼 COLLECTION CLICKED!');
         onCollection();
       }} />
+
+      <Pressable style={styles.removeAdsHit} onPress={onRemoveAds} hitSlop={8} />
     </View>
   );
 };

@@ -28,6 +28,9 @@ export type MenuLayout = {
   heroRingRect: Rect;
   heroLogoRect: Rect;
 
+  // remove ads
+  removeAdsRect: Rect;
+
   // main CTA
   playRect: Rect;
 
@@ -119,7 +122,7 @@ export const createMenuLayout = (W: number, H: number): MenuLayout => {
   const coinsRect = rr(coinsPillX, playerPillY, coinsPillW, topH, topH * 0.30);
 
   // Settings à DROITE (AGRANDI)
-  const settingsSize = topH * 1.3;  // Plus gros que les pills
+  const settingsSize = topH * 1.3;
   const settingsX = W - marginX - settingsSize;
   const settingsRect = rr(settingsX, playerPillY - (settingsSize - topH) / 2, settingsSize, settingsSize, settingsSize / 2);
 
@@ -129,17 +132,24 @@ export const createMenuLayout = (W: number, H: number): MenuLayout => {
   const heroRingRect = rr(W * 0.10, heroY, W * 0.80, heroH, Math.round(W * 0.06));
 
   // Logo avec ratio 3.3:1 (très horizontal comme le PNG)
-  const logoW = W * 0.95;  // 70% de la largeur
-  const logoH = logoW / 3.3;  // Hauteur calculée selon ratio du PNG
-  const logoX = (W - logoW) / 1;  // Centré horizontalement
-  const logoY = heroY + (heroH - logoH) / 2.2;  // Centré verticalement dans le ring
+  const logoW = W * 0.95;
+  const logoH = logoW / 3.3;
+  const logoX = (W - logoW) / 1;
+  const logoY = heroY + (heroH - logoH) / 2.2;
   const heroLogoRect = rr(logoX, logoY, logoW, logoH, 0);
+
+  // REMOVE ADS (juste sous le hero)
+  const removeAdsW = W * 0.55;
+  const removeAdsH = H * 0.080;
+  const removeAdsX = (W - removeAdsW) / 0.72;
+  const removeAdsY = heroY + heroH + H * -0.12;
+  const removeAdsRect = rr(removeAdsX, removeAdsY, removeAdsW, removeAdsH, removeAdsH * 0.32);
 
   // PLAY (ajusté pour le hero plus grand)
   const playRect = rr(W * 0.18, H * 0.44, W * 0.64, H * 0.105, Math.round(W * 0.05));
 
   // CHESTS row (descendus pour le hero agrandi)
-  const chestY = H * 0.60;  // Était 0.62
+  const chestY = H * 0.60;
   const chestH = H * 0.19;
   const chestW = W * 0.31;
   const chestGap = W * 0.02;
@@ -176,6 +186,8 @@ export const createMenuLayout = (W: number, H: number): MenuLayout => {
 
     heroRingRect,
     heroLogoRect,
+
+    removeAdsRect,
 
     playRect,
 

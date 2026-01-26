@@ -3,60 +3,47 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Reward } from '../config/bonusConfig';
 
 export type BallUpgrade = {
-  autoPlayBonus?: number;       // secondes
-  shieldRegenBonus?: number;    // %
-  coinAttractionRange?: number; // pixels
-  gateWidthBonus?: number;      // radians
+  autoPlayBonus?: number;
+  shieldRegenBonus?: number;
+  coinAttractionRange?: number;
+  gateWidthBonus?: number;
 };
-
-// ============================================
-// CHEST TYPES
-// ============================================
 
 export type ChestStatus = 'locked' | 'countdown' | 'ready';
 
 export interface ChestData {
   id: 'bronze' | 'silver' | 'neon';
   status: ChestStatus;
-
   unlockCondition?: {
     type: 'score' | 'coins';
     value: number;
   };
-
   unlockTimestamp?: number;
-  countdownDuration?: number; // secondes
+  countdownDuration?: number;
   adsWatched?: number;
-
   openPrice?: number;
 }
 
-// ============================================
-// PLAYER PROFILE
-// ============================================
-
 export type PlayerProfile = {
   v: number;
+  playerName: string;
+  avatarId: string;
   totalCoins: number;
   bestScore: number;
-
   ownedBalls: string[];
   selectedBallId: string;
-
   ballUpgrades: Record<string, BallUpgrade>;
-
   upgrades: {
-    shieldBank: number;   // 1..4
-    autoPlayBank: number; // 1..4
-    multiplier: number;   // 1..6
+    shieldBank: number;
+    autoPlayBank: number;
+    multiplier: number;
   };
-
   chests: {
     bronze: ChestData;
     silver: ChestData;
     neon: ChestData;
   };
-
+  isPremium: boolean; // ✅ NOUVEAU
   updatedAt: number;
 };
 
@@ -64,34 +51,32 @@ const KEY = 'drift_profile_v1';
 
 const DEFAULT_PROFILE: PlayerProfile = {
   v: 1,
-  totalCoins: 50000,  // ✅ BEAUCOUP DE COINS POUR DEV
-  bestScore: 1000,    // ✅ SCORE ÉLEVÉ POUR DÉBLOQUER TOUT
-
+  playerName: 'Player',
+  avatarId: 'a01',
+  totalCoins: 50000,
+  bestScore: 1000,
   ownedBalls: ['ball_classic'],
   selectedBallId: 'ball_classic',
-
   ballUpgrades: {
     ball_water: {
       autoPlayBonus: 0.4,
     },
   },
-
   upgrades: {
     shieldBank: 1,
     autoPlayBank: 1,
     multiplier: 1,
   },
-
   chests: {
     bronze: {
       id: 'bronze',
       status: 'locked',
-      unlockCondition: { type: 'score', value: 10 },  // ✅ 10 au lieu de 80
+      unlockCondition: { type: 'score', value: 10 },
     },
     silver: {
       id: 'silver',
       status: 'locked',
-      unlockCondition: { type: 'score', value: 20 },  // ✅ 20 au lieu de 200
+      unlockCondition: { type: 'score', value: 20 },
     },
     neon: {
       id: 'neon',
@@ -100,7 +85,7 @@ const DEFAULT_PROFILE: PlayerProfile = {
       openPrice: 0,
     },
   },
-
+  isPremium: false, // ✅ NOUVEAU
   updatedAt: Date.now(),
 };
 
@@ -118,22 +103,29 @@ export const loadProfile = async (): Promise<PlayerProfile> => {
       typeof p.selectedBallId === 'string' ? p.selectedBallId : DEFAULT_PROFILE.selectedBallId;
     const selectedBallId = selectedBallIdRaw === 'core' ? 'ball_classic' : selectedBallIdRaw;
 
+    const playerName =
+      typeof (p as any).playerName === 'string' ? (p as any).playerName : DEFAULT_PROFILE.playerName;
+
+    const avatarId =
+      typeof (p as any).avatarId === 'string' ? (p as any).avatarId : DEFAULT_PROFILE.avatarId;
+
+    const isPremium =
+      typeof (p as any).isPremium === 'boolean' ? (p as any).isPremium : DEFAULT_PROFILE.isPremium;
+
     return {
       ...DEFAULT_PROFILE,
       ...p,
       v: 1,
-
+      playerName,
+      avatarId,
+      isPremium, // ✅ NOUVEAU
       ownedBalls,
       selectedBallId,
-
       ballUpgrades: p.ballUpgrades ?? DEFAULT_PROFILE.ballUpgrades,
-
       upgrades: {
         ...DEFAULT_PROFILE.upgrades,
         ...(p as any).upgrades,
       },
-
-      // deep merge chests (évite profil partiel cassé)
       chests: {
         bronze: { ...DEFAULT_PROFILE.chests.bronze, ...(p.chests as any)?.bronze },
         silver: { ...DEFAULT_PROFILE.chests.silver, ...(p.chests as any)?.silver },
@@ -149,7 +141,10 @@ export const saveProfile = async (profile: PlayerProfile): Promise<void> => {
   await AsyncStorage.setItem(KEY, JSON.stringify(profile));
 };
 
-export const commitRunToProfile = async (params: { coinsEarned: number; score: number }): Promise<PlayerProfile> => {
+export const commitRunToProfile = async (params: {
+  coinsEarned: number;
+  score: number;
+}): Promise<PlayerProfile> => {
   const p = await loadProfile();
   const next: PlayerProfile = {
     ...p,
@@ -164,6 +159,35 @@ export const commitRunToProfile = async (params: { coinsEarned: number; score: n
 export const setSelectedBall = async (ballId: string): Promise<PlayerProfile> => {
   const p = await loadProfile();
   const next: PlayerProfile = { ...p, selectedBallId: ballId, updatedAt: Date.now() };
+  await saveProfile(next);
+  return next;
+};
+
+export const setPlayerIdentity = async (params: { playerName: string; avatarId: string }): Promise<PlayerProfile> => {
+  const p = await loadProfile();
+
+  const cleanName = (params.playerName || '').trim().slice(0, 8) || 'Player';
+  const cleanAvatar = (params.avatarId || 'a01').trim() || 'a01';
+
+  const next: PlayerProfile = {
+    ...p,
+    playerName: cleanName,
+    avatarId: cleanAvatar,
+    updatedAt: Date.now(),
+  };
+
+  await saveProfile(next);
+  return next;
+};
+
+export const setPlayerName = async (name: string): Promise<PlayerProfile> => {
+  const p = await loadProfile();
+  const clean = (name || '').trim().slice(0, 8);
+  const next: PlayerProfile = {
+    ...p,
+    playerName: clean || 'Player',
+    updatedAt: Date.now(),
+  };
   await saveProfile(next);
   return next;
 };
@@ -183,14 +207,22 @@ export const purchaseBall = async (ballId: string, price: number): Promise<Playe
   return next;
 };
 
+// ✅ NOUVEAU: Purchase Remove Ads
+export const purchaseRemoveAds = async (): Promise<PlayerProfile> => {
+  const p = await loadProfile();
+  const next: PlayerProfile = {
+    ...p,
+    isPremium: true,
+    updatedAt: Date.now(),
+  };
+  await saveProfile(next);
+  return next;
+};
+
 export const getActiveBallUpgrade = (profile: PlayerProfile): BallUpgrade | null => {
   const id = profile.selectedBallId;
   return profile.ballUpgrades[id] ?? null;
 };
-
-// ============================================
-// CHESTS HELPERS
-// ============================================
 
 export function canUnlockChest(chest: ChestData, playerScore: number, playerCoins: number): boolean {
   if (chest.status !== 'locked') return false;
@@ -270,7 +302,9 @@ export function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs
+    .toString()
+    .padStart(2, '0')}`;
 }
 
 export const updateChestInProfile = async (
@@ -286,10 +320,6 @@ export const updateChestInProfile = async (
   await saveProfile(next);
   return next;
 };
-
-// ============================================
-// CLAIM REWARDS (MVP propre)
-// ============================================
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -353,14 +383,6 @@ export const claimChestRewards = async (
   return next;
 };
 
-// ============================================
-// DEV TOOLS - À SUPPRIMER EN PROD
-// ============================================
-
-/**
- * ✅ RESET COMPLET DU PROFIL (pour dev uniquement)
- * Supprime le profil sauvegardé et force le reload du DEFAULT_PROFILE
- */
 export const resetProfileForDev = async (): Promise<void> => {
   await AsyncStorage.removeItem(KEY);
   console.log('✅ Profil reset ! Le DEFAULT_PROFILE sera rechargé au prochain loadProfile()');
