@@ -92,7 +92,7 @@ const makeStyles = (l: MenuLayout) => {
       left: l.removeAdsRect.x,
       top: l.removeAdsRect.y,
       width: l.removeAdsRect.w,
-      height: l.removeAdsRect.h,
+      height: l.removeAdsRect.h + 45, // ← ÉTENDU POUR INCLURE LE PRIX
     } as ViewStyle,
   });
 };
@@ -132,7 +132,14 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
         onCollection();
       }} />
 
-      <Pressable style={styles.removeAdsHit} onPress={onRemoveAds} hitSlop={8} />
+      <Pressable 
+        style={styles.removeAdsHit} 
+        onPress={() => {
+          console.log('🚫 REMOVE ADS CLICKED!');
+          onRemoveAds();
+        }} 
+        hitSlop={8}
+      />
     </View>
   );
 };
