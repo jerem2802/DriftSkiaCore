@@ -6,7 +6,7 @@ configureReanimatedLogger({
   strict: false,
 });
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 
 import DriftGame from './src/game/DriftGame';
@@ -18,11 +18,14 @@ import { CollectionScreen } from './src/components/collection/CollectionScreen';
 import { ProfileScreen } from './src/components/profile/ProlfileScreen';
 import { CoinShopScreen } from './src/components/shop/CoinShopScreen';
 
+import RNIap, { purchaseUpdatedListener, purchaseErrorListener, type Purchase } from 'react-native-iap';
+
 import {
   loadProfile,
   resetProfileForDev,
   setSelectedBall,
   purchaseRemoveAds,
+  grantCoins,
   type PlayerProfile,
 } from './src/meta/playerProfile';
 
@@ -36,6 +39,24 @@ type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection' | 'profile'
 const FADE_OUT_DURATION = 800;
 const DEV_RESET_PROFILE_ON_LAUNCH = false;
 
+// ✅ IMPORTANT : en DEV on garde la simu (tu testes sans Play Console)
+// ✅ en Release Play (__DEV__ = false) => vrai Google Payment form
+const DEV_SIMULATE_IAP = true;
+
+// ---- SKUs ----
+const REMOVE_ADS_SKU = 'remove_ads_299';
+
+const COIN_PACKS_BY_SKU: Record<string, number> = {
+  coins_starter_099: 2500,
+  coins_small_299: 8000,
+  coins_medium_499: 15000,
+  coins_large_999: 35000,
+  coins_mega_1999: 80000,
+  coins_ultimate_4999: 250000,
+};
+
+const ALL_SKUS = [REMOVE_ADS_SKU, ...Object.keys(COIN_PACKS_BY_SKU)];
+
 function AppContent() {
   const [appReady, setAppReady] = useState(false);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
@@ -46,27 +67,40 @@ function AppContent() {
   const assetsReady = usePreloadAssets();
   const [splashReady, setSplashReady] = useState(false);
 
-  const persistTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const persistSeqRef = React.useRef(0);
-  const persistedSelectedRef = React.useRef<string>('core');
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistSeqRef = useRef(0);
+  const persistedSelectedRef = useRef<string>('core');
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        if (DEV_RESET_PROFILE_ON_LAUNCH) {
-          await resetProfileForDev();
+  // ---- IAP state ----
+  const iapReadyRef = useRef(false);
+  const productsLoadedRef = useRef(false);
+
+  // pending resolvers so CoinShop can await "success"
+  const pendingRef = useRef(
+    new Map<string, { resolve: (ok: boolean) => void; reject: (e: any) => void }>()
+  );
+  const processedTokensRef = useRef(new Set<string>());
+
+  const finishPending = (sku: string, ok: boolean, err?: any) => {
+    const pending = pendingRef.current.get(sku);
+    if (!pending) return;
+    pendingRef.current.delete(sku);
+    ok ? pending.resolve(true) : pending.reject(err ?? new Error('purchase failed'));
+  };
+
+  const waitForSku = (sku: string) => {
+    return new Promise<boolean>((resolve, reject) => {
+      pendingRef.current.set(sku, { resolve, reject });
+
+      // timeout sécurité (évite promises bloquées)
+      setTimeout(() => {
+        if (pendingRef.current.has(sku)) {
+          pendingRef.current.delete(sku);
+          reject(new Error('IAP timeout'));
         }
-        const p = await loadProfile();
-        setProfile(p);
-        setSelectedBallId(p.selectedBallId || 'core');
-        persistedSelectedRef.current = p.selectedBallId || 'core';
-        setAppReady(true);
-      } catch (e) {
-        setAppReady(true);
-      }
-    };
-    init();
-  }, []);
+      }, 60_000);
+    });
+  };
 
   const refreshProfile = useCallback(async () => {
     const p = await loadProfile();
@@ -74,6 +108,119 @@ function AppContent() {
     setSelectedBallId(p.selectedBallId || 'core');
     persistedSelectedRef.current = p.selectedBallId || 'core';
   }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        if (DEV_RESET_PROFILE_ON_LAUNCH) {
+          await resetProfileForDev();
+        }
+        await refreshProfile();
+        setAppReady(true);
+      } catch {
+        setAppReady(true);
+      }
+    };
+    init();
+  }, [refreshProfile]);
+
+  // ---- IAP init + listeners ----
+  useEffect(() => {
+    let subUpdate: any;
+    let subError: any;
+
+    const initIap = async () => {
+      try {
+        const ok = await RNIap.initConnection();
+        iapReadyRef.current = !!ok;
+
+        // Android safe calls
+        try {
+          await RNIap.flushFailedPurchasesCachedAsPendingAndroid();
+        } catch {}
+
+        // Preload products once (important to avoid "sku not found")
+        try {
+          // Different react-native-iap versions have different signatures
+          // try new signature
+          // @ts-ignore
+          const items = await RNIap.getProducts({ skus: ALL_SKUS });
+          productsLoadedRef.current = Array.isArray(items);
+        } catch {
+          try {
+            // fallback old signature
+            // @ts-ignore
+            const items = await RNIap.getProducts(ALL_SKUS);
+            productsLoadedRef.current = Array.isArray(items);
+          } catch {
+            productsLoadedRef.current = false;
+          }
+        }
+
+        subUpdate = purchaseUpdatedListener(async (purchase: Purchase) => {
+          try {
+            const sku = (purchase as any).productId as string;
+            const token =
+              (purchase as any).purchaseToken ||
+              (purchase as any).transactionId ||
+              `${sku}:${(purchase as any).transactionDate || ''}`;
+
+            if (token && processedTokensRef.current.has(token)) {
+              // déjà traité
+              return;
+            }
+
+            // ---- apply purchase ----
+            if (sku === REMOVE_ADS_SKU) {
+              await purchaseRemoveAds();
+              await refreshProfile();
+            } else if (sku in COIN_PACKS_BY_SKU) {
+              const coins = COIN_PACKS_BY_SKU[sku] ?? 0;
+              if (coins > 0) {
+                await grantCoins(coins);
+                await refreshProfile();
+              }
+            }
+
+            if (token) processedTokensRef.current.add(token);
+
+            // ---- finish transaction ----
+            try {
+              // Coins = consumable, RemoveAds = non-consumable, but finishTransaction is still required
+              const isConsumable = sku !== REMOVE_ADS_SKU;
+              // @ts-ignore
+              await RNIap.finishTransaction({ purchase, isConsumable });
+            } catch {}
+
+            finishPending(sku, true);
+          } catch (e) {
+            const sku = ((purchase as any).productId as string) || 'unknown';
+            finishPending(sku, false, e);
+          }
+        });
+
+        subError = purchaseErrorListener((err) => {
+          const sku = (err as any)?.productId as string | undefined;
+          if (sku) finishPending(sku, false, err);
+          console.log('IAP purchaseError:', err);
+        });
+      } catch (e) {
+        iapReadyRef.current = false;
+      }
+    };
+
+    initIap();
+
+    return () => {
+      try {
+        subUpdate?.remove?.();
+        subError?.remove?.();
+      } catch {}
+      try {
+        RNIap.endConnection();
+      } catch {}
+    };
+  }, [refreshProfile]);
 
   const handleTransition = useCallback((target: Screen) => setScreen(target), []);
 
@@ -115,10 +262,50 @@ function AppContent() {
     handleTransition('menu');
   }, [handleTransition]);
 
+  // ✅ ONE function used by RemoveAds + CoinShop
+  const requestIap = useCallback(
+    async (sku: string, devSimAction: () => Promise<void>) => {
+      // DEV => SIMU (ton ancien comportement)
+      if (__DEV__ && DEV_SIMULATE_IAP) {
+        await new Promise((r) => setTimeout(r, 600));
+        await devSimAction();
+        await refreshProfile();
+        return true;
+      }
+
+      // Release / Play => real IAP
+      if (!iapReadyRef.current || !productsLoadedRef.current) {
+        throw new Error('IAP not ready / products not loaded');
+      }
+
+      // request purchase
+      try {
+        // @ts-ignore new signature
+        await RNIap.requestPurchase({ sku });
+      } catch {
+        // @ts-ignore old signature
+        await RNIap.requestPurchase(sku);
+      }
+
+      return await waitForSku(sku);
+    },
+    [refreshProfile]
+  );
+
   const handleRemoveAds = useCallback(async () => {
-    await purchaseRemoveAds();
-    await refreshProfile();
-  }, [refreshProfile]);
+    await requestIap(REMOVE_ADS_SKU, async () => {
+      await purchaseRemoveAds();
+    });
+  }, [requestIap]);
+
+  const handleBuyCoinsPack = useCallback(
+    async (sku: string, coins: number) => {
+      await requestIap(sku, async () => {
+        await grantCoins(coins);
+      });
+    },
+    [requestIap]
+  );
 
   const onSelectedBallIdChange = useCallback((id: string) => {
     setSelectedBallId(id);
@@ -127,7 +314,6 @@ function AppContent() {
 
   useEffect(() => {
     if (!profile) return;
-
     if (selectedBallId === persistedSelectedRef.current) return;
 
     persistSeqRef.current += 1;
@@ -224,7 +410,12 @@ function AppContent() {
       </ScreenTransition>
 
       <ScreenTransition visible={screen === 'coinshop'} fadeOutDuration={FADE_OUT_DURATION}>
-        <CoinShopScreen profile={profile} onBack={backFromCoinShop} onProfileUpdate={refreshProfile} />
+        <CoinShopScreen
+          profile={profile}
+          onBack={backFromCoinShop}
+          onProfileUpdate={refreshProfile}
+          onBuyPack={handleBuyCoinsPack}
+        />
       </ScreenTransition>
 
       {screen === 'headphones' && (

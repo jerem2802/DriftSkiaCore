@@ -43,7 +43,7 @@ export type PlayerProfile = {
     silver: ChestData;
     neon: ChestData;
   };
-  isPremium: boolean; // ✅ NOUVEAU
+  isPremium: boolean;
   updatedAt: number;
 };
 
@@ -68,24 +68,11 @@ const DEFAULT_PROFILE: PlayerProfile = {
     multiplier: 1,
   },
   chests: {
-    bronze: {
-      id: 'bronze',
-      status: 'locked',
-      unlockCondition: { type: 'score', value: 10 },
-    },
-    silver: {
-      id: 'silver',
-      status: 'locked',
-      unlockCondition: { type: 'score', value: 20 },
-    },
-    neon: {
-      id: 'neon',
-      status: 'locked',
-      unlockCondition: { type: 'coins', value: 0 },
-      openPrice: 0,
-    },
+    bronze: { id: 'bronze', status: 'locked', unlockCondition: { type: 'score', value: 10 } },
+    silver: { id: 'silver', status: 'locked', unlockCondition: { type: 'score', value: 20 } },
+    neon: { id: 'neon', status: 'locked', unlockCondition: { type: 'coins', value: 0 }, openPrice: 0 },
   },
-  isPremium: false, // ✅ NOUVEAU
+  isPremium: false,
   updatedAt: Date.now(),
 };
 
@@ -118,7 +105,7 @@ export const loadProfile = async (): Promise<PlayerProfile> => {
       v: 1,
       playerName,
       avatarId,
-      isPremium, // ✅ NOUVEAU
+      isPremium,
       ownedBalls,
       selectedBallId,
       ballUpgrades: p.ballUpgrades ?? DEFAULT_PROFILE.ballUpgrades,
@@ -141,10 +128,7 @@ export const saveProfile = async (profile: PlayerProfile): Promise<void> => {
   await AsyncStorage.setItem(KEY, JSON.stringify(profile));
 };
 
-export const commitRunToProfile = async (params: {
-  coinsEarned: number;
-  score: number;
-}): Promise<PlayerProfile> => {
+export const commitRunToProfile = async (params: { coinsEarned: number; score: number }): Promise<PlayerProfile> => {
   const p = await loadProfile();
   const next: PlayerProfile = {
     ...p,
@@ -183,11 +167,7 @@ export const setPlayerIdentity = async (params: { playerName: string; avatarId: 
 export const setPlayerName = async (name: string): Promise<PlayerProfile> => {
   const p = await loadProfile();
   const clean = (name || '').trim().slice(0, 8);
-  const next: PlayerProfile = {
-    ...p,
-    playerName: clean || 'Player',
-    updatedAt: Date.now(),
-  };
+  const next: PlayerProfile = { ...p, playerName: clean || 'Player', updatedAt: Date.now() };
   await saveProfile(next);
   return next;
 };
@@ -207,14 +187,18 @@ export const purchaseBall = async (ballId: string, price: number): Promise<Playe
   return next;
 };
 
-// ✅ NOUVEAU: Purchase Remove Ads
 export const purchaseRemoveAds = async (): Promise<PlayerProfile> => {
   const p = await loadProfile();
-  const next: PlayerProfile = {
-    ...p,
-    isPremium: true,
-    updatedAt: Date.now(),
-  };
+  const next: PlayerProfile = { ...p, isPremium: true, updatedAt: Date.now() };
+  await saveProfile(next);
+  return next;
+};
+
+// ✅ NEW: grant coins (used by DEV simu + real IAP)
+export const grantCoins = async (coins: number): Promise<PlayerProfile> => {
+  const add = Math.max(0, coins || 0);
+  const p = await loadProfile();
+  const next: PlayerProfile = { ...p, totalCoins: p.totalCoins + add, updatedAt: Date.now() };
   await saveProfile(next);
   return next;
 };
@@ -235,11 +219,7 @@ export function canUnlockChest(chest: ChestData, playerScore: number, playerCoin
 }
 
 export function unlockChest(chest: ChestData): ChestData {
-  const countdownDurations = {
-    bronze: 6 * 3600,
-    silver: 12 * 3600,
-    neon: 24 * 3600,
-  };
+  const countdownDurations = { bronze: 6 * 3600, silver: 12 * 3600, neon: 24 * 3600 };
 
   return {
     ...chest,
@@ -278,7 +258,6 @@ export function watchAd(chest: ChestData): ChestData {
 
   const elapsedSeconds = Math.floor((Date.now() - chest.unlockTimestamp) / 1000);
   const currentRemaining = chest.countdownDuration - elapsedSeconds;
-
   const newRemaining = Math.max(0, currentRemaining - THREE_HOURS);
 
   return {
@@ -312,11 +291,7 @@ export const updateChestInProfile = async (
   updatedChest: ChestData
 ): Promise<PlayerProfile> => {
   const p = await loadProfile();
-  const next: PlayerProfile = {
-    ...p,
-    chests: { ...p.chests, [chestId]: updatedChest },
-    updatedAt: Date.now(),
-  };
+  const next: PlayerProfile = { ...p, chests: { ...p.chests, [chestId]: updatedChest }, updatedAt: Date.now() };
   await saveProfile(next);
   return next;
 };

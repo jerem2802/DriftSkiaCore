@@ -82,7 +82,8 @@ android {
         applicationId "com.driftring.skia"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        missingDimensionStrategy 'store', 'play'
+        versionCode 2
         versionName "1.0"
     }
     signingConfigs {

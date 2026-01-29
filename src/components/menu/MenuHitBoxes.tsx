@@ -12,7 +12,11 @@ type MenuHitBoxesProps = {
   onShop: () => void;
   onLeaderboard: () => void;
   onCollection: () => void;
+
   onRemoveAds: () => void;
+  showRemoveAds: boolean;
+
+  onDevToggleRemoveAds?: () => void;
 };
 
 const navItemRect = (nav: { x: number; y: number; w: number; h: number }, index: 0 | 1 | 2) => {
@@ -31,68 +35,28 @@ const makeStyles = (l: MenuLayout) => {
   const collectionRect = navItemRect(l.navRect, 2);
 
   return StyleSheet.create({
-    root: {
-      position: 'absolute',
-      left: 0,
-      top: 0,
-      width: l.W,
-      height: l.H,
-    } as ViewStyle,
-    avatarHit: {
-      position: 'absolute',
-      left: l.avatarRect.x,
-      top: l.avatarRect.y,
-      width: l.avatarRect.w,
-      height: l.avatarRect.h,
-    } as ViewStyle,
-    coinsHit: {
-      position: 'absolute',
-      left: l.coinsRect.x,
-      top: l.coinsRect.y,
-      width: l.coinsRect.w,
-      height: l.coinsRect.h,
-    } as ViewStyle,
-    settingsHit: {
-      position: 'absolute',
-      left: l.settingsRect.x,
-      top: l.settingsRect.y,
-      width: l.settingsRect.w,
-      height: l.settingsRect.h,
-    } as ViewStyle,
-    playHit: {
-      position: 'absolute',
-      left: l.playRect.x,
-      top: l.playRect.y,
-      width: l.playRect.w,
-      height: l.playRect.h,
-    } as ViewStyle,
-    navShop: {
-      position: 'absolute',
-      left: shopRect.x,
-      top: shopRect.y,
-      width: shopRect.w,
-      height: shopRect.h,
-    } as ViewStyle,
-    navLeaderboard: {
-      position: 'absolute',
-      left: leaderboardRect.x,
-      top: leaderboardRect.y,
-      width: leaderboardRect.w,
-      height: leaderboardRect.h,
-    } as ViewStyle,
-    navCollection: {
-      position: 'absolute',
-      left: collectionRect.x,
-      top: collectionRect.y,
-      width: collectionRect.w,
-      height: collectionRect.h,
-    } as ViewStyle,
+    root: { position: 'absolute', left: 0, top: 0, width: l.W, height: l.H } as ViewStyle,
+    avatarHit: { position: 'absolute', left: l.avatarRect.x, top: l.avatarRect.y, width: l.avatarRect.w, height: l.avatarRect.h } as ViewStyle,
+    coinsHit: { position: 'absolute', left: l.coinsRect.x, top: l.coinsRect.y, width: l.coinsRect.w, height: l.coinsRect.h } as ViewStyle,
+    settingsHit: { position: 'absolute', left: l.settingsRect.x, top: l.settingsRect.y, width: l.settingsRect.w, height: l.settingsRect.h } as ViewStyle,
+    playHit: { position: 'absolute', left: l.playRect.x, top: l.playRect.y, width: l.playRect.w, height: l.playRect.h } as ViewStyle,
+    navShop: { position: 'absolute', left: shopRect.x, top: shopRect.y, width: shopRect.w, height: shopRect.h } as ViewStyle,
+    navLeaderboard: { position: 'absolute', left: leaderboardRect.x, top: leaderboardRect.y, width: leaderboardRect.w, height: leaderboardRect.h } as ViewStyle,
+    navCollection: { position: 'absolute', left: collectionRect.x, top: collectionRect.y, width: collectionRect.w, height: collectionRect.h } as ViewStyle,
     removeAdsHit: {
       position: 'absolute',
       left: l.removeAdsRect.x,
       top: l.removeAdsRect.y,
       width: l.removeAdsRect.w,
-      height: l.removeAdsRect.h + 45, // ← ÉTENDU POUR INCLURE LE PRIX
+      height: l.removeAdsRect.h + 45,
+    } as ViewStyle,
+
+    devToggleRemoveAdsHit: {
+      position: 'absolute',
+      left: 6,
+      bottom: 6,
+      width: 28,
+      height: 28,
     } as ViewStyle,
   });
 };
@@ -107,6 +71,8 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
   onLeaderboard,
   onCollection,
   onRemoveAds,
+  showRemoveAds,
+  onDevToggleRemoveAds,
 }) => {
   const styles = useMemo(() => makeStyles(layout), [layout]);
 
@@ -117,29 +83,29 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
       <Pressable style={styles.settingsHit} onPress={onSettings} />
       <Pressable style={styles.playHit} onPress={onPlay} />
 
-      <Pressable style={styles.navShop} onPress={() => {
-        console.log('🛒 SHOP CLICKED!');
-        onShop();
-      }} />
+      <Pressable style={styles.navShop} onPress={onShop} />
+      <Pressable style={styles.navLeaderboard} onPress={onLeaderboard} />
+      <Pressable style={styles.navCollection} onPress={onCollection} />
 
-      <Pressable style={styles.navLeaderboard} onPress={() => {
-        console.log('🏆 LEADERBOARD CLICKED!');
-        onLeaderboard();
-      }} />
+      {showRemoveAds ? (
+        <Pressable
+          style={styles.removeAdsHit}
+          onPress={() => {
+            console.log('🚫 REMOVE ADS CLICKED!');
+            onRemoveAds();
+          }}
+          hitSlop={8}
+        />
+      ) : null}
 
-      <Pressable style={styles.navCollection} onPress={() => {
-        console.log('💼 COLLECTION CLICKED!');
-        onCollection();
-      }} />
-
-      <Pressable 
-        style={styles.removeAdsHit} 
-        onPress={() => {
-          console.log('🚫 REMOVE ADS CLICKED!');
-          onRemoveAds();
-        }} 
-        hitSlop={8}
-      />
+      {__DEV__ && onDevToggleRemoveAds ? (
+        <Pressable
+          style={styles.devToggleRemoveAdsHit}
+          onLongPress={onDevToggleRemoveAds}
+          delayLongPress={600}
+          hitSlop={12}
+        />
+      ) : null}
     </View>
   );
 };

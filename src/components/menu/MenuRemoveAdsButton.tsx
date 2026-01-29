@@ -9,37 +9,39 @@ type Props = {
   w: number;
   h: number;
   isPremium: boolean;
+  priceText?: string;
 };
 
-export const MenuRemoveAdsButton: React.FC<Props> = ({ x, y, w, h, isPremium }) => {
+export const MenuRemoveAdsButton: React.FC<Props> = ({
+  x,
+  y,
+  w,
+  h,
+  isPremium,
+  priceText = '€2.99',
+}) => {
   const noAdsIcon = useImage(require('../../assets/images/no_ads.png'));
 
-  const priceFont = useMemo(() => matchFont({
-    fontFamily: Platform.select({ ios: 'Helvetica', default: 'sans-serif' }),
-    fontSize: 20,
-    fontWeight: '900',
-  }), []);
+  const priceFont = useMemo(
+    () =>
+      matchFont({
+        fontFamily: Platform.select({ ios: 'Helvetica', default: 'sans-serif' }),
+        fontSize: 23,
+        fontWeight: '900',
+      }),
+    []
+  );
 
   if (!noAdsIcon) return null;
 
   return (
     <>
-      {/* Icône PNG */}
-      <Image
-        image={noAdsIcon}
-        x={x}
-        y={y}
-        width={w}
-        height={h}
-        fit="contain"
-      />
-
-      {/* PRIX EN DESSOUS */}
+      <Image image={noAdsIcon} x={x} y={y} width={w} height={h} fit="contain" />
       {!isPremium && (
         <Text
-          x={x}
-          y={y + h + 25}
-          text="€2.99"
+          x={x + w * 0.39}
+          y={y + h * 1.2}
+          text={priceText}
           font={priceFont}
           color="#FF6B35"
         />
