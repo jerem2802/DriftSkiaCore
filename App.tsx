@@ -8,6 +8,8 @@ configureReanimatedLogger({
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 
 import DriftGame from './src/game/DriftGame';
 import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
@@ -429,11 +431,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <PreloadProvider>
-      <AppContent />
-    </PreloadProvider>
+    <SafeAreaProvider>
+      <PreloadProvider>
+        <AppContent />
+      </PreloadProvider>
+    </SafeAreaProvider>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },

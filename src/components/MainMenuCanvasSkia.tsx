@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
 import Animated, { useAnimatedReaction, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants/gameplay';
 import { useChestLogic } from '../game/hooks/useChestLogic';
@@ -47,11 +48,16 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   onRemoveAds,
 }) => {
   const { width: winW, height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const W = CANVAS_WIDTH;
   const H = CANVAS_HEIGHT;
 
-  const scale = Math.min(winW / W, winH / H);
+  // ✅ Use safe viewport (fixes device-dependent top/bottom offsets)
+  const safeW = winW;
+  const safeH = Math.max(1, winH - insets.top - insets.bottom);
+
+  const scale = Math.min(safeW / W, safeH / H);
   const stageStyle = useMemo(
     () => ({ width: W, height: H, transform: [{ scale }] }),
     [W, H, scale]
@@ -92,7 +98,10 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
   const removeAdsUiIsPremium = isPremium && !(__DEV__ && devForceShowRemoveAds);
 
   return (
-    <View style={styles.container} pointerEvents={visible ? 'auto' : 'none'}>
+    <View
+      style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      pointerEvents={visible ? 'auto' : 'none'}
+    >
       <View style={[styles.stage, stageStyle]}>
         <Canvas style={styles.canvas}>
           <MenuBackgroundSkia W={W} H={H} opacity={logic.state.screenOpacity} />
@@ -181,9 +190,21 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
         <ChestOpeningAnimation isActive={logic.showSilverFlash} onComplete={logic.handleSilverComplete} />
         <ChestOpeningAnimation isActive={logic.showNeonFlash} onComplete={logic.handleNeonComplete} />
 
-        <RewardPanelSkia isVisible={logic.showBronzePanel} rewards={logic.bronzeRewards} onClose={logic.handleBronzeRewardClose} />
-        <RewardPanelSkia isVisible={logic.showSilverPanel} rewards={logic.silverRewards} onClose={logic.handleSilverRewardClose} />
-        <RewardPanelSkia isVisible={logic.showNeonPanel} rewards={logic.neonRewards} onClose={logic.handleNeonRewardClose} />
+        <RewardPanelSkia
+          isVisible={logic.showBronzePanel}
+          rewards={logic.bronzeRewards}
+          onClose={logic.handleBronzeRewardClose}
+        />
+        <RewardPanelSkia
+          isVisible={logic.showSilverPanel}
+          rewards={logic.silverRewards}
+          onClose={logic.handleSilverRewardClose}
+        />
+        <RewardPanelSkia
+          isVisible={logic.showNeonPanel}
+          rewards={logic.neonRewards}
+          onClose={logic.handleNeonRewardClose}
+        />
 
         {showOptions ? <OptionsMenu onClose={() => setShowOptions(false)} /> : null}
       </View>
