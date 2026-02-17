@@ -1,6 +1,7 @@
 // src/components/OptionsMenu.tsx
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, PanResponder } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants/gameplay';
 import { MusicManager } from '../audio/MusicManager';
 import { loadAudioSettings, saveAudioSettings } from '../audio/audioSettings';
@@ -18,25 +19,50 @@ export const OptionsMenu: React.FC<Props> = ({ onClose }) => {
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const SLIDER_W = CANVAS_WIDTH * 0.40;
 
+  const dragVolume = useSharedValue(0.7);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: SLIDER_W * dragVolume.value,
+  }));
+  const thumbStyle = useAnimatedStyle(() => ({
+    left: SLIDER_W * dragVolume.value - 9,
+  }));
+
   useEffect(() => {
     loadAudioSettings().then((s) => {
-      setMusicVolume(s.musicVolume / 10);
+      const vol = s.musicVolume / 10;
+      setMusicVolume(vol);
+      dragVolume.value = vol;
       setMusicEnabled(s.musicEnabled);
       setSfxEnabled(s.sfxEnabled);
     });
   }, []);
 
-  const applyMusicVolume = (ratio: number) => {
-    const clamped = Math.max(0, Math.min(1, ratio));
-    setMusicVolume(clamped);
-    MusicManager.setVolume(clamped);
-    saveAudioSettings({ musicVolume: Math.round(clamped * 10) });
-  };
+  // Volume au moment où le doigt se pose — référence pour calculer le delta
+  const startVolumeRef = useRef(0.7);
 
-  const handleSliderTouch = (locationX: number) => {
-    if (!musicEnabled) return;
-    applyMusicVolume(locationX / SLIDER_W);
-  };
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        startVolumeRef.current = dragVolume.value;
+      },
+      onPanResponderMove: (_, gs) => {
+        const ratio = Math.max(0, Math.min(1, startVolumeRef.current + gs.dx / SLIDER_W));
+        dragVolume.value = ratio;
+        MusicManager.setVolume(ratio);
+      },
+      onPanResponderRelease: (_, gs) => {
+        const ratio = Math.max(0, Math.min(1, startVolumeRef.current + gs.dx / SLIDER_W));
+        dragVolume.value = ratio;
+        setMusicVolume(ratio);
+        MusicManager.setVolume(ratio);
+        saveAudioSettings({ musicVolume: Math.round(ratio * 10) });
+      },
+    })
+  ).current;
 
   const handleMusicToggle = () => {
     const next = !musicEnabled;
@@ -83,14 +109,13 @@ export const OptionsMenu: React.FC<Props> = ({ onClose }) => {
             <View style={[styles.settingItem, !musicEnabled && styles.settingItemDisabled]}>
               <Text style={styles.settingLabel}>Music Volume</Text>
               <View
-                style={styles.sliderTrack}
-                onStartShouldSetResponder={() => true}
-                onMoveShouldSetResponder={() => true}
-                onResponderGrant={(e) => handleSliderTouch(e.nativeEvent.locationX)}
-                onResponderMove={(e) => handleSliderTouch(e.nativeEvent.locationX)}
+                style={styles.sliderHitArea}
+                {...(musicEnabled ? panResponder.panHandlers : {})}
               >
-                <View style={[styles.sliderFill, { width: SLIDER_W * musicVolume }]} />
-                <View style={[styles.sliderThumb, { left: SLIDER_W * musicVolume - 9 }]} />
+                <View style={styles.sliderTrack} pointerEvents="none">
+                  <Animated.View style={[styles.sliderFill, fillStyle]} />
+                </View>
+                <Animated.View style={[styles.sliderThumb, thumbStyle]} />
               </View>
             </View>
 
@@ -329,12 +354,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#E5E7EB',
   },
+  sliderHitArea: {
+    width: CANVAS_WIDTH * 0.40,
+    height: 40,
+    justifyContent: 'center',
+  },
   sliderTrack: {
     width: CANVAS_WIDTH * 0.40,
     height: 6,
     backgroundColor: 'rgba(100, 100, 120, 0.3)',
     borderRadius: 3,
-    justifyContent: 'center',
   },
   sliderFill: {
     position: 'absolute',
@@ -352,8 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 2,
     borderColor: '#ff6bd5',
-    marginLeft: -9,
-    top: -6,
+    top: 11,
   },
   toggle: {
     width: 50,

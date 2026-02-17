@@ -106,6 +106,16 @@ class MusicManagerClass {
     }
   }
 
+  pause() {
+    this.current?.pause();
+  }
+
+  resume() {
+    if (this.enabled && this.current) {
+      this.current.play();
+    }
+  }
+
   stop() {
     this.clearFadeIn();
     const outgoing = this.current;

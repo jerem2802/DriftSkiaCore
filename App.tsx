@@ -7,7 +7,7 @@ configureReanimatedLogger({
 });
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import DriftGame from './src/game/DriftGame';
@@ -119,6 +119,17 @@ function AppContent() {
       MusicManager.setVolume(s.musicVolume / 10);
       MusicManager.setEnabled(s.musicEnabled);
     });
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        MusicManager.resume();
+      } else {
+        MusicManager.pause();
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
