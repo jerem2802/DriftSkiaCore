@@ -57,9 +57,11 @@ type DriftGameProps = {
   selectedBallId?: string;
   allowStart?: boolean;
   isPremium?: boolean;
+  externalPause?: boolean;
+  onAliveChange?: (alive: boolean) => void;
 };
 
-const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true, isPremium = false }) => {
+const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true, isPremium = false, externalPause, onAliveChange }) => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
@@ -126,6 +128,7 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     ringRadius: RING_RADIUS,
     startOrbitSpeed: START_ORBIT_SPEED,
     startGateWidth: START_GATE_WIDTH,
+    onAliveChange,
   });
 
   React.useEffect(() => {
@@ -140,6 +143,12 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
       });
     });
   }, [allowStart, gameState.isPaused]);
+
+  React.useEffect(() => {
+    if (externalPause !== undefined) {
+      gameState.isPaused.value = externalPause;
+    }
+  }, [externalPause, gameState.isPaused]);
 
   const scorePopupTextDV = useDerivedValue(() => gameState.scorePopupText.value);
 
@@ -321,9 +330,9 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
             <LifeDot key={i} x={pos.x} y={pos.y} index={i} lives={gameState.lives} />
           ))}
 
-          <Circle cx={CANVAS_WIDTH - 60} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge1Visible} />
-          <Circle cx={CANVAS_WIDTH - 82} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge2Visible} />
-          <Circle cx={CANVAS_WIDTH - 104} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge3Visible} />
+          <Circle cx={CANVAS_WIDTH - CANVAS_WIDTH * 0.12} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge1Visible} />
+          <Circle cx={CANVAS_WIDTH - CANVAS_WIDTH * 0.12 - CANVAS_WIDTH * 0.055} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge2Visible} />
+          <Circle cx={CANVAS_WIDTH - CANVAS_WIDTH * 0.12 - CANVAS_WIDTH * 0.11} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge3Visible} />
         </Canvas>
       </View>
 

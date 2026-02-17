@@ -50,7 +50,7 @@ export const HUD_TOP_Y = 44;
 export const getCoinHudPosition = () => {
   'worklet';
   return {
-    x: 40,
+    x: 72,
     y: HUD_TOP_Y,
   };
 };

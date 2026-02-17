@@ -24,6 +24,8 @@ interface UseGameOverSystemParams {
   ringRadius: number;
   startOrbitSpeed: number;
   startGateWidth: number;
+
+  onAliveChange?: (alive: boolean) => void;
 }
 
 export const useGameOverSystem = (params: UseGameOverSystemParams) => {
@@ -32,6 +34,7 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
     currentPaletteIndex,
     nextPaletteIndex,
     getRandomPaletteIndex,
+    onAliveChange,
     centerX,
     centerY,
     ringRadius,
@@ -107,6 +110,7 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
       if (alive === prevAlive) return;
 
       runOnJS(setAliveUI)(alive);
+      if (onAliveChange) runOnJS(onAliveChange)(alive);
 
       if (!alive) {
         const finalScore = Math.round(gameState.score.value);
@@ -120,8 +124,9 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
     // Restart = clôture la run (si pas encore commit)
     void commitPendingIfNeeded();
 
-    // ✅ IMPORTANT: on retire l’overlay immédiatement (sinon illusion de “téléport”)
+    // ✅ IMPORTANT: on retire l'overlay immédiatement (sinon illusion de "téléport")
     setAliveUI(true);
+    onAliveChange?.(true);
 
     setHasUsedContinue(false);
     hasUsedContinueRef.current = false;
@@ -156,8 +161,9 @@ export const useGameOverSystem = (params: UseGameOverSystemParams) => {
     // On ne continue que si on est vraiment en Game Over
     if (gameState.alive.value || gameState.lives.value > 0) return;
 
-    // ✅ pareil: on retire l’overlay immédiatement
+    // ✅ pareil: on retire l'overlay immédiatement
     setAliveUI(true);
+    onAliveChange?.(true);
 
     setHasUsedContinue(true);
     hasUsedContinueRef.current = true;
