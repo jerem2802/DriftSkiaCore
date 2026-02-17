@@ -7,8 +7,8 @@ configureReanimatedLogger({
 });
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, AppState, Pressable, Text } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, StyleSheet, AppState } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import DriftGame from './src/game/DriftGame';
 import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
@@ -61,14 +61,13 @@ const COIN_PACKS_BY_SKU: Record<string, number> = {
 const ALL_SKUS = [REMOVE_ADS_SKU, ...Object.keys(COIN_PACKS_BY_SKU)];
 
 function AppContent() {
-  const insets = useSafeAreaInsets();
   const [appReady, setAppReady] = useState(false);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [screen, setScreen] = useState<Screen>('menu');
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
   const [gameIsPaused, setGameIsPaused] = useState(false);
-  const [gameAlive, setGameAlive] = useState(true);
+  const [gameKey, setGameKey] = useState(0);
 
   // ✅ UI flag: juste "connection billing OK"
   const [iapConnectedUI, setIapConnectedUI] = useState(false);
@@ -323,19 +322,18 @@ function AppContent() {
   const handlePausePress = useCallback(() => setGameIsPaused(true), []);
   const handleResumeGame = useCallback(() => setGameIsPaused(false), []);
   const handleQuitGame = useCallback(() => {
-    MusicManager.stop(); // fade out ingame immédiat, menu music démarre sans attendre
+    MusicManager.stop();
     setGameIsPaused(false);
-    setGameAlive(true);
     handleTransition('menu');
   }, [handleTransition]);
-  const handleGameAliveChange = useCallback((alive: boolean) => {
-    setGameAlive(alive);
-    if (!alive) setGameIsPaused(false);
+
+  const handleRestartGame = useCallback(() => {
+    setGameIsPaused(false);
+    setGameKey(k => k + 1);
   }, []);
 
   useEffect(() => {
     if (screen === 'game') {
-      setGameAlive(true);
       setGameIsPaused(false);
     }
   }, [screen]);
@@ -442,23 +440,16 @@ function AppContent() {
       {shouldRenderGame && (
         <View style={[StyleSheet.absoluteFillObject, { opacity: showGameVisual ? 1 : 0 }]} pointerEvents={gamePointerEvents}>
           <DriftGame
+            key={gameKey}
             onShop={openShopFromGame}
             selectedBallId={selectedBallId}
             allowStart={screen === 'game'}
             isPremium={profile.isPremium ?? false}
             externalPause={gameIsPaused}
-            onAliveChange={handleGameAliveChange}
+            onPausePress={handlePausePress}
           />
-          {screen === 'game' && gameAlive && !gameIsPaused && (
-            <Pressable
-              style={[styles.pauseButton, { top: insets.top + 12 }]}
-              onPress={handlePausePress}
-            >
-              <Text style={styles.pauseButtonText}>⏸</Text>
-            </Pressable>
-          )}
           {screen === 'game' && gameIsPaused && (
-            <PauseOverlay onResume={handleResumeGame} onQuit={handleQuitGame} />
+            <PauseOverlay onResume={handleResumeGame} onRestart={handleRestartGame} onQuit={handleQuitGame} />
           )}
         </View>
       )}
@@ -543,11 +534,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pauseButtonText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
+  pauseBar: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    marginHorizontal: 2,
   },
 });

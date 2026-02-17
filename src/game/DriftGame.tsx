@@ -3,7 +3,8 @@
 
 import React from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Canvas, Circle, Path, Text } from '@shopify/react-native-skia';
+import type { GestureResponderEvent } from 'react-native';
+import { Canvas, Circle, Path, Text, RoundedRect } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,7 +34,9 @@ import { useGameOverSystem } from './hooks/useGameOverSystem';
 import { useLifeOrbSystem } from './hooks/useLifeOrbSystem';
 
 import { ScoreHUD } from './skia/ScoreHUD';
-import { LifeDot } from './skia/LifeDot';
+import { HudBar } from './skia/HudBar';
+import { HeartIcon } from './skia/HeartIcon';
+import { ShieldIcon } from './skia/ShieldIcon';
 
 import {
   CANVAS_WIDTH,
@@ -45,7 +48,12 @@ import {
   ORB_COLLISION_DIST,
 } from '../constants/gameplay';
 import { SHIELD_HALO_COLOR, COLOR_PALETTES } from '../constants/colors';
-import { getCoinHudPosition, HUD_TOP_Y } from '../constants/layout';
+import {
+  getCoinHudPosition,
+  HUD_ROW1_Y, HUD_ROW2_Y,
+  HUD_PAUSE_CX, HUD_PAUSE_CY, HUD_PAUSE_R_TAP,
+  HUD_LIVES_START_X, HUD_LIVES_SPACING,
+} from '../constants/layout';
 import { BallRenderer } from './balls/BallRenderer';
 import { FONTS } from '../utils/fonts';
 
@@ -59,9 +67,10 @@ type DriftGameProps = {
   isPremium?: boolean;
   externalPause?: boolean;
   onAliveChange?: (alive: boolean) => void;
+  onPausePress?: () => void;
 };
 
-const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true, isPremium = false, externalPause, onAliveChange }) => {
+const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true, isPremium = false, externalPause, onAliveChange, onPausePress }) => {
   const gameState = useGameState();
   const palettes = usePalettes();
 
@@ -184,24 +193,45 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
 
   const fadingRingScaledR = useDerivedValue(() => gameState.fadingRingR.value * gameState.fadingRingScale.value);
 
+  // Positions des cœurs (ligne haute du HUD)
   const livesPositions = React.useMemo(() => {
     const positions: { x: number; y: number }[] = [];
-    const startX = CANVAS_WIDTH - CANVAS_WIDTH * 0.12;
-    const spacing = CANVAS_WIDTH * 0.055;
-    const y = HUD_TOP_Y;
-    for (let i = 0; i < LIVES_MAX; i++) positions.push({ x: startX - i * spacing, y });
+    for (let i = 0; i < LIVES_MAX; i++) {
+      positions.push({ x: HUD_LIVES_START_X - i * HUD_LIVES_SPACING, y: HUD_ROW1_Y });
+    }
     return positions;
   }, []);
 
+
   const coinHudPos = React.useMemo(() => getCoinHudPosition(), []);
+
+  // Opacité du bouton pause Skia (visible seulement quand vivant et non pausé)
+  const pauseButtonOpacity = useDerivedValue(() =>
+    gameState.alive.value && !gameState.isPaused.value ? 1 : 0
+  );
+
+  // Offset canvas pour conversion coords écran → canvas (détection tap pause)
+  const canvasLeft = Math.max(0, (winW - CANVAS_WIDTH * scale) / 2);
+  const canvasTop = insets.top + Math.max(0, (safeH - CANVAS_HEIGHT * scale) / 2);
 
   useGameLoop({
     ...gameState,
     ...palettes,
   });
 
-  const onTap = () => {
+  const onTap = (e: GestureResponderEvent) => {
     if (!aliveUI) return;
+
+    // Détection tap bouton pause (canvas coords)
+    const cx = (e.nativeEvent.locationX - canvasLeft) / scale;
+    const cy = (e.nativeEvent.locationY - canvasTop) / scale;
+    const pdx = cx - HUD_PAUSE_CX;
+    const pdy = cy - HUD_PAUSE_CY;
+    if (pdx * pdx + pdy * pdy < HUD_PAUSE_R_TAP * HUD_PAUSE_R_TAP) {
+      onPausePress?.();
+      return;
+    }
+
     if (gameState.mode.value !== 'orbit') return;
 
     const tapResult = validateTap(
@@ -230,8 +260,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     }
   };
 
-  const shieldDotsY = HUD_TOP_Y + 28;
-
   return (
     <Pressable
       style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
@@ -239,8 +267,6 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     >
       <View style={[styles.stage, { transform: [{ scale }] }]}>
         <Canvas style={styles.canvas}>
-          <CoinHUD x={coinHudPos.x} y={coinHudPos.y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
-
           <Circle
             cx={gameState.fadingRingX}
             cy={gameState.fadingRingY}
@@ -315,6 +341,9 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
             capacity={24}
           />
 
+          {/* ─── HUD BAR (fond, dessiné avant les éléments HUD) ─── */}
+          <HudBar canvasWidth={CANVAS_WIDTH} />
+
           <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
 
           <Text
@@ -326,13 +355,25 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
             opacity={gameState.scorePopupOpacity}
           />
 
+          {/* Coin counter */}
+          <CoinHUD x={coinHudPos.x} y={coinHudPos.y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
+
+          {/* Bouton pause (icône ⏸ en Skia) — glow bleuté */}
+          <Circle cx={HUD_PAUSE_CX} cy={HUD_PAUSE_CY} r={32} color="rgba(0,220,255,0.18)" opacity={pauseButtonOpacity} />
+          <Circle cx={HUD_PAUSE_CX} cy={HUD_PAUSE_CY} r={26} color="rgba(6,12,26,0.90)" opacity={pauseButtonOpacity} />
+          <Circle cx={HUD_PAUSE_CX} cy={HUD_PAUSE_CY} r={26} color="rgba(0,220,255,0.55)" style="stroke" strokeWidth={1.5} opacity={pauseButtonOpacity} />
+          <RoundedRect x={HUD_PAUSE_CX - 9} y={HUD_PAUSE_CY - 9} width={6} height={18} r={2} color="rgba(255,255,255,0.95)" opacity={pauseButtonOpacity} />
+          <RoundedRect x={HUD_PAUSE_CX + 3} y={HUD_PAUSE_CY - 9} width={6} height={18} r={2} color="rgba(255,255,255,0.95)" opacity={pauseButtonOpacity} />
+
+          {/* Cœurs (vies) */}
           {livesPositions.map((pos, i) => (
-            <LifeDot key={i} x={pos.x} y={pos.y} index={i} lives={gameState.lives} />
+            <HeartIcon key={i} cx={pos.x} cy={pos.y} index={i} lives={gameState.lives} />
           ))}
 
-          <Circle cx={CANVAS_WIDTH - CANVAS_WIDTH * 0.12} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge1Visible} />
-          <Circle cx={CANVAS_WIDTH - CANVAS_WIDTH * 0.12 - CANVAS_WIDTH * 0.055} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge2Visible} />
-          <Circle cx={CANVAS_WIDTH - CANVAS_WIDTH * 0.12 - CANVAS_WIDTH * 0.11} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge3Visible} />
+          {/* Shields (ligne basse, alignés sous les cœurs) */}
+          <ShieldIcon cx={HUD_LIVES_START_X}                         cy={HUD_ROW2_Y} opacity={shield.shieldCharge1Visible} />
+          <ShieldIcon cx={HUD_LIVES_START_X - HUD_LIVES_SPACING}     cy={HUD_ROW2_Y} opacity={shield.shieldCharge2Visible} />
+          <ShieldIcon cx={HUD_LIVES_START_X - 2 * HUD_LIVES_SPACING} cy={HUD_ROW2_Y} opacity={shield.shieldCharge3Visible} />
         </Canvas>
       </View>
 

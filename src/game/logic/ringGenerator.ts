@@ -6,6 +6,7 @@ import {
   CANVAS_HEIGHT,
   MOVE_RINGS_SPEED_MIN,
   MOVE_RINGS_SPEED_MAX,
+  GAME_TOP,
 } from '../../constants/gameplay';
 
 interface RingPosition {
@@ -28,16 +29,19 @@ export const generateNextRing = (
 ): RingPosition => {
   'worklet';
 
-  const minDistanceFromEdge = baseRadius * 1.3;
+  // Tailles plus variées (70% → 110% du base radius) — calculé en premier pour contraindre Y
+  const r = baseRadius * (0.7 + Math.random() * 0.4);
+
+  const minDistanceFromEdge = r;
   const spawnZoneWidth = CANVAS_WIDTH - 2 * minDistanceFromEdge;
-  const spawnZoneHeight = CANVAS_HEIGHT - 2 * minDistanceFromEdge;
+
+  // Zone Y : le BORD HAUT du ring (centre - rayon) doit rester sous la HUD
+  const yMin = GAME_TOP + r;
+  const spawnZoneHeight = CANVAS_HEIGHT - r - yMin;
 
   // Position aléatoire dans zone de spawn
   let x = minDistanceFromEdge + Math.random() * spawnZoneWidth;
-  let y = minDistanceFromEdge + Math.random() * spawnZoneHeight;
-
-  // Tailles plus variées (70% → 110% du base radius)
-  const r = baseRadius * (0.7 + Math.random() * 0.4);
+  let y = yMin + Math.random() * spawnZoneHeight;
 
   // ANTI-IMBRICATION: vérifier distance entre centres
   const distBetweenCenters = Math.sqrt((x - currentX) ** 2 + (y - currentY) ** 2);
@@ -46,7 +50,7 @@ export const generateNextRing = (
   // Si trop proche, re-roll position (1 tentative)
   if (distBetweenCenters < minDistance) {
     x = minDistanceFromEdge + Math.random() * spawnZoneWidth;
-    y = minDistanceFromEdge + Math.random() * spawnZoneHeight;
+    y = yMin + Math.random() * spawnZoneHeight;
   }
 
   // Petite vitesse aléatoire pour MoveRings

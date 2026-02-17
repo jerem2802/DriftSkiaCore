@@ -55,6 +55,11 @@ export const ORB_COLLISION_DIST = 625;
 // Timing
 export const DASH_TIMEOUT = 3000;
 
+// Zone de jeu — limite haute (bas de la barre HUD)
+// ⚠️  À synchroniser si tu changes HUD_Y_OFFSET ou HUD_BAR_H dans layout.ts
+// GAME_TOP = HUD_BAR_Y + HUD_BAR_H + margin = (8 + HUD_Y_OFFSET) + 90 + 10
+export const GAME_TOP = 101; // valeur pour HUD_Y_OFFSET=-7
+
 // Ring generation
 export const CENTER_Y_CURRENT = H * 0.6;
 export const CENTER_Y_NEXT = H * 0.3;

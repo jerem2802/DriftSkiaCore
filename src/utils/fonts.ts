@@ -27,7 +27,7 @@ export const FONTS = {
 
   coinHUD: matchFont({
     fontFamily,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
   }),
   ui: matchFont({

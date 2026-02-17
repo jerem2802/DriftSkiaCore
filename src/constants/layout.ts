@@ -43,23 +43,52 @@ export const getShieldTargetX = (hasAutoPlayVisible: boolean) => {
   return left + BOTTOM_PANEL.BTN_RADIUS;
 };
 
-// ===== TOP HUD =====
-export const HUD_TOP_Y = 44;
+// ===== TOP HUD BAR =====
+// ⬇️  CHANGER CE SEUL CHIFFRE pour remonter/descendre toute la barre d'un coup
+export const HUD_Y_OFFSET = -7; // valeurs négatives = remonte, positives = descend
 
-// Coin HUD (top-left)
+// Barre neon : x=8, y=8+offset, width=CANVAS_WIDTH-16, height=90, r=16
+export const HUD_BAR_Y = 8 + HUD_Y_OFFSET;
+export const HUD_BAR_H = 90;
+export const HUD_BAR_R = 16;
+export const HUD_BAR_CY = HUD_BAR_Y + HUD_BAR_H / 2; // centre vertical
+
+// Ligne haute (cœurs + coin icon) — offset +22 par rapport au bord de la barre
+export const HUD_ROW1_Y = HUD_BAR_Y + 42;
+// Ligne basse (shields) — offset +52
+export const HUD_ROW2_Y = HUD_BAR_Y + 68;
+// Score baseline (font 48px)
+export const HUD_SCORE_Y = HUD_BAR_Y + 47;
+// Multiplicateur baseline (font 34px)
+export const HUD_MULT_Y = HUD_BAR_Y + 80;
+
+// Bouton pause (canvas coords) — tap détecté dans DriftGame.onTap
+export const HUD_PAUSE_CX = 50;
+export const HUD_PAUSE_CY = HUD_BAR_CY; // suit le centre vertical de la barre
+export const HUD_PAUSE_R_TAP = 32;
+
+// Coin icon center X
+export const HUD_COIN_X = 112;
+// Coin icon center Y (= centre vertical de la barre)
+export const HUD_COIN_Y = HUD_BAR_CY;
+// Vies : cœur le plus à droite + espacement (reculé de 6px pour moins coller le bord)
+export const HUD_LIVES_START_X = CANVAS_WIDTH - 35;
+export const HUD_LIVES_SPACING = 32;
+
+// Limite basse de la HUD bar → les rings ne spawneront pas au-dessus
+export const GAME_TOP = HUD_BAR_Y + HUD_BAR_H + 10;
+
+// Rétro-compat
+export const HUD_TOP_Y = HUD_ROW1_Y;
+
+// Coin HUD position (worklet-safe)
 export const getCoinHudPosition = () => {
   'worklet';
-  return {
-    x: 72,
-    y: HUD_TOP_Y,
-  };
+  return { x: HUD_COIN_X, y: HUD_COIN_Y };
 };
 
-// Life HUD (top-right, doit matcher DriftGame livesPositions)
+// Life HUD position (worklet-safe, conservé)
 export const getLifeHudPosition = () => {
   'worklet';
-  return {
-    x: CANVAS_WIDTH - 60,
-    y: HUD_TOP_Y,
-  };
+  return { x: CANVAS_WIDTH - 60, y: HUD_ROW1_Y };
 };

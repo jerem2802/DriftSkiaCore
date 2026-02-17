@@ -17,6 +17,7 @@ import {
   SPIN_RINGS_RAMP,
   SPIN_SPEED_MIN,
   SPIN_SPEED_MAX,
+  GAME_TOP,
 } from '../../constants/gameplay';
 import { completeRing } from '../logic/gameLifecycle';
 
@@ -115,6 +116,19 @@ export const useGameLoop = (params: any) => {
       gateAngle.value = gateAngle.value + spinSpeed * dt;
     }
 
+    // CLAMP rings above HUD — toujours actif, pas seulement en MOVE_RINGS
+    // Le bord haut du ring (centre - rayon) doit rester sous GAME_TOP
+    {
+      const mcC = currentR.value;
+      const yMinC = GAME_TOP + mcC;
+      if (currentY.value < yMinC) { currentVY.value = Math.abs(currentVY.value); currentY.value = yMinC; }
+      if (currentY.value > CANVAS_HEIGHT - mcC) { currentVY.value = -Math.abs(currentVY.value); currentY.value = CANVAS_HEIGHT - mcC; }
+      const mcN = nextR.value;
+      const yMinN = GAME_TOP + mcN;
+      if (nextY.value < yMinN) { nextVY.value = Math.abs(nextVY.value); nextY.value = yMinN; }
+      if (nextY.value > CANVAS_HEIGHT - mcN) { nextVY.value = -Math.abs(nextVY.value); nextY.value = CANVAS_HEIGHT - mcN; }
+    }
+
     // MOVE RINGS
     if (ringsCleared.value >= MOVE_RINGS_SCORE_THRESHOLD) {
       const MOVE_RINGS_RAMP = 40;
@@ -129,26 +143,28 @@ export const useGameLoop = (params: any) => {
       nextY.value += nextVY.value * speedFactor * dt;
 
       const marginCurrent = currentR.value;
+      const yTopCurrent = GAME_TOP + marginCurrent;
       if (currentX.value < marginCurrent || currentX.value > CANVAS_WIDTH - marginCurrent) {
         currentVX.value = -currentVX.value;
         if (currentX.value < marginCurrent) currentX.value = marginCurrent;
         if (currentX.value > CANVAS_WIDTH - marginCurrent) currentX.value = CANVAS_WIDTH - marginCurrent;
       }
-      if (currentY.value < marginCurrent || currentY.value > CANVAS_HEIGHT - marginCurrent) {
+      if (currentY.value < yTopCurrent || currentY.value > CANVAS_HEIGHT - marginCurrent) {
         currentVY.value = -currentVY.value;
-        if (currentY.value < marginCurrent) currentY.value = marginCurrent;
+        if (currentY.value < yTopCurrent) currentY.value = yTopCurrent;
         if (currentY.value > CANVAS_HEIGHT - marginCurrent) currentY.value = CANVAS_HEIGHT - marginCurrent;
       }
 
       const marginNext = nextR.value;
+      const yTopNext = GAME_TOP + marginNext;
       if (nextX.value < marginNext || nextX.value > CANVAS_WIDTH - marginNext) {
         nextVX.value = -nextVX.value;
         if (nextX.value < marginNext) nextX.value = marginNext;
         if (nextX.value > CANVAS_WIDTH - marginNext) nextX.value = CANVAS_WIDTH - marginNext;
       }
-      if (nextY.value < marginNext || nextY.value > CANVAS_HEIGHT - marginNext) {
+      if (nextY.value < yTopNext || nextY.value > CANVAS_HEIGHT - marginNext) {
         nextVY.value = -nextVY.value;
-        if (nextY.value < marginNext) nextY.value = marginNext;
+        if (nextY.value < yTopNext) nextY.value = yTopNext;
         if (nextY.value > CANVAS_HEIGHT - marginNext) nextY.value = CANVAS_HEIGHT - marginNext;
       }
     }

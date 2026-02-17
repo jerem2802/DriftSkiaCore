@@ -14,7 +14,7 @@ pulse: SharedValue<number>;
 export const CoinHUD: React.FC<Props> = ({ x, y, coins, pulse }) => {
 const textDV = useDerivedValue(() => `${Math.floor(coins.value)}`);
 
-const rOuter = useDerivedValue(() => 10 * (1 + 0.22 * pulse.value));
+const rOuter = useDerivedValue(() => 13 * (1 + 0.22 * pulse.value));
 const rInner = useDerivedValue(() => rOuter.value * 0.55);
 
 return (
@@ -39,7 +39,7 @@ opacity={0.95}
 />
 <Circle cx={x} cy={y} r={rInner} color="#ffffff" opacity={0.18} />
 
-<Text x={x + 18} y={y + 6} text={textDV} color="white" font={FONTS.coinHUD} />
+<Text x={x + 22} y={y + 8} text={textDV} color="white" font={FONTS.coinHUD} />
 </>
 );
 };
