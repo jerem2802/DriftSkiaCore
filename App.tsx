@@ -35,6 +35,7 @@ import { PreloadProvider } from './src/contexts/PreloadContext';
 import { usePreloadAssets } from './src/game/hooks/usePreloadAssets';
 import { PreloadSplashScreen } from './src/components/preload/PreloadSplashScreen';
 import { MusicManager } from './src/audio/MusicManager';
+import { loadAudioSettings } from './src/audio/audioSettings';
 
 type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection' | 'profile' | 'coinshop';
 
@@ -114,13 +115,17 @@ function AppContent() {
 
   useEffect(() => {
     MusicManager.init();
+    loadAudioSettings().then((s) => {
+      MusicManager.setVolume(s.musicVolume / 10);
+      MusicManager.setEnabled(s.musicEnabled);
+    });
   }, []);
 
   useEffect(() => {
     if (screen === 'game') {
       MusicManager.play('ingame_1');
     } else {
-      MusicManager.stop();
+      MusicManager.play('menu');
     }
   }, [screen]);
 
