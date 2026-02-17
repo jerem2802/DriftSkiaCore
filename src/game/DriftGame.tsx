@@ -3,7 +3,6 @@
 
 import React from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import type { GestureResponderEvent } from 'react-native';
 import { Canvas, Circle, Path, Text, RoundedRect } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -219,19 +218,8 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
     ...palettes,
   });
 
-  const onTap = (e: GestureResponderEvent) => {
+  const onTap = () => {
     if (!aliveUI) return;
-
-    // Détection tap bouton pause (canvas coords)
-    const cx = (e.nativeEvent.locationX - canvasLeft) / scale;
-    const cy = (e.nativeEvent.locationY - canvasTop) / scale;
-    const pdx = cx - HUD_PAUSE_CX;
-    const pdy = cy - HUD_PAUSE_CY;
-    if (pdx * pdx + pdy * pdy < HUD_PAUSE_R_TAP * HUD_PAUSE_R_TAP) {
-      onPausePress?.();
-      return;
-    }
-
     if (gameState.mode.value !== 'orbit') return;
 
     const tapResult = validateTap(
@@ -377,6 +365,19 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
         </Canvas>
       </View>
 
+      {/* Bouton pause — Pressable natif absolu, fiable en release */}
+      {aliveUI && (
+        <Pressable
+          style={[styles.pauseHit, {
+            left: canvasLeft + (HUD_PAUSE_CX - HUD_PAUSE_R_TAP) * scale,
+            top: canvasTop + (HUD_PAUSE_CY - HUD_PAUSE_R_TAP) * scale,
+            width: HUD_PAUSE_R_TAP * 2 * scale,
+            height: HUD_PAUSE_R_TAP * 2 * scale,
+          }]}
+          onPress={onPausePress}
+        />
+      )}
+
       <BottomPanel
         autoPlayInInventory={gameState.autoPlayInInventory}
         autoPlayActive={gameState.autoPlayActive}
@@ -408,6 +409,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
   stage: { alignSelf: 'center' },
   canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+  pauseHit: { position: 'absolute' },
 });
 
 export default DriftGame;

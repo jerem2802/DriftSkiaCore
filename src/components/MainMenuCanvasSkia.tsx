@@ -220,4 +220,5 @@ const styles = StyleSheet.create({
   uiLayer: { position: 'absolute', width: CANVAS_WIDTH, height: CANVAS_HEIGHT, zIndex: 10 },
   chestLayer: { position: 'absolute', top: 0, left: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
   chestBox: { position: 'absolute' },
+
 });

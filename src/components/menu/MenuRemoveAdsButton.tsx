@@ -26,7 +26,7 @@ export const MenuRemoveAdsButton: React.FC<Props> = ({
     () =>
       matchFont({
         fontFamily: Platform.select({ ios: 'Helvetica', default: 'sans-serif' }),
-        fontSize: 23,
+        fontSize: 17,
         fontWeight: '900',
       }),
     []
@@ -39,7 +39,7 @@ export const MenuRemoveAdsButton: React.FC<Props> = ({
       <Image image={noAdsIcon} x={x} y={y} width={w} height={h} fit="contain" />
       {!isPremium && (
         <Text
-          x={x + w * 0.39}
+          x={x + w * 0.42}
           y={y + h * 1.2}
           text={priceText}
           font={priceFont}
