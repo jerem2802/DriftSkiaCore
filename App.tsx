@@ -10,7 +10,6 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-
 import DriftGame from './src/game/DriftGame';
 import { MainMenuCanvasSkia } from './src/components/MainMenuCanvasSkia';
 import HeadphonesScreen from './src/components/HeadphonesScreen';
@@ -20,7 +19,8 @@ import { CollectionScreen } from './src/components/collection/CollectionScreen';
 import { ProfileScreen } from './src/components/profile/ProlfileScreen';
 import { CoinShopScreen } from './src/components/shop/CoinShopScreen';
 
-import RNIap, { purchaseUpdatedListener, purchaseErrorListener, type Purchase } from 'react-native-iap';
+import * as RNIap from 'react-native-iap';
+import type { Purchase } from 'react-native-iap';
 
 import {
   loadProfile,
@@ -33,7 +33,6 @@ import {
 
 import { PreloadProvider } from './src/contexts/PreloadContext';
 import { usePreloadAssets } from './src/game/hooks/usePreloadAssets';
-
 import { PreloadSplashScreen } from './src/components/preload/PreloadSplashScreen';
 
 type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection' | 'profile' | 'coinshop';
@@ -41,15 +40,14 @@ type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection' | 'profile'
 const FADE_OUT_DURATION = 800;
 const DEV_RESET_PROFILE_ON_LAUNCH = false;
 
-// ✅ IMPORTANT : en DEV on garde la simu (tu testes sans Play Console)
-// ✅ en Release Play (__DEV__ = false) => vrai Google Payment form
-const DEV_SIMULATE_IAP = true;
+// ✅ DEV SIMU = true => simulation en Metro DEV, false => vrai flow Play (release only)
+const DEV_SIMULATE_IAP = false;
 
 // ---- SKUs ----
 const REMOVE_ADS_SKU = 'remove_ads_299';
 
 const COIN_PACKS_BY_SKU: Record<string, number> = {
-  coins_starter_099: 2500,
+  coins_pack_2500: 2500,
   coins_small_299: 8000,
   coins_medium_499: 15000,
   coins_large_999: 35000,
@@ -66,6 +64,12 @@ function AppContent() {
   const [shopReturnTo, setShopReturnTo] = useState<Screen>('menu');
   const [selectedBallId, setSelectedBallId] = useState<string>('core');
 
+  // ✅ UI flag: juste "connection billing OK"
+  const [iapConnectedUI, setIapConnectedUI] = useState(false);
+
+  // ✅ SKU -> prix localisé Play (si dispo)
+  const [pricesBySku, setPricesBySku] = useState<Record<string, string>>({});
+
   const assetsReady = usePreloadAssets();
   const [splashReady, setSplashReady] = useState(false);
 
@@ -73,14 +77,11 @@ function AppContent() {
   const persistSeqRef = useRef(0);
   const persistedSelectedRef = useRef<string>('core');
 
-  // ---- IAP state ----
+  // ---- IAP refs ----
   const iapReadyRef = useRef(false);
-  const productsLoadedRef = useRef(false);
 
   // pending resolvers so CoinShop can await "success"
-  const pendingRef = useRef(
-    new Map<string, { resolve: (ok: boolean) => void; reject: (e: any) => void }>()
-  );
+  const pendingRef = useRef(new Map<string, { resolve: (ok: boolean) => void; reject: (e: any) => void }>());
   const processedTokensRef = useRef(new Set<string>());
 
   const finishPending = (sku: string, ok: boolean, err?: any) => {
@@ -94,7 +95,6 @@ function AppContent() {
     return new Promise<boolean>((resolve, reject) => {
       pendingRef.current.set(sku, { resolve, reject });
 
-      // timeout sécurité (évite promises bloquées)
       setTimeout(() => {
         if (pendingRef.current.has(sku)) {
           pendingRef.current.delete(sku);
@@ -131,35 +131,61 @@ function AppContent() {
     let subUpdate: any;
     let subError: any;
 
+    const buildPricesMap = (items: any[]) => {
+      const map: Record<string, string> = {};
+      for (const p of items ?? []) {
+        const sku = p?.productId;
+        const price = p?.localizedPrice || p?.price;
+        if (sku && price) map[sku] = price;
+      }
+      return map;
+    };
+
     const initIap = async () => {
       try {
-        const ok = await RNIap.initConnection();
-        iapReadyRef.current = !!ok;
+        // Petit log utile en debug
+        // (et ça te prouve que le module est là)
+        console.log('RNIap keys:', Object.keys(RNIap ?? {}));
 
-        // Android safe calls
+        const ok = await RNIap.initConnection();
+        const connected = !!ok;
+        iapReadyRef.current = connected;
+        setIapConnectedUI(connected);
+
+        // Android safe call
         try {
           await RNIap.flushFailedPurchasesCachedAsPendingAndroid();
         } catch {}
 
-        // Preload products once (important to avoid "sku not found")
+        // ✅ IMPORTANT: on essaye de charger les produits pour avoir les prix,
+        // mais on NE BLOQUE PAS l'achat si ça renvoie [].
         try {
-          // Different react-native-iap versions have different signatures
-          // try new signature
-          // @ts-ignore
+          // @ts-ignore new signature
           const items = await RNIap.getProducts({ skus: ALL_SKUS });
-          productsLoadedRef.current = Array.isArray(items);
+          if (Array.isArray(items) && items.length > 0) {
+            setPricesBySku(buildPricesMap(items as any[]));
+          } else {
+            setPricesBySku({});
+          }
+          console.log('IAP getProducts count =', Array.isArray(items) ? items.length : -1);
+          console.log('IAP getProducts ids =', Array.isArray(items) ? (items as any[]).map((p: any) => p?.productId).join(', ') : 'none');
         } catch {
           try {
-            // fallback old signature
-            // @ts-ignore
+            // @ts-ignore old signature
             const items = await RNIap.getProducts(ALL_SKUS);
-            productsLoadedRef.current = Array.isArray(items);
+            if (Array.isArray(items) && items.length > 0) {
+              setPricesBySku(buildPricesMap(items as any[]));
+            } else {
+              setPricesBySku({});
+            }
+            console.log('IAP getProducts count =', Array.isArray(items) ? items.length : -1);
+            console.log('IAP getProducts ids =', Array.isArray(items) ? (items as any[]).map((p: any) => p?.productId).join(', ') : 'none');
           } catch {
-            productsLoadedRef.current = false;
+            setPricesBySku({});
           }
         }
 
-        subUpdate = purchaseUpdatedListener(async (purchase: Purchase) => {
+        subUpdate = RNIap.purchaseUpdatedListener(async (purchase: Purchase) => {
           try {
             const sku = (purchase as any).productId as string;
             const token =
@@ -167,18 +193,14 @@ function AppContent() {
               (purchase as any).transactionId ||
               `${sku}:${(purchase as any).transactionDate || ''}`;
 
-            if (token && processedTokensRef.current.has(token)) {
-              // déjà traité
-              return;
-            }
+            if (token && processedTokensRef.current.has(token)) return;
 
-            // ---- apply purchase ----
             if (sku === REMOVE_ADS_SKU) {
               await purchaseRemoveAds();
               await refreshProfile();
-            } else if (sku in COIN_PACKS_BY_SKU) {
-              const coins = COIN_PACKS_BY_SKU[sku] ?? 0;
-              if (coins > 0) {
+            } else {
+              const coins = COIN_PACKS_BY_SKU[sku];
+              if (coins && coins > 0) {
                 await grantCoins(coins);
                 await refreshProfile();
               }
@@ -186,9 +208,7 @@ function AppContent() {
 
             if (token) processedTokensRef.current.add(token);
 
-            // ---- finish transaction ----
             try {
-              // Coins = consumable, RemoveAds = non-consumable, but finishTransaction is still required
               const isConsumable = sku !== REMOVE_ADS_SKU;
               // @ts-ignore
               await RNIap.finishTransaction({ purchase, isConsumable });
@@ -201,13 +221,16 @@ function AppContent() {
           }
         });
 
-        subError = purchaseErrorListener((err) => {
+        subError = RNIap.purchaseErrorListener((err: any) => {
           const sku = (err as any)?.productId as string | undefined;
           if (sku) finishPending(sku, false, err);
           console.log('IAP purchaseError:', err);
         });
       } catch (e) {
         iapReadyRef.current = false;
+        setIapConnectedUI(false);
+        setPricesBySku({});
+        console.log('IAP initConnection FAILED:', e);
       }
     };
 
@@ -267,7 +290,6 @@ function AppContent() {
   // ✅ ONE function used by RemoveAds + CoinShop
   const requestIap = useCallback(
     async (sku: string, devSimAction: () => Promise<void>) => {
-      // DEV => SIMU (ton ancien comportement)
       if (__DEV__ && DEV_SIMULATE_IAP) {
         await new Promise((r) => setTimeout(r, 600));
         await devSimAction();
@@ -275,19 +297,24 @@ function AppContent() {
         return true;
       }
 
-      // Release / Play => real IAP
-      if (!iapReadyRef.current || !productsLoadedRef.current) {
-        throw new Error('IAP not ready / products not loaded');
+      if (!iapReadyRef.current) {
+        throw new Error('IAP not connected');
       }
 
-      // request purchase
+      // Refresh product details cache for this specific SKU (required by Google Play Billing v5)
+      // coins_pack_2500 is already cached from init, but others may need a refresh
       try {
-        // @ts-ignore new signature
-        await RNIap.requestPurchase({ sku });
+        // @ts-ignore
+        await RNIap.getProducts({ skus: [sku] });
       } catch {
-        // @ts-ignore old signature
-        await RNIap.requestPurchase(sku);
+        try {
+          // @ts-ignore old signature fallback
+          await RNIap.getProducts([sku]);
+        } catch {}
       }
+
+      // @ts-ignore Android new signature (skus as array)
+      await RNIap.requestPurchase({ skus: [sku] });
 
       return await waitForSku(sku);
     },
@@ -360,15 +387,8 @@ function AppContent() {
   return (
     <View style={styles.container}>
       {shouldRenderGame && (
-        <View
-          style={[StyleSheet.absoluteFillObject, { opacity: showGameVisual ? 1 : 0 }]}
-          pointerEvents={gamePointerEvents}
-        >
-          <DriftGame
-            onShop={openShopFromGame}
-            selectedBallId={selectedBallId}
-            allowStart={screen === 'game'}
-          />
+        <View style={[StyleSheet.absoluteFillObject, { opacity: showGameVisual ? 1 : 0 }]} pointerEvents={gamePointerEvents}>
+          <DriftGame onShop={openShopFromGame} selectedBallId={selectedBallId} allowStart={screen === 'game'} isPremium={profile.isPremium ?? false} />
         </View>
       )}
 
@@ -417,6 +437,8 @@ function AppContent() {
           onBack={backFromCoinShop}
           onProfileUpdate={refreshProfile}
           onBuyPack={handleBuyCoinsPack}
+          iapReady={iapConnectedUI}   // ✅ IMPORTANT: ne bloque plus sur getProducts()
+          pricesBySku={pricesBySku}
         />
       </ScreenTransition>
 
@@ -438,7 +460,6 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },

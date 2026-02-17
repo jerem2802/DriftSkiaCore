@@ -47,10 +47,22 @@ export const useChestLogic = (
   const [showNeonPanel, setShowNeonPanel] = useState(false);
 
   const modalOpenRef = useRef(false);
+  const bronzeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const neonTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     modalOpenRef.current = showBronzePanel || showSilverPanel || showNeonPanel;
   }, [showBronzePanel, showSilverPanel, showNeonPanel]);
+
+  // Cancel pending panel timers on unmount
+  useEffect(() => {
+    return () => {
+      if (bronzeTimerRef.current) clearTimeout(bronzeTimerRef.current);
+      if (silverTimerRef.current) clearTimeout(silverTimerRef.current);
+      if (neonTimerRef.current)   clearTimeout(neonTimerRef.current);
+    };
+  }, []);
 
   // ✅ INIT IMMÉDIAT avec profil initial
   useEffect(() => {
@@ -167,7 +179,7 @@ if (inFlight) {
     };
 
     tick();
-    const id = setInterval(tick, 500);
+    const id = setInterval(tick, 200);
 
     return () => {
       alive = false;
@@ -212,7 +224,7 @@ if (inFlight) {
     setBronzeRewards(rewardsGen);
     state.bronzeAnimating.value = true;
     setShowBronzeFlash(true);
-    setTimeout(() => setShowBronzePanel(true), 1500);
+    bronzeTimerRef.current = setTimeout(() => setShowBronzePanel(true), 1500);
   };
 
   const handleBronzeComplete = () => {
@@ -267,7 +279,7 @@ if (inFlight) {
     setSilverRewards(rewardsGen);
     state.silverAnimating.value = true;
     setShowSilverFlash(true);
-    setTimeout(() => setShowSilverPanel(true), 1500);
+    silverTimerRef.current = setTimeout(() => setShowSilverPanel(true), 1500);
   };
 
   const handleSilverComplete = () => {
@@ -331,7 +343,7 @@ if (inFlight) {
     setNeonRewards(rewardsGen);
     state.neonAnimating.value = true;
     setShowNeonFlash(true);
-    setTimeout(() => setShowNeonPanel(true), 1500);
+    neonTimerRef.current = setTimeout(() => setShowNeonPanel(true), 1500);
   };
 
   const handleNeonComplete = () => {

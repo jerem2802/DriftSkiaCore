@@ -18,7 +18,7 @@ export const MenuRemoveAdsButton: React.FC<Props> = ({
   w,
   h,
   isPremium,
-  priceText = '€2.99',
+  priceText = '€4.99',
 }) => {
   const noAdsIcon = useImage(require('../../assets/images/no_ads.png'));
 

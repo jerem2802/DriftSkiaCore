@@ -1,4 +1,3 @@
-// src/components/shop/CoinShopScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -11,14 +10,10 @@ import {
 } from 'react-native';
 import type { PlayerProfile } from '../../meta/playerProfile';
 
-// ============================================
-// TYPES
-// ============================================
-
 type CoinPack = {
   id: string;
   coins: number;
-  price: string;
+  price: string; // fallback
   priceValue: number;
   badge?: 'BEST VALUE' | 'POPULAR' | 'ULTIMATE';
   bonus?: number; // %
@@ -29,15 +24,14 @@ type Props = {
   profile: PlayerProfile;
   onBack: () => void;
   onProfileUpdate: () => void;
-  onBuyPack: (sku: string, coins: number) => Promise<void>; // ✅ IAP callback
+  onBuyPack: (sku: string, coins: number) => Promise<void>;
+
+  iapReady: boolean;
+  pricesBySku: Record<string, string>;
 };
 
-// ============================================
-// PACKS CONFIG
-// ============================================
-
 const COIN_PACKS: CoinPack[] = [
-  { id: 'starter', coins: 2500, price: '€0.99', priceValue: 0.99, badge: 'BEST VALUE', sku: 'coins_starter_099' },
+  { id: 'starter', coins: 2500, price: '€0.99', priceValue: 0.99, badge: 'BEST VALUE', sku: 'coins_pack_2500' },
   { id: 'small', coins: 8000, price: '€2.99', priceValue: 2.99, sku: 'coins_small_299' },
   { id: 'medium', coins: 15000, price: '€4.99', priceValue: 4.99, badge: 'POPULAR', sku: 'coins_medium_499' },
   { id: 'large', coins: 35000, price: '€9.99', priceValue: 9.99, bonus: 5, sku: 'coins_large_999' },
@@ -45,40 +39,44 @@ const COIN_PACKS: CoinPack[] = [
   { id: 'ultimate', coins: 250000, price: '€49.99', priceValue: 49.99, bonus: 25, badge: 'ULTIMATE', sku: 'coins_ultimate_4999' },
 ];
 
-// ============================================
-// COMPONENT
-// ============================================
-
-export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpdate, onBuyPack }) => {
+export const CoinShopScreen: React.FC<Props> = ({
+  profile,
+  onBack,
+  onProfileUpdate,
+  onBuyPack,
+  iapReady,
+  pricesBySku,
+}) => {
   const { width } = useWindowDimensions();
 
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handlePurchase = async (pack: CoinPack) => {
     if (!pack.sku) return;
 
+    if (!iapReady) {
+      setErrorMsg('Shop not ready yet (products loading)…');
+      return;
+    }
+
+    setErrorMsg(null);
     setPurchasing(pack.id);
 
     try {
       await onBuyPack(pack.sku, pack.coins);
-
-      // ✅ refresh parent (profile updated in App via refreshProfile, but we keep this too)
       onProfileUpdate();
 
-      // ✅ Show confetti
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2500);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Purchase failed:', err);
+      setErrorMsg(err?.message ? String(err.message) : 'Purchase failed');
     } finally {
       setPurchasing(null);
     }
   };
-
-  // ============================================
-  // LAYOUT
-  // ============================================
 
   const COLS = width > 400 ? 2 : 1;
   const H_PADDING = 18;
@@ -90,7 +88,6 @@ export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpda
 
   return (
     <View style={styles.root}>
-      {/* TOP BAR */}
       <View style={styles.topBar}>
         <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
           <Text style={styles.backTxt}>←</Text>
@@ -99,7 +96,6 @@ export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpda
         <View style={{ width: 44 }} />
       </View>
 
-      {/* CURRENT BALANCE */}
       <View style={styles.balanceContainer}>
         <Text style={styles.balanceLabel}>YOUR BALANCE</Text>
         <View style={styles.balancePill}>
@@ -108,22 +104,41 @@ export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpda
         </View>
       </View>
 
-      {/* PACKS GRID */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingHorizontal: H_PADDING }]}
         showsVerticalScrollIndicator={false}
       >
+        {!iapReady && (
+          <View style={styles.iapNotice}>
+            <Text style={styles.iapNoticeText}>Loading shop…</Text>
+          </View>
+        )}
+
+        {errorMsg && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        )}
+
         <View style={[styles.grid, { gap: GAP }]}>
           {COIN_PACKS.map((pack) => {
             const isPurchasing = purchasing === pack.id;
+            const localizedPrice = pack.sku ? pricesBySku[pack.sku] : undefined;
+            const displayPrice = localizedPrice ?? pack.price;
+
+            const disabled = !iapReady || isPurchasing || purchasing !== null;
 
             return (
               <Pressable
                 key={pack.id}
                 onPress={() => handlePurchase(pack)}
-                disabled={isPurchasing || purchasing !== null}
-                style={[styles.packCard, { width: CARD_W }]}
+                disabled={disabled}
+                style={[
+                  styles.packCard,
+                  { width: CARD_W },
+                  !iapReady && styles.packCardDisabled,
+                ]}
                 hitSlop={8}
               >
                 {pack.badge && (
@@ -151,7 +166,11 @@ export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpda
                 )}
 
                 <View style={styles.priceContainer}>
-                  {isPurchasing ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.price}>{pack.price}</Text>}
+                  {isPurchasing ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.price}>{displayPrice}</Text>
+                  )}
                 </View>
               </Pressable>
             );
@@ -161,7 +180,6 @@ export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpda
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* CONFETTI OVERLAY */}
       {showConfetti && (
         <View style={styles.confettiOverlay} pointerEvents="none">
           <Text style={styles.confettiText}>🎉 COINS ADDED! 🎉</Text>
@@ -170,10 +188,6 @@ export const CoinShopScreen: React.FC<Props> = ({ profile, onBack, onProfileUpda
     </View>
   );
 };
-
-// ============================================
-// STYLES
-// ============================================
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
@@ -197,11 +211,9 @@ const styles = StyleSheet.create({
   },
 
   backTxt: { color: '#fff', fontSize: 24, fontWeight: '800' },
-
   title: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 2 },
 
   balanceContainer: { paddingHorizontal: 18, paddingVertical: 20, alignItems: 'center' },
-
   balanceLabel: {
     color: 'rgba(255,255,255,0.60)',
     fontSize: 11,
@@ -238,6 +250,28 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { paddingTop: 10 },
 
+  iapNotice: {
+    alignSelf: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  iapNoticeText: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+
+  errorBox: {
+    alignSelf: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  errorText: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '800' },
+
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
 
   packCard: {
@@ -254,6 +288,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
+
+  packCardDisabled: { opacity: 0.6 },
 
   badge: {
     position: 'absolute',

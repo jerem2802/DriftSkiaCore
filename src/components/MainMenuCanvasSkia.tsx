@@ -124,6 +124,7 @@ export const MainMenuCanvasSkia: React.FC<MainMenuCanvasSkiaProps> = ({
             silverStatus={logic.silverStatus}
             neonStatus={logic.neonStatus}
             activeTab={activeTab}
+            isPremium={isPremium}
           />
         </Canvas>
 

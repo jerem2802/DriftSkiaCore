@@ -49,6 +49,15 @@ export type PlayerProfile = {
 
 const KEY = 'drift_profile_v1';
 
+// Serialization queue: ensures profile writes execute one at a time
+// Prevents race conditions (e.g. IAP grant + game-over commit running simultaneously)
+let _profileQueue: Promise<void> = Promise.resolve();
+const withProfileLock = <T>(fn: () => Promise<T>): Promise<T> => {
+  const result = _profileQueue.then(() => fn());
+  _profileQueue = result.then(() => {}, () => {});
+  return result;
+};
+
 const DEFAULT_PROFILE: PlayerProfile = {
   v: 1,
   playerName: 'Player',
@@ -128,80 +137,83 @@ export const saveProfile = async (profile: PlayerProfile): Promise<void> => {
   await AsyncStorage.setItem(KEY, JSON.stringify(profile));
 };
 
-export const commitRunToProfile = async (params: { coinsEarned: number; score: number }): Promise<PlayerProfile> => {
-  const p = await loadProfile();
-  const next: PlayerProfile = {
-    ...p,
-    totalCoins: p.totalCoins + Math.max(0, params.coinsEarned),
-    bestScore: Math.max(p.bestScore, params.score),
-    updatedAt: Date.now(),
-  };
-  await saveProfile(next);
-  return next;
-};
+export const commitRunToProfile = (params: { coinsEarned: number; score: number }): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    const next: PlayerProfile = {
+      ...p,
+      totalCoins: p.totalCoins + Math.max(0, params.coinsEarned),
+      bestScore: Math.max(p.bestScore, params.score),
+      updatedAt: Date.now(),
+    };
+    await saveProfile(next);
+    return next;
+  });
 
-export const setSelectedBall = async (ballId: string): Promise<PlayerProfile> => {
-  const p = await loadProfile();
-  const next: PlayerProfile = { ...p, selectedBallId: ballId, updatedAt: Date.now() };
-  await saveProfile(next);
-  return next;
-};
+export const setSelectedBall = (ballId: string): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    const next: PlayerProfile = { ...p, selectedBallId: ballId, updatedAt: Date.now() };
+    await saveProfile(next);
+    return next;
+  });
 
-export const setPlayerIdentity = async (params: { playerName: string; avatarId: string }): Promise<PlayerProfile> => {
-  const p = await loadProfile();
+export const setPlayerIdentity = (params: { playerName: string; avatarId: string }): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    const cleanName = (params.playerName || '').trim().slice(0, 8) || 'Player';
+    const cleanAvatar = (params.avatarId || 'a01').trim() || 'a01';
+    const next: PlayerProfile = {
+      ...p,
+      playerName: cleanName,
+      avatarId: cleanAvatar,
+      updatedAt: Date.now(),
+    };
+    await saveProfile(next);
+    return next;
+  });
 
-  const cleanName = (params.playerName || '').trim().slice(0, 8) || 'Player';
-  const cleanAvatar = (params.avatarId || 'a01').trim() || 'a01';
+export const setPlayerName = (name: string): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    const clean = (name || '').trim().slice(0, 8);
+    const next: PlayerProfile = { ...p, playerName: clean || 'Player', updatedAt: Date.now() };
+    await saveProfile(next);
+    return next;
+  });
 
-  const next: PlayerProfile = {
-    ...p,
-    playerName: cleanName,
-    avatarId: cleanAvatar,
-    updatedAt: Date.now(),
-  };
+export const purchaseBall = (ballId: string, price: number): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    if (p.ownedBalls.includes(ballId)) return p;
+    if (p.totalCoins < price) return p;
+    const next: PlayerProfile = {
+      ...p,
+      totalCoins: p.totalCoins - price,
+      ownedBalls: [...p.ownedBalls, ballId],
+      updatedAt: Date.now(),
+    };
+    await saveProfile(next);
+    return next;
+  });
 
-  await saveProfile(next);
-  return next;
-};
-
-export const setPlayerName = async (name: string): Promise<PlayerProfile> => {
-  const p = await loadProfile();
-  const clean = (name || '').trim().slice(0, 8);
-  const next: PlayerProfile = { ...p, playerName: clean || 'Player', updatedAt: Date.now() };
-  await saveProfile(next);
-  return next;
-};
-
-export const purchaseBall = async (ballId: string, price: number): Promise<PlayerProfile> => {
-  const p = await loadProfile();
-  if (p.ownedBalls.includes(ballId)) return p;
-  if (p.totalCoins < price) return p;
-
-  const next: PlayerProfile = {
-    ...p,
-    totalCoins: p.totalCoins - price,
-    ownedBalls: [...p.ownedBalls, ballId],
-    updatedAt: Date.now(),
-  };
-  await saveProfile(next);
-  return next;
-};
-
-export const purchaseRemoveAds = async (): Promise<PlayerProfile> => {
-  const p = await loadProfile();
-  const next: PlayerProfile = { ...p, isPremium: true, updatedAt: Date.now() };
-  await saveProfile(next);
-  return next;
-};
+export const purchaseRemoveAds = (): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    const next: PlayerProfile = { ...p, isPremium: true, updatedAt: Date.now() };
+    await saveProfile(next);
+    return next;
+  });
 
 // ✅ NEW: grant coins (used by DEV simu + real IAP)
-export const grantCoins = async (coins: number): Promise<PlayerProfile> => {
-  const add = Math.max(0, coins || 0);
-  const p = await loadProfile();
-  const next: PlayerProfile = { ...p, totalCoins: p.totalCoins + add, updatedAt: Date.now() };
-  await saveProfile(next);
-  return next;
-};
+export const grantCoins = (coins: number): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const add = Math.max(0, coins || 0);
+    const p = await loadProfile();
+    const next: PlayerProfile = { ...p, totalCoins: p.totalCoins + add, updatedAt: Date.now() };
+    await saveProfile(next);
+    return next;
+  });
 
 export const getActiveBallUpgrade = (profile: PlayerProfile): BallUpgrade | null => {
   const id = profile.selectedBallId;
@@ -286,15 +298,13 @@ export function formatTime(seconds: number): string {
     .padStart(2, '0')}`;
 }
 
-export const updateChestInProfile = async (
-  chestId: 'bronze' | 'silver' | 'neon',
-  updatedChest: ChestData
-): Promise<PlayerProfile> => {
-  const p = await loadProfile();
-  const next: PlayerProfile = { ...p, chests: { ...p.chests, [chestId]: updatedChest }, updatedAt: Date.now() };
-  await saveProfile(next);
-  return next;
-};
+export const updateChestInProfile = (chestId: 'bronze' | 'silver' | 'neon', updatedChest: ChestData): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    const next: PlayerProfile = { ...p, chests: { ...p.chests, [chestId]: updatedChest }, updatedAt: Date.now() };
+    await saveProfile(next);
+    return next;
+  });
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -339,24 +349,19 @@ export function applyRewardsToProfile(profile: PlayerProfile, rewards: Reward[])
   return { ...next, updatedAt: Date.now() };
 }
 
-export const claimChestRewards = async (
-  chestId: 'bronze' | 'silver' | 'neon',
-  rewards: Reward[]
-): Promise<PlayerProfile> => {
-  const p = await loadProfile();
-
-  const withRewards = applyRewardsToProfile(p, rewards);
-  const resetChest = openChest(withRewards.chests[chestId]);
-
-  const next: PlayerProfile = {
-    ...withRewards,
-    chests: { ...withRewards.chests, [chestId]: resetChest },
-    updatedAt: Date.now(),
-  };
-
-  await saveProfile(next);
-  return next;
-};
+export const claimChestRewards = (chestId: 'bronze' | 'silver' | 'neon', rewards: Reward[]): Promise<PlayerProfile> =>
+  withProfileLock(async () => {
+    const p = await loadProfile();
+    const withRewards = applyRewardsToProfile(p, rewards);
+    const resetChest = openChest(withRewards.chests[chestId]);
+    const next: PlayerProfile = {
+      ...withRewards,
+      chests: { ...withRewards.chests, [chestId]: resetChest },
+      updatedAt: Date.now(),
+    };
+    await saveProfile(next);
+    return next;
+  });
 
 export const resetProfileForDev = async (): Promise<void> => {
   await AsyncStorage.removeItem(KEY);

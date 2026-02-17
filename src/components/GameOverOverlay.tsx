@@ -11,7 +11,8 @@ interface GameOverOverlayProps {
   onRestart: () => void;
   onShare: () => void;
   onWatchAd: () => void;
-  onShop: () => void; // ✅
+  onShop: () => void;
+  isPremium?: boolean;
 }
 
 export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
@@ -25,6 +26,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
   onShare,
   onWatchAd,
   onShop,
+  isPremium = false,
 }) => {
   if (!visible) return null;
 
@@ -92,7 +94,7 @@ export const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
         >
           <Text style={styles.primaryTitle}>CONTINUE</Text>
           <Text style={styles.primarySubtitle}>
-            {canContinue ? '+1 vie (pub)' : 'Déjà utilisé'}
+            {canContinue ? (isPremium ? '+1 vie (gratuit)' : '+1 vie (pub)') : 'Déjà utilisé'}
           </Text>
         </TouchableOpacity>
 

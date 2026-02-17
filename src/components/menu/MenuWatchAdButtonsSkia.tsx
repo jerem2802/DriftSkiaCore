@@ -10,9 +10,11 @@ type Props = {
   bronzeStatus: 'locked' | 'countdown' | 'ready';
   silverStatus: 'locked' | 'countdown' | 'ready';
   neonStatus: 'locked' | 'countdown' | 'ready';
+  isPremium?: boolean;
 };
 
-export const MenuWatchAdButtonsSkia: React.FC<Props> = ({ layout, bronzeStatus, silverStatus, neonStatus }) => {
+export const MenuWatchAdButtonsSkia: React.FC<Props> = ({ layout, bronzeStatus, silverStatus, neonStatus, isPremium = false }) => {
+  if (isPremium) return null;
   const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
   const watchFont = matchFont({
     fontFamily,

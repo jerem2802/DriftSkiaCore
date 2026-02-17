@@ -110,9 +110,9 @@ export const useMainMenuState = () => {
 
   // Poll (1s)
   useEffect(() => {
-    if (!profileLoaded.value) return;
-
     const interval = setInterval(() => {
+      if (!profileLoaded.value) return; // Skip until profile is loaded
+
       loadProfile().then((profile) => {
         // Meta sync (important)
         bestScore.value = profile.bestScore;
@@ -167,20 +167,8 @@ export const useMainMenuState = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [
-    profileLoaded,
-    bestScore,
-    totalCoins,
-    bronzeStatus,
-    bronzeTimeRemaining,
-    bronzeAdsWatched,
-    silverStatus,
-    silverTimeRemaining,
-    silverAdsWatched,
-    neonStatus,
-    neonTimeRemaining,
-    neonAdsWatched,
-  ]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     profileLoaded,

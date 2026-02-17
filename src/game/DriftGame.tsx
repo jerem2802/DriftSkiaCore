@@ -2,9 +2,10 @@
 // ORCHESTRATEUR SKIA - 0 RE-RENDER CANVAS
 
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Canvas, Circle, Path, Text } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ShieldFxLayer } from './fx/ShieldFxLayer';
 import { AutoPlayFxLayer } from './fx/AutoPlayFxLayer';
@@ -55,11 +56,19 @@ type DriftGameProps = {
   onShop: () => void;
   selectedBallId?: string;
   allowStart?: boolean;
+  isPremium?: boolean;
 };
 
-const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true }) => {
+const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', allowStart = true, isPremium = false }) => {
   const gameState = useGameState();
   const palettes = usePalettes();
+
+  // ✅ VITAL: safe-area aware scale (no gameplay logic touched)
+  const { width: winW, height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const safeW = winW;
+  const safeH = Math.max(1, winH - insets.top - insets.bottom);
+  const scale = Math.min(safeW / CANVAS_WIDTH, safeH / CANVAS_HEIGHT);
 
   const shield = useShieldSystem({ gameState });
 
@@ -214,103 +223,108 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
   const shieldDotsY = HUD_TOP_Y + 28;
 
   return (
-    <Pressable style={styles.container} onPress={onTap}>
-      <Canvas style={styles.canvas}>
-        <CoinHUD x={coinHudPos.x} y={coinHudPos.y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
+    <Pressable
+      style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      onPress={onTap}
+    >
+      <View style={[styles.stage, { transform: [{ scale }] }]}>
+        <Canvas style={styles.canvas}>
+          <CoinHUD x={coinHudPos.x} y={coinHudPos.y} coins={gameState.coins} pulse={gameState.coinHudPulse} />
 
-        <Circle
-          cx={gameState.fadingRingX}
-          cy={gameState.fadingRingY}
-          r={fadingRingScaledR}
-          strokeWidth={4}
-          style="stroke"
-          color={useDerivedValue(() => palettes.fadingPalette.value.outer)}
-          opacity={useDerivedValue(() => gameState.fadingRingOpacity.value * 0.3)}
-        />
-        <Circle
-          cx={gameState.fadingRingX}
-          cy={gameState.fadingRingY}
-          r={fadingRingScaledR}
-          strokeWidth={3}
-          style="stroke"
-          color={useDerivedValue(() => palettes.fadingPalette.value.main)}
-          opacity={gameState.fadingRingOpacity}
-        />
+          <Circle
+            cx={gameState.fadingRingX}
+            cy={gameState.fadingRingY}
+            r={fadingRingScaledR}
+            strokeWidth={4}
+            style="stroke"
+            color={useDerivedValue(() => palettes.fadingPalette.value.outer)}
+            opacity={useDerivedValue(() => gameState.fadingRingOpacity.value * 0.3)}
+          />
+          <Circle
+            cx={gameState.fadingRingX}
+            cy={gameState.fadingRingY}
+            r={fadingRingScaledR}
+            strokeWidth={3}
+            style="stroke"
+            color={useDerivedValue(() => palettes.fadingPalette.value.main)}
+            opacity={gameState.fadingRingOpacity}
+          />
 
-        <NeonRing
-          cx={gameState.currentX}
-          cy={gameState.currentY}
-          r={gameState.currentR}
-          outerColor={useDerivedValue(() => palettes.currentPalette.value.outer)}
-          midColor={useDerivedValue(() => palettes.currentPalette.value.mid)}
-          mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
-        />
+          <NeonRing
+            cx={gameState.currentX}
+            cy={gameState.currentY}
+            r={gameState.currentR}
+            outerColor={useDerivedValue(() => palettes.currentPalette.value.outer)}
+            midColor={useDerivedValue(() => palettes.currentPalette.value.mid)}
+            mainColor={useDerivedValue(() => palettes.currentPalette.value.main)}
+          />
 
-        <MiniNeonOrb cx={lifeOrb.lifeOrbX} cy={lifeOrb.lifeOrbY} r={8} color="#ef4444" opacity={lifeOrb.lifeOrbVisible} />
-        <MiniNeonOrb cx={autoPlay.autoPlayOrbX} cy={autoPlay.autoPlayOrbY} r={13} color="#8b5cf6" opacity={autoPlay.autoPlayOrbVisible} />
-        <MiniNeonOrb cx={shield.shieldOrbX} cy={shield.shieldOrbY} r={13} color="#22d3ee" opacity={shield.shieldOrbVisible} />
-        <MiniNeonOrb cx={coinOrb.coinOrbX} cy={coinOrb.coinOrbY} r={12} color="#fbbf24" opacity={coinOrb.coinOrbVisible} />
+          <MiniNeonOrb cx={lifeOrb.lifeOrbX} cy={lifeOrb.lifeOrbY} r={8} color="#ef4444" opacity={lifeOrb.lifeOrbVisible} />
+          <MiniNeonOrb cx={autoPlay.autoPlayOrbX} cy={autoPlay.autoPlayOrbY} r={13} color="#8b5cf6" opacity={autoPlay.autoPlayOrbVisible} />
+          <MiniNeonOrb cx={shield.shieldOrbX} cy={shield.shieldOrbY} r={13} color="#22d3ee" opacity={shield.shieldOrbVisible} />
+          <MiniNeonOrb cx={coinOrb.coinOrbX} cy={coinOrb.coinOrbY} r={12} color="#fbbf24" opacity={coinOrb.coinOrbVisible} />
 
-        <CoinFxLayer x={coinFx.flyX} y={coinFx.flyY} opacity={coinFx.flyVisible} r={12} color="#fbbf24" />
+          <CoinFxLayer x={coinFx.flyX} y={coinFx.flyY} opacity={coinFx.flyVisible} r={12} color="#fbbf24" />
 
-        <NeonRing
-          cx={gameState.nextX}
-          cy={gameState.nextY}
-          r={gameState.nextR}
-          outerColor={nextOuterColor}
-          midColor={nextMidColor}
-          mainColor={nextMainColor}
-        />
+          <NeonRing
+            cx={gameState.nextX}
+            cy={gameState.nextY}
+            r={gameState.nextR}
+            outerColor={nextOuterColor}
+            midColor={nextMidColor}
+            mainColor={nextMainColor}
+          />
 
-        <Path path={gatePath} strokeWidth={16} strokeCap="round" style="stroke" color={gateColor} opacity={0.1} />
-        <Path path={gatePath} strokeWidth={8} strokeCap="round" style="stroke" color={gateColor} />
+          <Path path={gatePath} strokeWidth={16} strokeCap="round" style="stroke" color={gateColor} opacity={0.1} />
+          <Path path={gatePath} strokeWidth={8} strokeCap="round" style="stroke" color={gateColor} />
 
-        <Circle cx={gameState.ballX} cy={gameState.ballY} r={14} color={SHIELD_HALO_COLOR} opacity={shield.shieldHaloVisible} />
-        <BallRenderer
-          selectedBallId={selectedBallId}
-          ballX={gameState.ballX}
-          ballY={gameState.ballY}
-          alive={gameState.alive}
-          isPaused={gameState.isPaused}
-        />
+          <Circle cx={gameState.ballX} cy={gameState.ballY} r={14} color={SHIELD_HALO_COLOR} opacity={shield.shieldHaloVisible} />
+          <BallRenderer
+            selectedBallId={selectedBallId}
+            ballX={gameState.ballX}
+            ballY={gameState.ballY}
+            alive={gameState.alive}
+            isPaused={gameState.isPaused}
+          />
 
-        <AutoPlayFxLayer
-          alive={gameState.alive}
-          isPaused={gameState.isPaused}
-          autoPlayActive={gameState.autoPlayActive}
-          ballX={gameState.ballX}
-          ballY={gameState.ballY}
-          capacity={48}
-        />
+          <AutoPlayFxLayer
+            alive={gameState.alive}
+            isPaused={gameState.isPaused}
+            autoPlayActive={gameState.autoPlayActive}
+            ballX={gameState.ballX}
+            ballY={gameState.ballY}
+            capacity={48}
+          />
 
-        <ShieldFxLayer
-          alive={gameState.alive}
-          isPaused={gameState.isPaused}
-          shieldArmed={gameState.shieldArmed}
-          ballX={gameState.ballX}
-          ballY={gameState.ballY}
-          capacity={24}
-        />
+          <ShieldFxLayer
+            alive={gameState.alive}
+            isPaused={gameState.isPaused}
+            shieldArmed={gameState.shieldArmed}
+            ballX={gameState.ballX}
+            ballY={gameState.ballY}
+            capacity={24}
+          />
 
-        <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
+          <ScoreHUD score={gameState.score} streak={gameState.streak} canvasWidth={CANVAS_WIDTH} />
 
-        <Text
-          x={gameState.scorePopupX}
-          y={useDerivedValue(() => gameState.scorePopupY.value + 10)}
-          text={scorePopupTextDV}
-          color="white"
-          font={FONTS.popup}
-          opacity={gameState.scorePopupOpacity}
-        />
+          <Text
+            x={gameState.scorePopupX}
+            y={useDerivedValue(() => gameState.scorePopupY.value + 10)}
+            text={scorePopupTextDV}
+            color="white"
+            font={FONTS.popup}
+            opacity={gameState.scorePopupOpacity}
+          />
 
-        {livesPositions.map((pos, i) => (
-          <LifeDot key={i} x={pos.x} y={pos.y} index={i} lives={gameState.lives} />
-        ))}
+          {livesPositions.map((pos, i) => (
+            <LifeDot key={i} x={pos.x} y={pos.y} index={i} lives={gameState.lives} />
+          ))}
 
-        <Circle cx={CANVAS_WIDTH - 60} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge1Visible} />
-        <Circle cx={CANVAS_WIDTH - 82} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge2Visible} />
-        <Circle cx={CANVAS_WIDTH - 104} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge3Visible} />
-      </Canvas>
+          <Circle cx={CANVAS_WIDTH - 60} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge1Visible} />
+          <Circle cx={CANVAS_WIDTH - 82} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge2Visible} />
+          <Circle cx={CANVAS_WIDTH - 104} cy={shieldDotsY} r={4} color="#22d3ee" opacity={shield.shieldCharge3Visible} />
+        </Canvas>
+      </View>
 
       <BottomPanel
         autoPlayInInventory={gameState.autoPlayInInventory}
@@ -333,13 +347,15 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
         onShare={handleShare}
         onWatchAd={handleContinue}
         onShop={onShop}
+        isPremium={isPremium}
       />
     </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
+  stage: { alignSelf: 'center' },
   canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
 });
 
