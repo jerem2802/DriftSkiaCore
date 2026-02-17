@@ -177,9 +177,10 @@ const DriftGame: React.FC<DriftGameProps> = ({ onShop, selectedBallId = 'core', 
 
   const livesPositions = React.useMemo(() => {
     const positions: { x: number; y: number }[] = [];
-    const startX = CANVAS_WIDTH - 60;
+    const startX = CANVAS_WIDTH - CANVAS_WIDTH * 0.12;
+    const spacing = CANVAS_WIDTH * 0.055;
     const y = HUD_TOP_Y;
-    for (let i = 0; i < LIVES_MAX; i++) positions.push({ x: startX - i * 22, y });
+    for (let i = 0; i < LIVES_MAX; i++) positions.push({ x: startX - i * spacing, y });
     return positions;
   }, []);
 

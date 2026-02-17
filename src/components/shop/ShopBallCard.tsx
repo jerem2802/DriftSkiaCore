@@ -1,6 +1,10 @@
 // src/components/shop/ShopBallCard.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../constants/gameplay';
+
+const ORB_HALO = Math.min(96, CANVAS_WIDTH * 0.25);
+const CARD_MIN_H = Math.min(250, CANVAS_HEIGHT * 0.33);
 import { BallPreviewSkia } from './BallPreviewSkia';
 import { tierFrame, type ShopBall } from './shopCatalog';
 
@@ -89,7 +93,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     backgroundColor: 'rgba(5,10,24,0.92)',
     overflow: 'hidden',
-    minHeight: 250,
+    minHeight: CARD_MIN_H,
     elevation: 4,
   },
   innerGlow: {
@@ -133,9 +137,9 @@ const styles = StyleSheet.create({
   },
   orbHalo: {
     position: 'absolute',
-    width: 96,
-    height: 96,
-    borderRadius: 96,
+    width: ORB_HALO,
+    height: ORB_HALO,
+    borderRadius: ORB_HALO,
     opacity: 0.18,
     transform: [{ scale: 1.15 }],
   },

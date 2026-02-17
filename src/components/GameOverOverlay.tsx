@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants/gameplay';
 
 interface GameOverOverlayProps {
   visible: boolean;
@@ -143,7 +144,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    height: 138,
+    height: Math.min(138, CANVAS_HEIGHT * 0.2),
     backgroundColor: '#020617',
   },
 
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: '#ffffff',
-    fontSize: 28,
+    fontSize: Math.min(28, CANVAS_WIDTH * 0.072),
     fontWeight: '900',
   },
 

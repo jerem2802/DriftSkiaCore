@@ -8,10 +8,10 @@ export const LAYOUT = {
   H,
   CARD_W: W * 0.82,
   CARD_H: H * 0.72,
-  CARD_GAP: 35,
+  CARD_GAP: Math.max(12, W * 0.045),
   CARD_RADIUS: 32,
   BORDER_WIDTH: 4,
-  BALL_SIZE: 130,
+  BALL_SIZE: Math.max(80, Math.min(130, W * 0.33)),
 };
 
 export const COLORS = {

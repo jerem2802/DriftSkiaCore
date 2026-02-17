@@ -17,6 +17,9 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
+import { CANVAS_WIDTH } from '../constants/gameplay';
+
+const WRAP = Math.min(260, CANVAS_WIDTH * 0.7);
 
 type HeadphonesScreenProps = {
   onConfirm: () => void;
@@ -133,34 +136,34 @@ const styles = StyleSheet.create({
   },
 
   headphonesWrapper: {
-    width: 260,
-    height: 260,
+    width: WRAP,
+    height: WRAP,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
 
   iconImage: {
-    width: 220,
-    height: 220,
+    width: WRAP * 0.85,
+    height: WRAP * 0.85,
     tintColor: '#f9fafb',
     zIndex: 10,
   },
 
   wave: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: WRAP * 0.54,
+    height: WRAP * 0.54,
+    borderRadius: WRAP * 0.27,
     borderWidth: 3,
     borderColor: '#22d3ee',
     zIndex: 1,
   },
   waveLeft: {
-    left: -20,
+    left: -WRAP * 0.077,
   },
   waveRight: {
-    right: -20,
+    right: -WRAP * 0.077,
   },
 
   textBlock: {

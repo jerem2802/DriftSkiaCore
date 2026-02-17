@@ -12,6 +12,9 @@ type ChestLogic = {
   bronzeTime: number;
   silverTime: number;
   neonTime: number;
+  bronzePrice: number;
+  silverPrice: number;
+  neonPrice: number;
   handleBronzeUnlock: () => void;
   handleBronzeWatchAd: () => void;
   handleBronzeOpen: () => void;
@@ -85,10 +88,17 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic, hideText = fal
       const t = type === 'bronze' ? logic.bronzeTime : type === 'silver' ? logic.silverTime : logic.neonTime;
       return `⏰ ${fmt(t)}`;
     }
-    if (status === 'ready') {
-      return 'READY!';
+    if (status === 'ready') return 'READY!';
+    if (status === 'locked') {
+      const price = type === 'bronze' ? logic.bronzePrice : type === 'silver' ? logic.silverPrice : logic.neonPrice;
+      return price > 0 ? `🪙 ${price.toLocaleString()}` : '';
     }
     return '';
+  };
+
+  const isPrice = (type: 'bronze' | 'silver' | 'neon') => {
+    const status = type === 'bronze' ? logic.bronzeStatus : type === 'silver' ? logic.silverStatus : logic.neonStatus;
+    return status === 'locked';
   };
 
   const watchAdRect = (type: 'bronze' | 'silver' | 'neon') => {
@@ -123,7 +133,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic, hideText = fal
             width: layout.chestRowBronzeRect.w,
           }]}>
             <RNText
-              style={[styles.countdownText, { fontSize: layout.font.countdown }]}
+              style={[isPrice('bronze') ? styles.priceText : styles.countdownText, { fontSize: layout.font.countdown }]}
               allowFontScaling={false}
             >
               {countdownText('bronze')}
@@ -167,7 +177,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic, hideText = fal
             width: layout.chestRowSilverRect.w,
           }]}>
             <RNText
-              style={[styles.countdownText, { fontSize: layout.font.countdown }]}
+              style={[isPrice('silver') ? styles.priceText : styles.countdownText, { fontSize: layout.font.countdown }]}
               allowFontScaling={false}
             >
               {countdownText('silver')}
@@ -211,7 +221,7 @@ export const MenuChestsStrip: React.FC<Props> = ({ layout, logic, hideText = fal
             width: layout.chestRowNeonRect.w,
           }]}>
             <RNText
-              style={[styles.countdownText, { fontSize: layout.font.countdown }]}
+              style={[isPrice('neon') ? styles.priceText : styles.countdownText, { fontSize: layout.font.countdown }]}
               allowFontScaling={false}
             >
               {countdownText('neon')}
@@ -250,6 +260,12 @@ const styles = StyleSheet.create({
   countdownText: {
     fontWeight: '900',
     color: '#ffffff',
+    letterSpacing: 1,
+  },
+
+  priceText: {
+    fontWeight: '900',
+    color: '#fbbf24',
     letterSpacing: 1,
   },
 

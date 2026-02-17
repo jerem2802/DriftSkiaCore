@@ -34,6 +34,7 @@ import {
 import { PreloadProvider } from './src/contexts/PreloadContext';
 import { usePreloadAssets } from './src/game/hooks/usePreloadAssets';
 import { PreloadSplashScreen } from './src/components/preload/PreloadSplashScreen';
+import { MusicManager } from './src/audio/MusicManager';
 
 type Screen = 'menu' | 'headphones' | 'game' | 'shop' | 'collection' | 'profile' | 'coinshop';
 
@@ -110,6 +111,18 @@ function AppContent() {
     setSelectedBallId(p.selectedBallId || 'core');
     persistedSelectedRef.current = p.selectedBallId || 'core';
   }, []);
+
+  useEffect(() => {
+    MusicManager.init();
+  }, []);
+
+  useEffect(() => {
+    if (screen === 'game') {
+      MusicManager.play('ingame_1');
+    } else {
+      MusicManager.stop();
+    }
+  }, [screen]);
 
   useEffect(() => {
     const init = async () => {

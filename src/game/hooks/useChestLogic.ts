@@ -30,6 +30,8 @@ export const useChestLogic = (
   const [bronzeUnlock, setBronzeUnlock] = useState(0);
   const [silverUnlock, setSilverUnlock] = useState(0);
   const [neonPrice, setNeonPrice] = useState(0);
+  const [bronzePrice, setBronzePrice] = useState(0);
+  const [silverPrice, setSilverPrice] = useState(0);
 
   const [bestScore, setBestScore] = useState(0);
   const [totalCoinsUI, setTotalCoinsUI] = useState(0);
@@ -94,6 +96,8 @@ export const useChestLogic = (
     setBronzeUnlock(state.bronzeUnlockValue.value);
     setSilverUnlock(state.silverUnlockValue.value);
     setNeonPrice(neonCost);
+    setBronzePrice(bronzeChest.openPrice ?? 0);
+    setSilverPrice(silverChest.openPrice ?? 0);
 
     state.profileLoaded.value = true;
     state.bronzeStatus.value = bStatus;
@@ -160,6 +164,8 @@ if (inFlight) {
         setBronzeUnlock(state.bronzeUnlockValue.value);
         setSilverUnlock(state.silverUnlockValue.value);
         setNeonPrice(neonCost);
+        setBronzePrice(bronzeChest.openPrice ?? 0);
+        setSilverPrice(silverChest.openPrice ?? 0);
 
         state.bronzeStatus.value = bStatus;
         state.silverStatus.value = sStatus;
@@ -372,6 +378,8 @@ if (inFlight) {
     bronzeUnlock,
     silverUnlock,
     neonPrice,
+    bronzePrice,
+    silverPrice,
     bestScore,
     totalCoinsUI,
     bronzeRewards,

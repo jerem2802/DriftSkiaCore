@@ -13,8 +13,7 @@ type Props = {
   isPremium?: boolean;
 };
 
-export const MenuWatchAdButtonsSkia: React.FC<Props> = ({ layout, bronzeStatus, silverStatus, neonStatus, isPremium = false }) => {
-  if (isPremium) return null;
+export const MenuWatchAdButtonsSkia: React.FC<Props> = ({ layout, bronzeStatus, silverStatus, neonStatus }) => {
   const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
   const watchFont = matchFont({
     fontFamily,

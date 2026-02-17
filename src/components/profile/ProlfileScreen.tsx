@@ -1,6 +1,9 @@
 // src/components/profile/ProfileScreen.tsx
 import React, { useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Text, Pressable, TextInput, Image, useWindowDimensions, ScrollView } from 'react-native';
+import { CANVAS_WIDTH } from '../../constants/gameplay';
+
+const AVATAR_SIZE = Math.min(160, CANVAS_WIDTH * 0.42);
 import type { PlayerProfile } from '../../meta/playerProfile';
 import { setPlayerIdentity } from '../../meta/playerProfile';
 
@@ -264,9 +267,9 @@ const styles = StyleSheet.create({
   },
 
   heroAvatarRing: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     borderWidth: 4,
     borderColor: 'rgba(251, 191, 36, 0.95)',
     backgroundColor: 'rgba(139, 92, 246, 0.15)',
@@ -280,17 +283,17 @@ const styles = StyleSheet.create({
   },
 
   heroAvatarImage: {
-    width: 160 * 1.15,
-    height: 160 * 1.15,
+    width: AVATAR_SIZE * 1.15,
+    height: AVATAR_SIZE * 1.15,
     resizeMode: 'cover',
     transform: [{ translateY: -2 }],
   },
 
   heroAvatarGlow: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: AVATAR_SIZE + 20,
+    height: AVATAR_SIZE + 20,
+    borderRadius: (AVATAR_SIZE + 20) / 2,
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
     opacity: 0.5,
   },

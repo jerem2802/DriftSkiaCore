@@ -139,7 +139,7 @@ export const RewardPanelSkia: React.FC<Props> = ({ isVisible, rewards, onClose }
   const rewardsToShow = rewards.slice(0, 4);
 
   const panelW = Math.min(460, CANVAS_WIDTH - 34);
-  const panelH = 340;
+  const panelH = Math.min(340, CANVAS_HEIGHT * 0.45);
   const panelX = (CANVAS_WIDTH - panelW) / 2;
   const panelY = (CANVAS_HEIGHT - panelH) / 2;
 
@@ -148,7 +148,7 @@ export const RewardPanelSkia: React.FC<Props> = ({ isVisible, rewards, onClose }
   const rowX = panelX + 18;
   const rowW = panelW - 36;
   const rowStartY = panelY + headerH + 10;
-  const rowH = 62;
+  const rowH = Math.max(50, panelH * 0.16);
 
   const iconBox = 38;
 

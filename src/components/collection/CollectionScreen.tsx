@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   },
 
   headerCard: {
-    width: 310,
+    width: Math.min(310, LAYOUT.W * 0.88),
     paddingVertical: 11,
     paddingHorizontal: 16,
     borderRadius: 22,

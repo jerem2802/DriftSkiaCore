@@ -77,9 +77,9 @@ const DEFAULT_PROFILE: PlayerProfile = {
     multiplier: 1,
   },
   chests: {
-    bronze: { id: 'bronze', status: 'locked', unlockCondition: { type: 'score', value: 10 } },
-    silver: { id: 'silver', status: 'locked', unlockCondition: { type: 'score', value: 20 } },
-    neon: { id: 'neon', status: 'locked', unlockCondition: { type: 'coins', value: 0 }, openPrice: 0 },
+    bronze: { id: 'bronze', status: 'locked', unlockCondition: { type: 'score', value: 10 }, openPrice: 500 },
+    silver: { id: 'silver', status: 'locked', unlockCondition: { type: 'score', value: 20 }, openPrice: 2000 },
+    neon: { id: 'neon', status: 'locked', unlockCondition: { type: 'coins', value: 5000 }, openPrice: 5000 },
   },
   isPremium: false,
   updatedAt: Date.now(),
@@ -125,7 +125,12 @@ export const loadProfile = async (): Promise<PlayerProfile> => {
       chests: {
         bronze: { ...DEFAULT_PROFILE.chests.bronze, ...(p.chests as any)?.bronze },
         silver: { ...DEFAULT_PROFILE.chests.silver, ...(p.chests as any)?.silver },
-        neon: { ...DEFAULT_PROFILE.chests.neon, ...(p.chests as any)?.neon },
+        neon: (() => {
+          const merged = { ...DEFAULT_PROFILE.chests.neon, ...(p.chests as any)?.neon };
+          // Migration : si openPrice vaut 0 dans le profil stocké, on applique la valeur par défaut
+          if (!merged.openPrice) merged.openPrice = DEFAULT_PROFILE.chests.neon.openPrice;
+          return merged;
+        })(),
       },
     };
   } catch {

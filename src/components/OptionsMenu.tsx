@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
     height: 24,
-    width: 120,
+    width: CANVAS_WIDTH * 0.32,
   },
   volumeSegment: {
     flex: 1,
