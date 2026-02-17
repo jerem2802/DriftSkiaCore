@@ -48,7 +48,7 @@ const makeStyles = (l: MenuLayout) => {
       left: l.removeAdsRect.x,
       top: l.removeAdsRect.y,
       width: l.removeAdsRect.w,
-      height: l.removeAdsRect.h + 45,
+      height: l.removeAdsRect.h,
     } as ViewStyle,
 
     devToggleRemoveAdsHit: {
@@ -94,7 +94,6 @@ export const MenuHitBoxes: React.FC<MenuHitBoxesProps> = ({
             console.log('🚫 REMOVE ADS CLICKED!');
             onRemoveAds();
           }}
-          hitSlop={8}
         />
       ) : null}
 
